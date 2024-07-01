@@ -1,0 +1,9 @@
+[package]
+name = "velcro-core"
+version = "0.1.0"
+edition = "2021"
+license-file = "LICENSE"
+description = "learning rust"
+
+[dependencies]
+my-macro = { path = "./my-macro" }
