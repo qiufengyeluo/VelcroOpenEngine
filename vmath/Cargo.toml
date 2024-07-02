@@ -1,0 +1,9 @@
+[package]
+name = "vmath"
+version = "0.1.0"
+edition = "2021"
+license-file = "LICENSE"
+authors = ["LiangYu <296270991@qq.com>"]
+
+[dev-dependencies]
+paste = "1.0.14"
