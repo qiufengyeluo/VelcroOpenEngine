@@ -7,3 +7,4 @@ description = "learning rust"
 
 [dependencies]
 my-macro = { path = "./my-macro" }
+vmath = { path = "./vmath"}

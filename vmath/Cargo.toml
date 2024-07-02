@@ -2,8 +2,9 @@
 name = "vmath"
 version = "0.1.0"
 edition = "2021"
-license-file = "LICENSE"
-authors = ["LiangYu <296270991@qq.com>"]
+
+[lib]
+proc-macro = true
 
 [dev-dependencies]
-paste = "1.0.14"
+paste = "1.0.15"
