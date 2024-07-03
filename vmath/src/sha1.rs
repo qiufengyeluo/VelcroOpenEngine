@@ -10,6 +10,12 @@ pub struct Sha1 {
 }
 
 impl Sha1 {
+    pub fn new() -> Sha1 {
+        let mut r = Sha1{_h: [0; 5], _block: [0; 64], _block_byte_index: 0, _byte_count: 0};
+        r.reset();
+        return r;
+    }
+
     pub fn reset(&mut self) {
         self._h[0] = 0x6745_2301;
         self._h[1] = 0xEFCD_AB89;
@@ -30,6 +36,47 @@ impl Sha1 {
             self._block_byte_index = 0;
             self.process_block();
         }
+    }
+
+    pub fn process_bytes(&mut self, b: &[u8], count: usize) {
+        for i in 0..count {
+            self.process_byte(b[i]);
+        }
+    }
+
+    pub fn get_digest(&mut self, mut digest: [u8; 5]) {
+        let bit_count = self._byte_count.wrapping_mul(8);
+        
+        // append the bit '1' to the message
+        self.process_byte(0x80);
+        if self._block_byte_index > 56 {
+            while self._block_byte_index != 0 {
+                self.process_byte(0);
+            }
+
+            while self._block_byte_index < 56 {
+                self.process_byte(0);
+            }
+        } else {
+            while self._block_byte_index < 64 {
+                self.process_byte(0);
+            }
+        }
+
+        // append length of message (before pre-processing) 
+        // as a 64-bit big-endian integer
+        self.process_byte(0);
+        self.process_byte(0);
+        self.process_byte(((bit_count >> 24) & 0xFF) as u8);
+        self.process_byte(((bit_count >> 16) & 0xFF) as u8);
+        self.process_byte(((bit_count >> 8) & 0xFF) as u8);
+        self.process_byte((bit_count & 0xFF) as u8);
+
+        digest[0] = self._h[0] as u8;
+        digest[1] = self._h[1] as u8;
+        digest[2] = self._h[2] as u8;
+        digest[3] = self._h[3] as u8;
+        digest[4] = self._h[4] as u8;
     }
 
     fn process_block(&mut self) {
