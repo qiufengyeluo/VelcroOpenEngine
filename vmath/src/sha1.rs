@@ -1,6 +1,21 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
 
+pub struct DigestType {
+    _data: [u32; 5]
+}
+
+impl DigestType {
+    pub fn new() -> DigestType {
+        DigestType {
+            _data: [0; 5]
+        }
+    }
+
+    pub fn get(&self, i: usize) -> u32 {
+        return self._data[i];
+    }
+}
 
 pub struct Sha1 {
     _h: [u32; 5],
@@ -44,7 +59,7 @@ impl Sha1 {
         }
     }
 
-    pub fn get_digest(&mut self, mut digest: [u8; 5]) {
+    pub fn get_digest(&mut self) -> DigestType {
         let bit_count = self._byte_count.wrapping_mul(8);
         
         // append the bit '1' to the message
@@ -71,12 +86,15 @@ impl Sha1 {
         self.process_byte(((bit_count >> 16) & 0xFF) as u8);
         self.process_byte(((bit_count >> 8) & 0xFF) as u8);
         self.process_byte((bit_count & 0xFF) as u8);
+        
+        let mut digest: DigestType = DigestType::new();
+        digest._data[0] = self._h[0] as u32;
+        digest._data[1] = self._h[1] as u32;
+        digest._data[2] = self._h[2] as u32;
+        digest._data[3] = self._h[3] as u32;
+        digest._data[4] = self._h[4] as u32;
 
-        digest[0] = self._h[0] as u8;
-        digest[1] = self._h[1] as u8;
-        digest[2] = self._h[2] as u8;
-        digest[3] = self._h[3] as u8;
-        digest[4] = self._h[4] as u8;
+        return digest;
     }
 
     fn process_block(&mut self) {

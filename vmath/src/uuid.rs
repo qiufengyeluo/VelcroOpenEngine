@@ -2,6 +2,10 @@
 #![allow(clippy::many_single_char_names)]
 
 //use std::mem;
+use crate::sha1::*;
+use std::ops;
+use std::cmp::Ordering;
+use std::ptr;
 use std::ptr::read_unaligned;
 
 const UUID_DIGITS: [char; 22] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 
@@ -41,6 +45,8 @@ fn get_value(c: char) -> u8 {
     return UUID_VALUES[22];
 }
 
+// PartialEq 是否相等
+#[derive(Eq)]
 pub struct UUID {
     _data: [u8; 16]
 }
@@ -53,7 +59,7 @@ impl UUID {
         }
     }
 
-    pub fn new_string_kip_warnings(s :&str) -> Self {
+    pub fn new_string_kip_warnings(s :&str) -> UUID {
         if s.len() == 0 {
             return UUID::new_null();
         }
@@ -117,7 +123,47 @@ impl UUID {
         return id;
     }
 
+    //=========================================================================
+    // new_name 通过一个名字字符串创建 UUID
+    //=========================================================================
+    pub fn new_name(name: &str) -> UUID {
+        return Self::new_data(name.as_bytes(), name.as_bytes().len());
+    }
 
+    //=========================================================================
+    // new_data 通过一个二进制数据创建 UUID
+    //=========================================================================
+    pub fn new_data(data: &[u8], size: usize) -> UUID {
+        if size > 0 {
+            let mut sa: Sha1 = Sha1::new();
+            sa.process_bytes(data, size);
+            
+            let digest = sa.get_digest();
+            
+            let mut id: UUID = UUID::new_null();
+            for i in 0..4 {
+                id._data[i * 4]     = (digest.get(i) >> 24 & 0xFF) as u8;
+                id._data[i * 4 + 1] = (digest.get(i) >> 16 & 0xFF) as u8;
+                id._data[i * 4 + 2] = (digest.get(i) >> 8 & 0xFF) as u8;
+                id._data[i * 4 + 3] = (digest.get(i) >> 0 & 0xFF) as u8;
+            }
+
+             // variant VAR_RFC_4122
+             id._data[8] &= 0xBF;
+             id._data[8] |= 0x80;
+
+             // version VER_NAME_SHA1
+             id._data[6] &= 0x5F;
+             id._data[6] |= 0x50;
+
+             return id;
+        }
+
+        return Self::new_null();
+    }
+
+    /// is_null UUID 是否是个为创建的对象
+    /// @return true.空对象 false.不是空对象
     pub fn is_null(&self) -> bool {
         let v64h: u64 = unsafe { read_unaligned(self._data.as_ptr().cast::<u64>())};
         let v64l: u64 = unsafe { read_unaligned(self._data[8..].as_ptr().cast::<u64>())};
@@ -127,6 +173,60 @@ impl UUID {
         return true;
     }
 
+    /// get_variant 获取 UUID 对象格式标准
+    pub fn get_variant(&self) -> Variant {
+        let val = self._data[8];
+        if (val & 0x80) == 0x00
+        {
+            return Variant::VAR_NCS;
+        }
+        else if (val & 0xC0) == 0x80
+        {
+            return Variant::VAR_RFC_4122;
+        }
+        else if (val & 0xE0) == 0xC0
+        {
+            return Variant::VAR_MICROSOFT;
+        }
+        else if (val & 0xE0) == 0xE0
+        {
+            return Variant::VAR_RESERVED;
+        }
+     
+        return Variant::VAR_UNKNOWN;
+    }
+
+    /// get_version 返回 UUID 版本格式信息
+    pub fn get_version(&self) -> Version {
+        let val = self._data[6];
+        if (val & 0xF0) == 0x10
+        {
+            return Version::VER_TIME;
+        }
+        else if (val & 0xF0) == 0x20
+        {
+            return Version::VER_DCE;
+        }
+        else if (val & 0xF0) == 0x30
+        {
+            return Version::VER_NAME_MD5;
+        }
+        else if (val & 0xF0) == 0x40
+        {
+            return Version::VER_RANDOM;
+        }
+        else if (val & 0xF0) == 0x50
+        {
+            return Version::VER_NAME_SHA1;
+        }
+   
+        return Version::VER_UNKNOWN;
+    }
+
+    /// to_string 将 UUID 输出为一个字符串
+    /// @param bool is_brackets 是否有大括号
+    /// @param bool is_deshes   是否有分割符
+    /// @return string 转换后的字符串
     pub fn to_string(&self, is_brackets: bool, is_dashes: bool) -> String {
         let mut result:String = String::new();
         let mut tidx = 0;
@@ -147,5 +247,48 @@ impl UUID {
         }
 
         return result;
+    }
+}
+
+impl ops::Add for UUID {
+    type Output = UUID;
+
+    fn add(self, other: UUID) -> UUID {
+        let merged_data_len = self._data.len().wrapping_mul(2);
+        let mut merged_data: Vec<u8> = Vec::<u8>::with_capacity(merged_data_len);
+
+        unsafe { ptr::copy(self._data.as_ptr(), merged_data.as_mut_ptr(), self._data.len()) };
+        unsafe { ptr::copy(other._data.as_ptr(), merged_data.as_mut_ptr().wrapping_add(4), other._data.len()) };
+
+        return Self::new_data(merged_data.as_mut(), merged_data_len);
+    }
+}
+
+
+impl PartialEq<Self> for UUID {
+    fn eq(&self, rhs: &Self) -> bool { 
+        let lv64h: u64 = unsafe { read_unaligned(self._data.as_ptr().cast::<u64>())};
+        let lv64l: u64 = unsafe { read_unaligned(self._data[8..].as_ptr().cast::<u64>())};
+
+        let rv64h: u64 = unsafe { read_unaligned(rhs._data.as_ptr().cast::<u64>())};
+        let rv64l: u64 = unsafe { read_unaligned(rhs._data[8..].as_ptr().cast::<u64>())};
+
+         if lv64h != rv64h || lv64l != rv64l {
+            return false;
+         }
+         return true;
+    }
+}
+
+impl PartialOrd for UUID {
+    fn partial_cmp(&self, rhs: &Self) -> Option<Ordering> {
+        return Some(Ordering::Less);
+    }
+}
+
+impl Ord for UUID {
+    fn cmp(&self, rhs: &Self) -> Ordering {
+        //self._data.cmp(&rhs._data);
+        return Ordering::Less;
     }
 }
