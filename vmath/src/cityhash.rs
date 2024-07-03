@@ -290,8 +290,9 @@ fn hash_len_16_2(u: u64, v: u64) -> u64 {
 
 #[inline]
 #[must_use]
-fn hash_len_0_to16(s: &[u8], len: usize) -> u64 {
+fn hash_len_0_to_16(s: &[u8], len: usize) -> u64 {
     if len >= 8 {
+
         let mut _mul: u64 = K2 + len as u64 * 2;
         let mut _a: u64 = fetch64(&s[0..]).wrapping_add(K2);
         let mut _b: u64 = fetch64(&s[len - 8..]);
@@ -322,20 +323,20 @@ fn hash_len_0_to16(s: &[u8], len: usize) -> u64 {
 #[inline]
 #[must_use]
 fn hash_len_17_to_32(s: &[u8], len: usize) -> u64 {
-    let mut _mul:u64 = K2 + (len as u64) * 2;
-    let mut _a:u64 = fetch64(s) * K1;
+    let mut _mul:u64 = K2 + (len as u64).wrapping_mul(2);
+    let mut _a:u64 = fetch64(&s[0..]).wrapping_mul(K1);
     let mut _b:u64 = fetch64(&s[8..]);
-    let mut _c:u64 = fetch64(&s[len - 8..]) * _mul;
-    let mut _d:u64 = fetch64(&s[len - 16..]) * K2;
-
-    return hash_len_16(rotate64(_a + _b, 43) + rotate64(_c, 30) + _d, 
-                       _a + rotate64(_b + K2, 18) + _c, _mul);
+    let mut _c:u64 = fetch64(&s[len - 8..]).wrapping_mul(_mul);
+    let mut _d:u64 = fetch64(&s[len - 16..]).wrapping_mul(K2);
+    
+    return hash_len_16(rotate64(_a.wrapping_add(_b), 43).wrapping_add(rotate64(_c, 30)).wrapping_add(_d), 
+    _a.wrapping_add(rotate64(_b.wrapping_add(K2), 18).wrapping_add(_c)), _mul);
 }
 
 #[inline]
 #[must_use]
 fn hash_len_33_to_64(s: &[u8], len: usize) -> u64 {
-    let _mul: u64 = K2 + (len as u64) * 2;
+    let _mul: u64 = K2 + (len as u64).wrapping_mul(2);
     let mut _a: u64 = fetch64(s).wrapping_mul(K2);
     let mut _b: u64 = fetch64(&s[8..]);
     let _c: u64 = fetch64(&s[len - 24..]);
@@ -387,11 +388,11 @@ fn weak_hash_len32_with_seeds_bytes(s: &[u8], a: u64,  b: u64) -> U128 {
 pub fn city_hash64(mut s: &[u8], len: usize) -> u64 {
     if len <= 32 {
         if len <= 16 {
-            return hash_len_0_to16(s, len);
+            return hash_len_0_to_16(&s[0..], len);
         }
-        return hash_len_17_to_32(s, len);
+        return hash_len_17_to_32(&s[0..], len);
     } else if len <= 64 {
-        return hash_len_33_to_64(s, len);
+        return hash_len_33_to_64(&s[0..], len);
     }
 
     // For strings over 64 bytes we hash the end first, and then as we
@@ -445,7 +446,7 @@ fn city_murmur(mut s: &[u8], len: usize, seed: U128)-> U128 {
     let mut _l: i64 = len.wrapping_sub(16) as i64;
     if _l <= 0 {
         _a = shift_mix(_a.wrapping_mul(K1)).wrapping_mul(K1);
-        _c = _b.wrapping_mul(K1) + hash_len_0_to16(&s[0..], len);
+        _c = _b.wrapping_mul(K1) + hash_len_0_to_16(&s[0..], len);
         if len >= 8 {
             _d = shift_mix(_a.wrapping_add(fetch64(&s[0..])));
         } else {
@@ -535,7 +536,7 @@ fn city_hash128_with_seed(mut s: &[u8], mut len: usize, seed: U128) -> U128 {
 
     // If 0 < len < 128, hash up to 4 chunks of 32 bytes each from the end of s.
     let mut tail_done: usize = 0;
-    while(tail_done < len) {
+    while tail_done < len {
         tail_done = tail_done.wrapping_add(32);
         _y = rotate64(_x.wrapping_add(_y), 42).wrapping_mul(K0).wrapping_add(_v.1);
         _w.0 = _w.0.wrapping_add(fetch64(&s[len - tail_done..]));
