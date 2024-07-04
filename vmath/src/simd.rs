@@ -30,11 +30,6 @@ pub type Int32Type = __m128i;
 pub type FloatArgType = FloatType;
 pub type Int32ArgType = Int32Type;
 
-#[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-#[inline]
-pub const fn _mm_shuffle(z: u32, y: u32, x: u32, w: u32) -> i32 {
-    ((z << 6) | (y << 4) | (x << 2) | w) as i32
-}
 
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
 #[inline]
@@ -160,7 +155,7 @@ pub unsafe fn splat_i32(value: i32 ) -> Int32Type {
 #[inline]
 pub unsafe fn splat_first(value: FloatType) -> FloatType
 {
-    return _mm_shuffle_ps(value, value, _mm_shuffle(0, 0, 0, 0));
+    return _mm_shuffle_ps(value, value, _MM_SHUFFLE(0, 0, 0, 0));
 }
 
 
@@ -168,20 +163,20 @@ pub unsafe fn splat_first(value: FloatType) -> FloatType
 #[inline]
 pub unsafe fn splat_second(value: FloatType) -> FloatType
 {
-    return _mm_shuffle_ps(value, value, _mm_shuffle(1, 1, 1, 1));
+    return _mm_shuffle_ps(value, value, _MM_SHUFFLE(1, 1, 1, 1));
 }
 
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
 #[inline]
 pub unsafe fn splat_third(value: FloatType) -> FloatType
 {
-    return _mm_shuffle_ps(value, value, _mm_shuffle(2, 2, 2, 2));
+    return _mm_shuffle_ps(value, value, _MM_SHUFFLE(2, 2, 2, 2));
 }
 
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
 #[inline]
 pub unsafe fn splat_fourth(value: FloatType) -> FloatType {
-    return _mm_shuffle_ps(value, value, _mm_shuffle(3, 3, 3, 3));
+    return _mm_shuffle_ps(value, value, _MM_SHUFFLE(3, 3, 3, 3));
 }
 
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
