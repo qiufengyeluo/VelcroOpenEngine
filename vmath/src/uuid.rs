@@ -15,21 +15,21 @@ const UUID_VALUES: [u8; 23] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
     11, 12, 13, 14, 15, 10, 11, 12, 13, 14, 15, u8::MAX];
 
 pub enum Variant {
-    VAR_UNKNOWN         = -1,
-    VAR_NCS             = 0, // 0 - -
-    VAR_RFC_4122        = 2, // 1 0 -
-    VAR_MICROSOFT       = 6, // 1 1 0
-    VAR_RESERVED        = 7  // 1 1 1
+    VarUnknown         = -1,
+    VarNcs             = 0, // 0 - -
+    VarRfc4122         = 2, // 1 0 -
+    VarMicrosoft       = 6, // 1 1 0
+    VarReserved        = 7  // 1 1 1
 }
 
 pub enum Version
 {
-    VER_UNKNOWN         = -1,
-    VER_TIME            = 1, // 0 0 0 1
-    VER_DCE             = 2, // 0 0 1 0
-    VER_NAME_MD5        = 3, // 0 0 1 1
-    VER_RANDOM          = 4, // 0 1 0 0
-    VER_NAME_SHA1       = 5, // 0 1 0 1
+    VerUnknown         = -1,
+    VerTime            = 1, // 0 0 0 1
+    VerDce             = 2, // 0 0 1 0
+    VerNameMd5         = 3, // 0 0 1 1
+    VerRandom          = 4, // 0 1 0 0
+    VerNameSha1        = 5, // 0 1 0 1
 }
 
 #[inline]
@@ -46,20 +46,26 @@ fn get_value(c: char) -> u8 {
 }
 
 // PartialEq 是否相等
-#[derive(Eq)]
+#[derive(Eq, Copy, Clone)]
 pub struct UUID {
     _data: [u8; 16]
 }
 
 
 impl UUID {
+    pub fn new() -> Self {
+        UUID {
+            _data: [0; 16],
+        }
+    }
+
     pub fn new_null() -> Self {
         UUID {
             _data: [0; 16],
         }
     }
 
-    pub fn new_string_kip_warnings(s :&str) -> UUID {
+    pub fn new_string(s :&str) -> UUID {
         if s.len() == 0 {
             return UUID::new_null();
         }
@@ -178,22 +184,22 @@ impl UUID {
         let val = self._data[8];
         if (val & 0x80) == 0x00
         {
-            return Variant::VAR_NCS;
+            return Variant::VarNcs;
         }
         else if (val & 0xC0) == 0x80
         {
-            return Variant::VAR_RFC_4122;
+            return Variant::VarRfc4122;
         }
         else if (val & 0xE0) == 0xC0
         {
-            return Variant::VAR_MICROSOFT;
+            return Variant::VarMicrosoft;
         }
         else if (val & 0xE0) == 0xE0
         {
-            return Variant::VAR_RESERVED;
+            return Variant::VarReserved;
         }
      
-        return Variant::VAR_UNKNOWN;
+        return Variant::VarUnknown;
     }
 
     /// get_version 返回 UUID 版本格式信息
@@ -201,26 +207,26 @@ impl UUID {
         let val = self._data[6];
         if (val & 0xF0) == 0x10
         {
-            return Version::VER_TIME;
+            return Version::VerTime;
         }
         else if (val & 0xF0) == 0x20
         {
-            return Version::VER_DCE;
+            return Version::VerDce;
         }
         else if (val & 0xF0) == 0x30
         {
-            return Version::VER_NAME_MD5;
+            return Version::VerNameMd5;
         }
         else if (val & 0xF0) == 0x40
         {
-            return Version::VER_RANDOM;
+            return Version::VerRandom;
         }
         else if (val & 0xF0) == 0x50
         {
-            return Version::VER_NAME_SHA1;
+            return Version::VerNameSha1;
         }
    
-        return Version::VER_UNKNOWN;
+        return Version::VerUnknown;
     }
 
     /// to_string 将 UUID 输出为一个字符串
@@ -282,13 +288,12 @@ impl PartialEq<Self> for UUID {
 
 impl PartialOrd for UUID {
     fn partial_cmp(&self, rhs: &Self) -> Option<Ordering> {
-        return Some(Ordering::Less);
+        return Some(self._data.cmp(&rhs._data));
     }
 }
 
 impl Ord for UUID {
     fn cmp(&self, rhs: &Self) -> Ordering {
-        //self._data.cmp(&rhs._data);
-        return Ordering::Less;
+        return self._data.cmp(&rhs._data);
     }
 }
