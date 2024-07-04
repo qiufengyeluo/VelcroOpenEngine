@@ -1,10 +1,21 @@
-[package]
-name = "velcro-core"
-version = "0.1.0"
-edition = "2021"
-license-file = "LICENSE"
-description = "learning rust"
+[workspace]
+members = [
+    "my-macro",
+    "velcro-core", 
+    "velcro-dylib", 
+    "velcro-impl", 
+    "velcro-open"]
+resolver = "2"
 
-[dependencies]
-my-macro = { path = "./my-macro" }
-vmath = { path = "./vmath"}
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3
+debug = true
+
+[profile.github-ci]
+inherits = "dev"
+strip = "symbols"
+debug = false
+opt-level = 3

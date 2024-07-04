@@ -2,7 +2,7 @@
 #![allow(clippy::many_single_char_names)]
 
 use std::{mem, sync::{atomic::AtomicI32, Arc, Mutex}};
-use crate::simd::*;
+use crate::vmath::vsimd::*;
 
 const MEXP: i32 = 19937;
 const N: i32    = MEXP / 128 + 1;

@@ -1,7 +1,7 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
 
-use crate::bits::*;
+use crate::vmath::bits::*;
 
 use std::mem;
 use std::ptr::read_unaligned;

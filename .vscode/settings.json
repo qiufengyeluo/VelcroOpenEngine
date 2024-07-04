@@ -1,6 +1,7 @@
 {
     "rust-analyzer.linkedProjects": [
         ".\\Cargo.toml",
-        ".\\vmath\\Cargo.toml"
+        ".\\vmath\\Cargo.toml",
+        ".\\velcro-core\\Cargo.toml"
     ]
 }

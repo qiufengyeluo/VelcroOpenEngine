@@ -1,0 +1,16 @@
+[package]
+name = "velcro-core"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+#authors = ["liang yu <296270991@qq.com>"]
+description = "learning rust"
+#keywords = ["game", "engine", "3d", "network"]
+documentation = "https://docs.rs/velcro-core"
+rust-version = "1.79"
+repository = "https://github.com/yamakiller/velcro-open"
+
+
+[features]
+#default = ["stdarch_x86_mm_shuffle"]
+#enable_profiler = []

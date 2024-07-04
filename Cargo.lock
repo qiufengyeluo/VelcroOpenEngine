@@ -48,11 +48,25 @@ checksum = "3354b9ac3fae1ff6755cb6db53683adb661634f67557942dea4facebec0fee4b"
 [[package]]
 name = "velcro-core"
 version = "0.1.0"
+
+[[package]]
+name = "velcro-dylib"
+version = "0.1.0"
 dependencies = [
- "my-macro",
- "vmath",
+ "velcro-impl",
 ]
 
 [[package]]
-name = "vmath"
+name = "velcro-impl"
 version = "0.1.0"
+dependencies = [
+ "velcro-core",
+]
+
+[[package]]
+name = "velcro-open"
+version = "0.1.0"
+dependencies = [
+ "velcro-dylib",
+ "velcro-impl",
+]

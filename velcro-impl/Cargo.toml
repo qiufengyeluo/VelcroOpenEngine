@@ -1,0 +1,19 @@
+[package]
+name = "velcro-impl"
+version = "0.1.0"
+authors = ["liang yu <296270991@qq.com>", "Velcro Open Engine Contributors"]
+edition = "2021"
+license = "MIT"
+description = "Feature-rich, easy-to-use, network game engine with a scene editor. , but in Rust."
+keywords = ["sound", "game", "engine", "3d", "gui", "network"]
+categories = ["game-engines", "network", "graphics", "gui", "rendering", "wasm"]
+include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
+homepage = "https://velcro-open.rs"
+documentation = "https://docs.rs/velcro-open"
+repository = "https://github.com/yamakiller/velcro-open"
+readme = "README.md"
+rust-version = "1.79"
+
+[dependencies]
+velcro-core = {path = "../velcro-core", version = "0.1.0", features = ["stdarch_x86_mm_shuffle"]}
+#serde = { version = "1", features = ["derive"] }
