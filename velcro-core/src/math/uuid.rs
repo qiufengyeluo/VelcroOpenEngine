@@ -2,7 +2,7 @@
 #![allow(clippy::many_single_char_names)]
 
 //use std::mem;
-use crate::vmath::sha1::*;
+use crate::math::sha1::*;
 use std::ops;
 use std::cmp::Ordering;
 use std::ptr;

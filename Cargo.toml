@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "my-macro",
     "velcro-core", 
     "velcro-dylib", 
     "velcro-impl", 

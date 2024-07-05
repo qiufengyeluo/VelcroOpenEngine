@@ -1,6 +1,6 @@
 [package]
 name = "velcro-open"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["liang yu <296270991@qq.com>", "Velcro Open Engine Contributors"]
 edition = "2021"
 license = "MIT"
@@ -12,12 +12,12 @@ homepage = "https://velcro-open.rs"
 documentation = "https://docs.rs/velcro-open"
 repository = "https://github.com/yamakiller/velcro-open"
 readme = "README.md"
-rust-version = "1.79"
+#rust-version = "1.79"
 
 [features]
 default = ["velcro-impl"]
 dylib = ["velcro-dylib"]
 
 [dependencies]
-velcro-impl = { version = "0.1.0", path = "../velcro-impl", optional = true}
-velcro-dylib = { version = "0.1.0", path = "../velcro-dylib", optional = true}
+velcro-impl = { version = "0.1.1", path = "../velcro-impl", optional = true}
+velcro-dylib = { version = "0.1.1", path = "../velcro-dylib", optional = true}
