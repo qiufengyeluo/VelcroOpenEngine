@@ -29,13 +29,13 @@ const PARITY: [u32; 4] = [PARITY1, PARITY2, PARITY3, PARITY4];
 
 macro_rules! velcor_fmt_func1 {
     ($x:expr) => {
-        ($x ^ ($x >> 27)) * 1664525
+        ($x ^ ($x >> 27)).wrapping_mul(1664525)
     };
 }
 
 macro_rules! velcor_fmt_func2 {
     ($x:expr) => {
-        ($x ^ ($x >> 27)) * 1566083941
+        ($x ^ ($x >> 27)).wrapping_mul(1566083941)
     };
 }
 
@@ -65,8 +65,8 @@ impl W128T {
 pub struct Sfmt {
     sfmt: [W128T; N as usize],
     index: AtomicI32,
-    psfmt32: Option<u32>,
-    psfmt64: Option<u64>,
+    psfmt32: *mut u32,
+    psfmt64: *mut u64,
     generation_mutex: Arc::<Mutex<u32>>
 }
 
@@ -77,9 +77,9 @@ use std::arch::x86::*;
 use std::arch::x86_64::*;
 
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-fn simd_recursion(a: &Int32Type, b: &Int32Type, c: Int32Type, d: Int32Type, mask: Int32Type) -> Int32Type {
-    let mut x = *a;
-    let mut y = unsafe { _mm_srli_epi32(*b, SR1) }; 
+fn simd_recursion(a: *mut Int32Type, b: *mut Int32Type, c: Int32Type, d: Int32Type, mask: Int32Type) -> Int32Type {
+    let mut x = unsafe { *a.as_mut().unwrap() };
+    let mut y = unsafe { _mm_srli_epi32( *a.as_mut().unwrap(), SR1) }; 
     let mut z: __m128i = unsafe { _mm_srli_si128(c,  SR2) };
     let v = unsafe { _mm_slli_epi32(d, SL1) };
 
@@ -105,9 +105,10 @@ fn simd_recursion(a: &Int32Type, b: &Int32Type, c: Int32Type, d: Int32Type, mask
         let iloop: usize = (N - POS1) as usize;
         let mut i: usize = 0;
         while i < iloop {
-            r = simd_recursion(unsafe { &g.sfmt[i].si }, unsafe { &g.sfmt[i + POS1 as usize].si}, r1, r2, mask);
+            r = simd_recursion(unsafe {g.sfmt.as_mut_ptr().offset(i as isize) as *mut Int32Type}, 
+                               unsafe {g.sfmt.as_mut_ptr().offset(i .wrapping_add(POS1 as usize) as isize) as *mut Int32Type }, r1, r2, mask);
             unsafe { 
-                let tmp = &mut g.sfmt[i].si as *mut Int32Type;;
+                let tmp = g.sfmt.as_mut_ptr().offset(i as isize) as *mut Int32Type;
                 store_aligned_i128(tmp , r);
             };
             r1 = r2;
@@ -115,10 +116,11 @@ fn simd_recursion(a: &Int32Type, b: &Int32Type, c: Int32Type, d: Int32Type, mask
 
             i += 1;
         }
-        i = 0;
+        
         while i < N as usize {
-            r = simd_recursion(unsafe {&g.sfmt[i].si}, unsafe{&g.sfmt[i + POS1 as usize - N as usize].si}, r1, r2, mask);
-            unsafe { store_aligned_i128(&mut g.sfmt[i].si , r) };
+            r = simd_recursion(unsafe {g.sfmt.as_mut_ptr().offset(i as isize) as *mut Int32Type}, 
+                                  unsafe{g.sfmt.as_mut_ptr().offset(i .wrapping_add(POS1 as usize).wrapping_sub(N as usize) as isize) as *mut Int32Type}, r1, r2, mask);
+            unsafe { store_aligned_i128(g.sfmt.as_mut_ptr().offset(i as isize) as *mut Int32Type , r) };
             r1 = r2;
             r2 = r;
             i += 1;
@@ -237,12 +239,16 @@ fn gen_rand_array(g: &mut Sfmt, array: &mut [W128T], size: usize) {
 
 impl Sfmt {
     pub fn new() -> Self {
-      let mut r = Sfmt{sfmt: [ W128T::new() ;N as usize], 
-                         index: AtomicI32::new(0), 
-                         generation_mutex: Arc::new(Mutex::new(0)),
-                         psfmt32: None,
-                         psfmt64: None};
-      return r;
+        use std::ptr::NonNull;
+        let mut r = Sfmt{sfmt: [ W128T::new() ;N as usize], 
+                            index: AtomicI32::new(0), 
+                            psfmt32: NonNull::<u32>::dangling().as_ptr(),
+                            psfmt64: NonNull::<u64>::dangling().as_ptr(),
+                            generation_mutex: Arc::new(Mutex::new(0))};
+        r.psfmt32 = r.sfmt.as_mut_ptr() as *mut u32;
+        r.psfmt64 = r.sfmt.as_mut_ptr() as *mut u64;
+        r.seed_init();
+        return r;
     }
 
  
@@ -250,7 +256,7 @@ impl Sfmt {
     
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    fn gen_rand_array(g: &mut Sfmt, array: &mut [W128T], size: usize) {
+    fn gen_rand_array(g: &mut Sfmt, array: *mut W128T, size: usize) {
         let mut r:    Int32Type;
         let mask = unsafe { load_immediate_i32(MSK4 as i32, MSK3 as i32, MSK2 as i32, MSK1 as i32) };
 
@@ -260,8 +266,11 @@ impl Sfmt {
         let mut iloop: usize = (N - POS1) as usize;
         let mut i: usize = 0;
         while i < iloop {
-            r = simd_recursion(unsafe { &g.sfmt[i].si }, unsafe { &g.sfmt[i + POS1 as usize].si}, r1, r2, mask);
-            unsafe { store_aligned_i128(&mut array[i].si , r) };
+
+            r = simd_recursion(unsafe {  g.sfmt.as_mut_ptr().offset(i as isize) as *mut Int32Type }, 
+                               unsafe {  g.sfmt.as_mut_ptr().offset((i + POS1 as usize) as isize) as *mut Int32Type }, r1, r2, mask);
+            
+            unsafe { store_aligned_i128(array.offset(i as isize).cast::<Int32Type>() , r) };
             r1 = r2;
             r2 = r;
 
@@ -269,8 +278,9 @@ impl Sfmt {
         }
         i = 0;
         while i < N as usize {
-            r = simd_recursion(unsafe {&g.sfmt[i].si}, unsafe{&g.sfmt[i + POS1 as usize - N as usize].si}, r1, r2, mask);
-            unsafe { store_aligned_i128(&mut array[i].si , r) };
+            r = simd_recursion(unsafe { g.sfmt.as_mut_ptr().offset(i as isize) as *mut Int32Type },
+             unsafe{ g.sfmt.as_mut_ptr().offset((i + POS1 as usize - N as usize) as isize) as *mut Int32Type}, r1, r2, mask);
+            unsafe { store_aligned_i128(array.offset(i as isize).cast::<Int32Type>() , r) };
             r1 = r2;
             r2 = r;
             i += 1;
@@ -278,8 +288,10 @@ impl Sfmt {
         iloop = size.wrapping_sub(N as usize);
         i = 0;
         while i < iloop {
-            r = simd_recursion(unsafe {&array[i - N as usize].si}, unsafe {&array[i + POS1 as usize - N as usize].si}, r1, r2, mask);
-            unsafe { store_aligned_i128(&mut array[i].si, r) };
+           
+            r = simd_recursion(unsafe { array.offset(i.wrapping_sub(N as usize) as isize ).cast::<Int32Type>() },
+                               unsafe { array.offset(i.wrapping_sub(POS1 as usize).wrapping_sub(N as usize) as isize ).cast::<Int32Type>() }, r1, r2, mask);
+            unsafe { store_aligned_i128(array.offset(i as isize).cast::<Int32Type>(), r) };
             r1 = r2;
             r2 = r;
             i += 1;
@@ -288,16 +300,17 @@ impl Sfmt {
         iloop = 2 * N as usize - size;
         let mut j: usize = 0;
         while j < iloop {
-            r = unsafe { load_aligned_i128(&array[j + size - N as usize].si) };
+            r = unsafe { load_aligned_i128(array.offset(j.wrapping_add(size as usize).wrapping_sub(N as usize) as isize ).cast::<Int32Type>())};
             unsafe { store_aligned_i128(&mut g.sfmt[j].si , r) };
             
             j += 1;
         }
         i = 0;
         while i < size {
-            r = simd_recursion(unsafe {&array[i - N as usize].si}, unsafe {&array[i + POS1 as usize - N as usize].si}, r1, r2, mask);
-            unsafe { store_aligned_i128(&mut array[i].si, r) };
-            unsafe { store_aligned_i128(&mut g.sfmt[j].si , r) };
+            r = simd_recursion(unsafe { array.offset(i.wrapping_sub(N as usize) as isize ).cast::<Int32Type>() }, 
+                unsafe { array.offset(i.wrapping_add(POS1 as usize).wrapping_sub(N as usize) as isize).cast::<Int32Type>()}, r1, r2, mask);
+            unsafe { store_aligned_i128(array.offset(i as isize ).cast::<Int32Type>(), r) };
+            unsafe { store_aligned_i128(g.sfmt.as_mut_ptr().offset(j as isize) as *mut Int32Type , r) };
             j += 1;
             r1 = r2;
             r2 = r;
@@ -306,15 +319,15 @@ impl Sfmt {
     }
 
     unsafe fn get_fmt_element(&mut self, index: isize) -> u32 {
-        return ptr::read_unaligned(self.sfmt.as_mut_ptr().byte_offset(mem::size_of::<u32>().wrapping_mul(index as usize) as isize).cast::<u32>());
+        return ptr::read_unaligned(self.psfmt32.offset( index) );
     }
 
     unsafe fn set_fmt_element(&mut self, index: isize, value: u32) {
-        self.sfmt.as_mut_ptr().cast::<u32>().byte_offset(mem::size_of::<u32>().wrapping_mul(index as usize) as isize).write_unaligned(value);
+        ptr::write_unaligned(self.psfmt32.offset(index), value);
     }
 
     unsafe fn get_fmt_element64(&mut self, index: isize) -> u64 {
-        return ptr::read_unaligned(self.sfmt.as_mut_ptr().byte_offset(mem::size_of::<u64>().wrapping_mul(index as usize) as isize).cast::<u64>());
+        return ptr::read_unaligned(self.psfmt64.offset( index) );
     }
 
     fn period_certification(&mut self) {
@@ -356,6 +369,15 @@ impl Sfmt {
         }
     }
 
+    fn seed_init(&mut self) {
+        let mut buffer: [u32; 32] = [0; 32];
+        let r = crypto_api_osrandom::to_slice( unsafe { std::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, 32 * std::mem::size_of::<u32>()) });
+        if r.is_err() {
+            assert!(false, "sfmt init failed.");
+        }
+        self.seed(&buffer, 32);
+    }
+
     fn seed(&mut self, keys: &[u32], num_keys: i32) {
         let mut i: isize = 0;
         let mut j: isize = 0;
@@ -373,15 +395,13 @@ impl Sfmt {
         }
         let mid = (size - lag).wrapping_div(2);
         
-        unsafe {
-            let vptr = self.sfmt.as_mut_ptr();
-            ptr::write_bytes(vptr, 0x8b, mem::size_of::<W128T>().wrapping_mul(self.sfmt.len()));
-        }
+        unsafe { ptr::write_bytes(self.sfmt.as_mut_ptr() as *mut u8, 0x8b, mem::size_of::<W128T>().wrapping_mul(self.sfmt.len())) };
         if num_keys + 1 > N32 {
             count = num_keys + 1;
         } else {
             count = N32;
         }
+
 
         let mut r: u32 = velcor_fmt_func1!(unsafe {self.get_fmt_element(idxof!(0)) ^ self.get_fmt_element(idxof!(mid as isize)) ^ self.get_fmt_element(idxof!((N32 - 1) as isize))});
         unsafe { 
@@ -400,55 +420,59 @@ impl Sfmt {
         i = 1;
         j = 0;
         while j < count as isize && j < num_keys as isize {
-            r = velcor_fmt_func1!(unsafe {self.get_fmt_element(idxof!(i as isize)) ^ self.get_fmt_element(idxof!(((i as i32 + mid) % N32)  as isize)) ^ self.get_fmt_element(idxof!(((i as i32 + N32 - 1) % N32)  as isize))});
+            r = velcor_fmt_func1!(unsafe {self.get_fmt_element(idxof!(i as isize)) ^ self.get_fmt_element(idxof!(((i as i32 + mid).wrapping_rem(N32))  as isize)) ^ self.get_fmt_element(idxof!(((i as i32 + N32 - 1).wrapping_rem(N32))  as isize))});
             unsafe {
-                let tmp = self.get_fmt_element(idxof!(((i as i32 + mid) % N32) as isize));
-                self.set_fmt_element(idxof!(((i as i32 + mid) % N32) as isize), tmp.wrapping_add(r));
+                let tmp = self.get_fmt_element(idxof!(((i as i32 + mid).wrapping_rem(N32)) as isize));
+                self.set_fmt_element(idxof!(((i as i32 + mid).wrapping_rem(N32)) as isize), tmp.wrapping_add(r));
             }
-            r += keys[j as usize] + i as u32;
+    
+            r = r.wrapping_add(keys[j as usize].wrapping_add(i as u32));
             unsafe {
-                let tmp = self.get_fmt_element(idxof!(((i as i32 + mid + lag) % N32) as isize));
-                self.set_fmt_element(idxof!(((i as i32 + mid + lag) % N32) as isize), tmp.wrapping_add(r));
+                let tmp = self.get_fmt_element(idxof!(((i as i32 + mid + lag).wrapping_rem(N32)) as isize));
+                self.set_fmt_element(idxof!(((i as i32 + mid + lag).wrapping_rem(N32)) as isize), tmp.wrapping_add(r));
                 self.set_fmt_element(idxof!(i as isize), r);
             }
             
             j += 1;
-            i = ((i as i32 + 1) % N32) as isize;
+            i = ((i as i32 + 1).wrapping_rem(N32)) as isize;
         }
 
         while j < count as isize {
-            r = velcor_fmt_func1!(unsafe { self.get_fmt_element(idxof!(i as isize)) ^ self.get_fmt_element(idxof!(((i as i32 + mid) % N32) as isize)) ^ self.get_fmt_element(idxof!(((i as i32 + N32 - 1) % N32)  as isize))});
+            r = velcor_fmt_func1!(unsafe { self.get_fmt_element(idxof!(i as isize)) ^ self.get_fmt_element(idxof!(((i as i32 + mid).wrapping_rem(N32)) as isize)) ^ self.get_fmt_element(idxof!(((i as i32 + N32 - 1).wrapping_rem(N32))  as isize))});
             unsafe {
-                let tmp = self.get_fmt_element(idxof!(((i as i32 + mid) % N32) as isize));
-                self.set_fmt_element(idxof!(((i as i32 + mid) % N32) as isize), tmp.wrapping_add(r));
+                let tmp = self.get_fmt_element(idxof!(((i as i32 + mid).wrapping_rem(N32)) as isize));
+                self.set_fmt_element(idxof!(((i as i32 + mid).wrapping_rem(N32)) as isize), tmp.wrapping_add(r));
             }
             r += i as u32;
             unsafe {
-                let tmp = self.get_fmt_element(idxof!(((i as i32 + mid + lag) % N32) as isize));
-                self.set_fmt_element(idxof!(((i as i32 + mid + lag) % N32) as isize), tmp.wrapping_add(r));
+                let tmp = self.get_fmt_element(idxof!(((i as i32 + mid + lag).wrapping_rem(N32)) as isize));
+                self.set_fmt_element(idxof!(((i as i32 + mid + lag).wrapping_rem(N32)) as isize), tmp.wrapping_add(r));
                 self.set_fmt_element(idxof!(i as isize), r);
             }
             
 
             j += 1;
-            i = ((i as i32 + 1) % N32) as isize;
+            i = ((i as i32 + 1).wrapping_rem(N32)) as isize;
         }
         j = 0;
         while j < N32 as isize {
-            r = velcor_fmt_func2!(unsafe { self.get_fmt_element(idxof!(i as isize)) + self.get_fmt_element(idxof!(((i as i32 + mid) % N32) as isize)) + self.get_fmt_element(idxof!(((i as i32 + N32 - 1) % N32)  as isize))});
+            r = velcor_fmt_func2!(unsafe { self.get_fmt_element(idxof!(i as isize)).
+                wrapping_add(self.get_fmt_element(idxof!(((i as i32 + mid).wrapping_rem(N32)) as isize))).
+                wrapping_add(self.get_fmt_element(idxof!(((i as i32 + N32 - 1).wrapping_rem(N32))  as isize)))});
+
             unsafe {
-                let tmp = self.get_fmt_element(idxof!(((i as i32 + mid) % N32) as isize));
-                self.set_fmt_element(idxof!(((i as i32 + mid) % N32) as isize), tmp ^ r);
+                let tmp = self.get_fmt_element(idxof!(((i as i32 + mid).wrapping_rem(N32)) as isize));
+                self.set_fmt_element(idxof!(((i as i32 + mid).wrapping_rem(N32)) as isize), tmp ^ r);
             }
             r -= i as u32;
             unsafe {
-                let tmp = self.get_fmt_element(idxof!(((i as i32 + mid + lag) % N32) as isize));
-                self.set_fmt_element(idxof!(((i as i32 + mid + lag) % N32) as isize), tmp ^ r);
+                let tmp = self.get_fmt_element(idxof!(((i as i32 + mid + lag).wrapping_rem(N32)) as isize));
+                self.set_fmt_element(idxof!(((i as i32 + mid + lag).wrapping_rem(N32)) as isize), tmp ^ r);
                 self.set_fmt_element(idxof!(i as isize), r);
             }
             
             j += 1;
-            i = ((i as i32 + 1) % N32) as isize;
+            i = ((i as i32 + 1).wrapping_rem(N32)) as isize;
         }
         self.index.store(N32, atomic::Ordering::Relaxed);
         self.period_certification();

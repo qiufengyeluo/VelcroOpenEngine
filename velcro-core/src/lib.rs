@@ -25,5 +25,7 @@ mod tests {
     #[test]
     fn it_work_random() {
         println!("random: {}", math::random::get_random::<i32>().unwrap());
+        let mut sft = math::sfmt::Sfmt::new();
+        println!("sfmt: {}", sft.rand_r32());
     }
 }
