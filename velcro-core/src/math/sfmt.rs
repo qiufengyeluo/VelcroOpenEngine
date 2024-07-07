@@ -1,7 +1,7 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
 
-use std::{mem, sync::{atomic::AtomicI32, Arc, atomic, Mutex}, ptr::{null, self}};
+use std::{mem, sync::{atomic::AtomicI32, Arc, atomic, Mutex}, ptr::{self}};
 use crate::math::vsimd::*;
 
 const MEXP: i32 = 19937;
@@ -24,8 +24,8 @@ const PARITY2: u32  = 0x0000_0000;
 const PARITY3: u32  = 0x0000_0000;
 const PARITY4: u32  = 0x13c9_e684;
 
-// a parity check vector which certificate the period of 2^{MEXP}
-const parity: [u32; 4] = [PARITY1, PARITY2, PARITY3, PARITY4];
+// a PARITY check vector which certificate the period of 2^{MEXP}
+const PARITY: [u32; 4] = [PARITY1, PARITY2, PARITY3, PARITY4];
 
 macro_rules! velcor_fmt_func1 {
     ($x:expr) => {
@@ -313,6 +313,10 @@ impl Sfmt {
         self.sfmt.as_mut_ptr().cast::<u32>().byte_offset(mem::size_of::<u32>().wrapping_mul(index as usize) as isize).write_unaligned(value);
     }
 
+    unsafe fn get_fmt_element64(&mut self, index: isize) -> u64 {
+        return ptr::read_unaligned(self.sfmt.as_mut_ptr().byte_offset(mem::size_of::<u64>().wrapping_mul(index as usize) as isize).cast::<u64>());
+    }
+
     fn period_certification(&mut self) {
         let mut inner: i32 = 0;
         let mut i: isize = 0;
@@ -320,7 +324,7 @@ impl Sfmt {
         let mut work: u32 = 0;
 
         while i < 4{
-            inner ^= (unsafe { self.get_fmt_element(idxof!(i)) & parity[i as usize]}) as i32;
+            inner ^= (unsafe { self.get_fmt_element(idxof!(i)) & PARITY[i as usize]}) as i32;
             i += 1;
         }
         i = 16;
@@ -338,7 +342,7 @@ impl Sfmt {
             work = 1;
             j = 0;
             while j < 32 {
-                if work & parity[i as usize] != 0 {
+                if work & PARITY[i as usize] != 0 {
                     unsafe {
                         let tmp = self.get_fmt_element(idxof!(i));
                         self.set_fmt_element(idxof!(i), tmp ^ work);
@@ -352,7 +356,7 @@ impl Sfmt {
         }
     }
 
-    fn seed(&mut self, keys: &[u32], numKeys: i32) {
+    fn seed(&mut self, keys: &[u32], num_keys: i32) {
         let mut i: isize = 0;
         let mut j: isize = 0;
         let mut count: i32 = 0;
@@ -373,8 +377,8 @@ impl Sfmt {
             let vptr = self.sfmt.as_mut_ptr();
             ptr::write_bytes(vptr, 0x8b, mem::size_of::<W128T>().wrapping_mul(self.sfmt.len()));
         }
-        if numKeys + 1 > N32 {
-            count = numKeys + 1;
+        if num_keys + 1 > N32 {
+            count = num_keys + 1;
         } else {
             count = N32;
         }
@@ -385,7 +389,7 @@ impl Sfmt {
             self.set_fmt_element(idxof!(mid as isize),  tmp.wrapping_add(r));
         };
         
-        r = ((r as i32) + numKeys) as u32;
+        r = ((r as i32) + num_keys) as u32;
         unsafe {
             let tmp = self.get_fmt_element((mid + lag) as isize); 
             self.set_fmt_element(idxof!((mid + lag) as isize), tmp.wrapping_add(r))
@@ -395,7 +399,7 @@ impl Sfmt {
         count -= 1;
         i = 1;
         j = 0;
-        while j < count as isize && j < numKeys as isize {
+        while j < count as isize && j < num_keys as isize {
             r = velcor_fmt_func1!(unsafe {self.get_fmt_element(idxof!(i as isize)) ^ self.get_fmt_element(idxof!(((i as i32 + mid) % N32)  as isize)) ^ self.get_fmt_element(idxof!(((i as i32 + N32 - 1) % N32)  as isize))});
             unsafe {
                 let tmp = self.get_fmt_element(idxof!(((i as i32 + mid) % N32) as isize));
@@ -463,6 +467,44 @@ impl Sfmt {
             return self.rand32();
         }
 
-        return 0;
+        return unsafe { self.get_fmt_element(idx as isize) };
+    }
+
+    fn rand64(&mut self) -> u64 {
+        let mut idx = self.index.fetch_add(2, atomic::Ordering::Relaxed);
+        if idx >= N32 - 1 {
+            let _locker = *self.generation_mutex.lock().unwrap();
+            idx += 2;
+
+            if self.index.compare_exchange(idx, 0, atomic::Ordering::Relaxed , atomic::Ordering::Relaxed).is_ok() {
+                gen_rand_all(self);
+            }
+
+            return self.rand64();
+        }
+        
+        return unsafe {  self.get_fmt_element64(idx.wrapping_div(2) as isize) };
+    }
+
+    pub const fn get_min_array32_size() -> i32 {
+        return N32;
+    }
+
+    pub const fn get_min_array64_size() -> i32 {
+        return N64;
+    }
+
+    // return [0, 1]
+    pub fn rand_r32(&mut self) -> f64 {
+        return self.rand32() as f64 * (1.0 / 4294967295.0);
+    }
+
+    // return [0, 1]
+    pub fn rand_r32_1(&mut self) -> f64 {
+        return self.rand32() as f64 * (1.0 / 4294967296.0);
+    }
+
+    pub fn rand_r32_2(&mut self) -> f64 {
+        return (self.rand_r32() as f64 + 0.5) * (1.0 / 4294967296.0);
     }
 }

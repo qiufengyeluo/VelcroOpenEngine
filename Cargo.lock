@@ -3,8 +3,26 @@
 version = 3
 
 [[package]]
+name = "cc"
+version = "1.0.104"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "74b6a57f98764a267ff415d50a25e6e166f3831a5071af4995296ea97d210490"
+
+[[package]]
+name = "crypto_api_osrandom"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d0920d5ed0b2ad708130c534f2943df6ed820bdc6b73d171fae36618f8e30e43"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "velcro-core"
 version = "0.1.1"
+dependencies = [
+ "crypto_api_osrandom",
+]
 
 [[package]]
 name = "velcro-dylib"
