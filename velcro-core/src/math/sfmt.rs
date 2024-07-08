@@ -79,7 +79,7 @@ use std::arch::x86_64::*;
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
 fn simd_recursion(a: *mut Int32Type, b: *mut Int32Type, c: Int32Type, d: Int32Type, mask: Int32Type) -> Int32Type {
     let mut x = unsafe { *a.as_mut().unwrap() };
-    let mut y = unsafe { _mm_srli_epi32( *a.as_mut().unwrap(), SR1) }; 
+    let mut y = unsafe { _mm_srli_epi32( *b.as_mut().unwrap(), SR1) }; 
     let mut z: __m128i = unsafe { _mm_srli_si128(c,  SR2) };
     let v = unsafe { _mm_slli_epi32(d, SL1) };
 
@@ -94,38 +94,101 @@ fn simd_recursion(a: *mut Int32Type, b: *mut Int32Type, c: Int32Type, d: Int32Ty
     return z;
 }
 
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    fn gen_rand_all(g:&mut Sfmt) {
-        let mut r:    Int32Type;
-        let mask: Int32Type = unsafe { load_immediate_i32(MSK4 as i32, MSK3 as i32, MSK2 as i32, MSK1 as i32) };
-        
-        let mut r1: Int32Type = unsafe { load_aligned_i128(&g.sfmt[(N - 2) as usize].si) };
-        let mut r2: Int32Type = unsafe { load_aligned_i128(&g.sfmt[(N - 1) as usize].si) };
+#[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+fn gen_rand_all(g:&mut Sfmt) {
+    let mut r:    Int32Type;
+    let mask: Int32Type = unsafe { load_immediate_i32(MSK4 as i32, MSK3 as i32, MSK2 as i32, MSK1 as i32) };
+    
+    let mut r1: Int32Type = unsafe { load_aligned_i128(&g.sfmt[(N - 2) as usize].si) };
+    let mut r2: Int32Type = unsafe { load_aligned_i128(&g.sfmt[(N - 1) as usize].si) };
 
-        let iloop: usize = (N - POS1) as usize;
-        let mut i: usize = 0;
-        while i < iloop {
-            r = simd_recursion(unsafe {g.sfmt.as_mut_ptr().offset(i as isize) as *mut Int32Type}, 
-                               unsafe {g.sfmt.as_mut_ptr().offset(i .wrapping_add(POS1 as usize) as isize) as *mut Int32Type }, r1, r2, mask);
-            unsafe { 
-                let tmp = g.sfmt.as_mut_ptr().offset(i as isize) as *mut Int32Type;
-                store_aligned_i128(tmp , r);
-            };
-            r1 = r2;
-            r2 = r;
+    let iloop: usize = (N - POS1) as usize;
+    let mut i: usize = 0;
+    while i < iloop {
+        r = simd_recursion(unsafe {g.sfmt.as_mut_ptr().offset(i as isize) as *mut Int32Type}, 
+                            unsafe {g.sfmt.as_mut_ptr().offset(i .wrapping_add(POS1 as usize) as isize) as *mut Int32Type }, r1, r2, mask);
+        unsafe { 
+            let tmp = g.sfmt.as_mut_ptr().offset(i as isize) as *mut Int32Type;
+            store_aligned_i128(tmp , r);
+        };
+        r1 = r2;
+        r2 = r;
 
-            i += 1;
-        }
-        
-        while i < N as usize {
-            r = simd_recursion(unsafe {g.sfmt.as_mut_ptr().offset(i as isize) as *mut Int32Type}, 
-                                  unsafe{g.sfmt.as_mut_ptr().offset(i .wrapping_add(POS1 as usize).wrapping_sub(N as usize) as isize) as *mut Int32Type}, r1, r2, mask);
-            unsafe { store_aligned_i128(g.sfmt.as_mut_ptr().offset(i as isize) as *mut Int32Type , r) };
-            r1 = r2;
-            r2 = r;
-            i += 1;
-        }
+        i += 1;
     }
+    
+    while i < N as usize {
+        r = simd_recursion(unsafe {g.sfmt.as_mut_ptr().offset(i as isize) as *mut Int32Type}, 
+                                unsafe{g.sfmt.as_mut_ptr().offset(i .wrapping_add(POS1 as usize).wrapping_sub(N as usize) as isize) as *mut Int32Type}, r1, r2, mask);
+        unsafe { store_aligned_i128(g.sfmt.as_mut_ptr().offset(i as isize) as *mut Int32Type , r) };
+        r1 = r2;
+        r2 = r;
+        i += 1;
+    }
+}
+
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+fn gen_rand_array(g: &mut Sfmt, array: *mut W128T, size: usize) {
+    let mut r:    Int32Type;
+    let mask = unsafe { load_immediate_i32(MSK4 as i32, MSK3 as i32, MSK2 as i32, MSK1 as i32) };
+
+    let mut r1: Int32Type = unsafe { load_aligned_i128(&g.sfmt[(N - 2) as usize].si) };
+    let mut r2: Int32Type = unsafe { load_aligned_i128(&g.sfmt[(N - 1) as usize].si) };
+
+    let mut iloop: usize = (N - POS1) as usize;
+    let mut i: usize = 0;
+    while i < iloop {
+
+        r = simd_recursion(unsafe {  g.sfmt.as_mut_ptr().offset(i as isize) as *mut Int32Type }, 
+                            unsafe {  g.sfmt.as_mut_ptr().offset((i + POS1 as usize) as isize) as *mut Int32Type }, r1, r2, mask);
+        
+        unsafe { store_aligned_i128(array.offset(i as isize).cast::<Int32Type>() , r) };
+        r1 = r2;
+        r2 = r;
+
+        i += 1;
+    }
+    i = 0;
+    while i < N as usize {
+        r = simd_recursion(unsafe { g.sfmt.as_mut_ptr().offset(i as isize) as *mut Int32Type },
+            unsafe{ g.sfmt.as_mut_ptr().offset((i + POS1 as usize - N as usize) as isize) as *mut Int32Type}, r1, r2, mask);
+        unsafe { store_aligned_i128(array.offset(i as isize).cast::<Int32Type>() , r) };
+        r1 = r2;
+        r2 = r;
+        i += 1;
+    }
+    iloop = size.wrapping_sub(N as usize);
+    i = 0;
+    while i < iloop {
+        
+        r = simd_recursion(unsafe { array.offset(i.wrapping_sub(N as usize) as isize ).cast::<Int32Type>() },
+                            unsafe { array.offset(i.wrapping_sub(POS1 as usize).wrapping_sub(N as usize) as isize ).cast::<Int32Type>() }, r1, r2, mask);
+        unsafe { store_aligned_i128(array.offset(i as isize).cast::<Int32Type>(), r) };
+        r1 = r2;
+        r2 = r;
+        i += 1;
+    }
+
+    iloop = 2 * N as usize - size;
+    let mut j: usize = 0;
+    while j < iloop {
+        r = unsafe { load_aligned_i128(array.offset(j.wrapping_add(size as usize).wrapping_sub(N as usize) as isize ).cast::<Int32Type>())};
+        unsafe { store_aligned_i128(&mut g.sfmt[j].si , r) };
+        
+        j += 1;
+    }
+    i = 0;
+    while i < size {
+        r = simd_recursion(unsafe { array.offset(i.wrapping_sub(N as usize) as isize ).cast::<Int32Type>() }, 
+            unsafe { array.offset(i.wrapping_add(POS1 as usize).wrapping_sub(N as usize) as isize).cast::<Int32Type>()}, r1, r2, mask);
+        unsafe { store_aligned_i128(array.offset(i as isize ).cast::<Int32Type>(), r) };
+        unsafe { store_aligned_i128(g.sfmt.as_mut_ptr().offset(j as isize) as *mut Int32Type , r) };
+        j += 1;
+        r1 = r2;
+        r2 = r;
+        i += 1;
+    }
+}
 
 #[cfg(not(any(target_arch = "x86_64", target_arch="x86", target_arch = "arm")))]
 fn rshift128(out_param: *mut W128T, in_param: &W128T, shift: i32) {
@@ -255,68 +318,7 @@ impl Sfmt {
 
     
 
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    fn gen_rand_array(g: &mut Sfmt, array: *mut W128T, size: usize) {
-        let mut r:    Int32Type;
-        let mask = unsafe { load_immediate_i32(MSK4 as i32, MSK3 as i32, MSK2 as i32, MSK1 as i32) };
-
-        let mut r1: Int32Type = unsafe { load_aligned_i128(&g.sfmt[(N - 2) as usize].si) };
-        let mut r2: Int32Type = unsafe { load_aligned_i128(&g.sfmt[(N - 1) as usize].si) };
-
-        let mut iloop: usize = (N - POS1) as usize;
-        let mut i: usize = 0;
-        while i < iloop {
-
-            r = simd_recursion(unsafe {  g.sfmt.as_mut_ptr().offset(i as isize) as *mut Int32Type }, 
-                               unsafe {  g.sfmt.as_mut_ptr().offset((i + POS1 as usize) as isize) as *mut Int32Type }, r1, r2, mask);
-            
-            unsafe { store_aligned_i128(array.offset(i as isize).cast::<Int32Type>() , r) };
-            r1 = r2;
-            r2 = r;
-
-            i += 1;
-        }
-        i = 0;
-        while i < N as usize {
-            r = simd_recursion(unsafe { g.sfmt.as_mut_ptr().offset(i as isize) as *mut Int32Type },
-             unsafe{ g.sfmt.as_mut_ptr().offset((i + POS1 as usize - N as usize) as isize) as *mut Int32Type}, r1, r2, mask);
-            unsafe { store_aligned_i128(array.offset(i as isize).cast::<Int32Type>() , r) };
-            r1 = r2;
-            r2 = r;
-            i += 1;
-        }
-        iloop = size.wrapping_sub(N as usize);
-        i = 0;
-        while i < iloop {
-           
-            r = simd_recursion(unsafe { array.offset(i.wrapping_sub(N as usize) as isize ).cast::<Int32Type>() },
-                               unsafe { array.offset(i.wrapping_sub(POS1 as usize).wrapping_sub(N as usize) as isize ).cast::<Int32Type>() }, r1, r2, mask);
-            unsafe { store_aligned_i128(array.offset(i as isize).cast::<Int32Type>(), r) };
-            r1 = r2;
-            r2 = r;
-            i += 1;
-        }
-
-        iloop = 2 * N as usize - size;
-        let mut j: usize = 0;
-        while j < iloop {
-            r = unsafe { load_aligned_i128(array.offset(j.wrapping_add(size as usize).wrapping_sub(N as usize) as isize ).cast::<Int32Type>())};
-            unsafe { store_aligned_i128(&mut g.sfmt[j].si , r) };
-            
-            j += 1;
-        }
-        i = 0;
-        while i < size {
-            r = simd_recursion(unsafe { array.offset(i.wrapping_sub(N as usize) as isize ).cast::<Int32Type>() }, 
-                unsafe { array.offset(i.wrapping_add(POS1 as usize).wrapping_sub(N as usize) as isize).cast::<Int32Type>()}, r1, r2, mask);
-            unsafe { store_aligned_i128(array.offset(i as isize ).cast::<Int32Type>(), r) };
-            unsafe { store_aligned_i128(g.sfmt.as_mut_ptr().offset(j as isize) as *mut Int32Type , r) };
-            j += 1;
-            r1 = r2;
-            r2 = r;
-            i += 1;
-        }
-    }
+  
 
     unsafe fn get_fmt_element(&mut self, index: isize) -> u32 {
         return ptr::read_unaligned(self.psfmt32.offset( index) );
@@ -333,8 +335,8 @@ impl Sfmt {
     fn period_certification(&mut self) {
         let mut inner: i32 = 0;
         let mut i: isize = 0;
-        let mut j: isize = 0;
-        let mut work: u32 = 0;
+        let mut j;
+        let mut work;
 
         while i < 4{
             inner ^= (unsafe { self.get_fmt_element(idxof!(i)) & PARITY[i as usize]}) as i32;
@@ -379,10 +381,10 @@ impl Sfmt {
     }
 
     fn seed(&mut self, keys: &[u32], num_keys: i32) {
-        let mut i: isize = 0;
-        let mut j: isize = 0;
-        let mut count: i32 = 0;
-        let mut lag: i32 = 0;
+        let mut i: isize;
+        let mut j: isize;
+        let mut count: i32;
+        let lag: i32;
         let size = N * 4;
         if size >= 623 {
             lag = 11;
@@ -508,6 +510,24 @@ impl Sfmt {
         }
         
         return unsafe {  self.get_fmt_element64(idx.wrapping_div(2) as isize) };
+    }
+
+    pub fn fill_array32(&mut self, array: *mut u32, size: usize) {
+        assert_eq!(self.index.load(atomic::Ordering::Relaxed), N32, "Invalid index Reinitialize!");
+        assert_eq!(size.wrapping_rem(4), 0, "Size must be multiple of 4!");
+        assert!(size >= N32 as usize, "Size must be bigger than {} get_min_array32_size()!", N32);
+
+        gen_rand_array(self, array as *mut W128T, size.wrapping_div(4));
+        self.index.store(N32, atomic::Ordering::Relaxed);
+    }
+
+    pub fn fill_array64(&mut self, array: *mut u64, size: usize) {
+        assert_eq!(self.index.load(atomic::Ordering::Relaxed), N32, "Invalid index Reinitialize!");
+        assert_eq!(size.wrapping_rem(4), 0, "Size must be multiple of 4!");
+        assert!(size >= N64 as usize, "Size must be bigger than {} get_min_array64_size()!", N32);
+        
+        gen_rand_array(self, array as *mut W128T, size.wrapping_div(2));
+        self.index.store(N32, atomic::Ordering::Relaxed);
     }
 
     pub const fn get_min_array32_size() -> i32 {
