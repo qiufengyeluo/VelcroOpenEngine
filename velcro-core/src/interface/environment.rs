@@ -3,6 +3,7 @@
 
 
 use std::{any::{Any, TypeId}, collections, fmt::Error};
+use crate::parallel;
 
 pub enum States {
     Added,
@@ -26,8 +27,15 @@ impl<T> EnvironmentVariableResult<T> {
     }
 }
 
+pub trait EnvironmentInterface: 'static {
+   fn attach_fallback(source_environment: Box<&EnvironmentInterface>);
+   fn get_fallback() -> Option<Box<&EnvironmentInterface>>;
+}
+
 struct EnvironmentVariableHolderBase {
     _guid: u32,
+    _use_count: int32,
+    _mutex: parallel::SpinMutex,
 }
 
 /*pub struct EnvironmentVariable {
