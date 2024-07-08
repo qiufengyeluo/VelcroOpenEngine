@@ -400,98 +400,114 @@ pub unsafe fn min_i32(arg1: Int32Type, arg2: Int32Type) -> Int32Type {
     return _mm_min_epi32(arg1, arg2);
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn max_i32(arg1: Int32Type, arg2: Int32Type) -> Int32Type {
     return _mm_max_epi32(arg1, arg2);
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn clamp_i32(value: Int32Type, min: Int32Type, max: Int32Type) -> Int32Type {
     return max_i32(min, min_i32(value, max));
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn cmp_eq(arg1: FloatType, arg2: FloatType) -> FloatType {
     return _mm_cmpeq_ps(arg1, arg2);
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn cmp_neq(arg1: FloatType, arg2: FloatType) -> FloatType  {
     return _mm_cmpneq_ps(arg1, arg2);
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn cmp_gt(arg1: FloatType, arg2: FloatType) -> FloatType {
     return _mm_cmpgt_ps(arg1, arg2);
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn cmp_gt_eq(arg1: FloatType, arg2: FloatType) -> FloatType  {
     return _mm_cmpge_ps(arg1, arg2);
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn cmp_lt(arg1: FloatType, arg2: FloatType)  -> FloatType {
     return _mm_cmplt_ps(arg1, arg2);
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn cmp_lt_eq(arg1: FloatType, arg2: FloatType) -> FloatType  {
     return _mm_cmple_ps(arg1, arg2);
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn cmp_all_eq(arg1: FloatType, arg2: FloatType, mask: i32) -> bool
 {
     let compare: Int32Type = cast_to_int(cmp_neq(arg1, arg2));
     return (_mm_movemask_epi8(compare) & mask) == 0;
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn cmp_all_lt(arg1: FloatType, arg2: FloatType, mask: i32) -> bool {
     let compare: Int32Type = cast_to_int(cmp_gt_eq(arg1, arg2));
     return (_mm_movemask_epi8(compare) & mask) == 0;
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn cmp_all_lt_eq(arg1: FloatType, arg2: FloatType, mask: i32) -> bool  {
     let compare: Int32Type = cast_to_int(cmp_gt(arg1, arg2));
     return (_mm_movemask_epi8(compare) & mask) == 0;
 }
 
-#[inline]
+
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn cmp_all_gt(arg1: FloatType, arg2: FloatType, mask: i32) -> bool {
     let compare: Int32Type = cast_to_int(cmp_lt_eq(arg1, arg2));
     return (_mm_movemask_epi8(compare) & mask) == 0;
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn cmp_all_gt_eq(arg1: FloatType, arg2: FloatType, mask: i32) -> bool {
     let compare: Int32Type = cast_to_int(cmp_lt(arg1, arg2));
     return (_mm_movemask_epi8(compare) & mask) == 0;
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn cmp_eq_i32(arg1: Int32Type, arg2: Int32Type) -> Int32Type {
     return _mm_cmpeq_epi32(arg1, arg2);
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn cmp_neq_i32(arg1: Int32Type, arg2: Int32Type) -> Int32Type {
     let equal: Int32Type  = cmp_eq_i32(arg1, arg2);
     return not_i32(equal);
@@ -523,48 +539,56 @@ pub unsafe fn cmp_lt_eq_i32(arg1: Int32Type, arg2: Int32Type) -> Int32Type {
     return not_i32(greater_than);
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn cmp_all_eq_i32(arg1: Int32Type, arg2: Int32Type, mask: i32) -> bool  {
     let compare: Int32Type = cmp_neq_i32(arg1, arg2);
     return (_mm_movemask_epi8(compare) & mask) == 0;
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn select(arg1: FloatType, arg2: FloatType, mask: FloatType) -> FloatType {
     return _mm_blendv_ps(arg2, arg1, mask);
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn select_i32(arg1: Int32Type, arg2: Int32Type, mask: Int32Type) -> Int32Type {
     return _mm_blendv_epi8(arg2, arg1, mask);
 }
 
-#[inline]
+
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn cmp_all_lt_i32(arg1: Int32Type, arg2: Int32Type, mask: i32) -> bool  {
     let compare: Int32Type = cmp_gt_eq_i32(arg1, arg2);
     return (_mm_movemask_epi8(compare) & mask) == 0;
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn cmp_all_lt_eq_i32(arg1: Int32Type, arg2: Int32Type, mask: i32) -> bool  {
     let compare:Int32Type = cmp_gt_i32(arg1, arg2);
     return (_mm_movemask_epi8(compare) & mask) == 0;
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn cmp_all_gt_i32(arg1: Int32Type, arg2: Int32Type, mask: i32) -> bool {
     let compare:Int32Type = cmp_lt_eq_i32(arg1, arg2);
     return (_mm_movemask_epi8(compare) & mask) == 0;
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn cmp_all_gt_eq_i32(arg1: Int32Type, arg2: Int32Type, mask: i32) -> bool  {
     let compare:Int32Type = cmp_lt_i32(arg1, arg2);
     return (_mm_movemask_epi8(compare) & mask) == 0;
@@ -576,75 +600,89 @@ pub unsafe fn add(arg1: FloatType, arg2: FloatType) -> FloatType {
     return _mm_add_ps(arg1, arg2);
 }
 
-#[inline]
+
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn sub(arg1: FloatType, arg2: FloatType) -> FloatType {
     return _mm_sub_ps(arg1, arg2);
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn mul(arg1: FloatType, arg2: FloatType) -> FloatType {
     return _mm_mul_ps(arg1, arg2);
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn madd(mul1: FloatType, mul2: FloatType, add: FloatType) -> FloatType {
     return _mm_fmadd_ps(mul1, mul2, add);
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn div(arg1: FloatType, arg2: FloatType) -> FloatType {
     return _mm_div_ps(arg1, arg2);
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn abs(value: FloatType) -> FloatType {
     let sign_mask: FloatType = cast_to_float(splat_i32(0x7FFFFFFF));
     return and(value, sign_mask);
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn add_i32(arg1: Int32Type, arg2: Int32Type) -> Int32Type {
     return _mm_add_epi32(arg1, arg2);
 }
 
-#[inline]
+
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn sub_i32(arg1: Int32Type, arg2: Int32Type) -> Int32Type {
     return _mm_sub_epi32(arg1, arg2);
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn mul_i32(arg1: Int32Type, arg2: Int32Type) -> Int32Type {
     return _mm_mullo_epi32(arg1, arg2);
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn madd_i32(mul1: Int32Type, mul2: Int32Type, add: Int32Type) -> Int32Type {
     return add_i32(mul_i32(mul1, mul2), add);
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn abs_i32(value: Int32Type) -> Int32Type {
     return _mm_abs_epi32(value);
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn reciprocal_estimate(value: FloatType) -> FloatType {
     return _mm_rcp_ps(value);
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn reciprocal(value: FloatType) -> FloatType {
     let estimate: FloatType = reciprocal_estimate(value);
     let estimate_square: FloatType = mul(estimate, estimate);
@@ -658,21 +696,24 @@ pub unsafe fn sqrt(value: FloatType) -> FloatType {
     return _mm_sqrt_ps(value);
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn sqrt_inv_estimate(value: FloatType) -> FloatType {
     return _mm_rsqrt_ps(value); // Faster, but roughly half the precision (12ish bits rather than 23ish)
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn sqrt_inv(value: FloatType) -> FloatType {
     let one: FloatType  = splat(1.0);
     return div(one, sqrt(value));
 }
 
-#[inline]
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn mod_calculate(value: FloatType, divisor: FloatType) -> FloatType {
     return sub(value, mul(_mm_round_ps(div(value, divisor), _MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC), divisor));
 }

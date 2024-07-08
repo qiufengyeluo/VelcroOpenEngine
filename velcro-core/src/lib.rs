@@ -1,8 +1,9 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::from_over_into)]
 
-
+pub mod parallel;
 pub mod math;
+pub mod interface;
 
 #[cfg(test)]
 mod tests {

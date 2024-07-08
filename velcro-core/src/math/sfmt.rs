@@ -313,11 +313,6 @@ impl Sfmt {
         r.seed_init();
         return r;
     }
-
- 
-
-    
-
   
 
     unsafe fn get_fmt_element(&mut self, index: isize) -> u32 {
@@ -480,7 +475,7 @@ impl Sfmt {
         self.period_certification();
     }
 
-    fn rand32(&mut self) -> u32 {
+    pub fn rand32(&mut self) -> u32 {
         let mut idx = self.index.fetch_add(1, atomic::Ordering::Relaxed);
         if idx >= N32 {
             let _locker = *self.generation_mutex.lock().unwrap();
@@ -496,7 +491,7 @@ impl Sfmt {
         return unsafe { self.get_fmt_element(idx as isize) };
     }
 
-    fn rand64(&mut self) -> u64 {
+    pub fn rand64(&mut self) -> u64 {
         let mut idx = self.index.fetch_add(2, atomic::Ordering::Relaxed);
         if idx >= N32 - 1 {
             let _locker = *self.generation_mutex.lock().unwrap();

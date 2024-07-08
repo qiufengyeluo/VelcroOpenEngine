@@ -1,7 +1,7 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
 
-//use std::mem;
+use crate::math::sfmt::*;
 use crate::math::sha1::*;
 use std::ops;
 use std::cmp::Ordering;
@@ -167,6 +167,10 @@ impl UUID {
 
         return Self::new_null();
     }
+
+    /*pub fn new_random() -> Self {
+
+    }*/
 
     /// is_null UUID 是否是个为创建的对象
     /// @return true.空对象 false.不是空对象

@@ -1,3 +1,5 @@
+#![warn(clippy::pedantic)]
+#![allow(clippy::many_single_char_names)]
 
 /// `bswap32` 32位高低位交换
 pub fn bswap32(x: u32) -> u32 {
