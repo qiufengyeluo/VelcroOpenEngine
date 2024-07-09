@@ -1,8 +1,11 @@
 
+#![warn(clippy::pedantic)]
+#![allow(clippy::many_single_char_names)]
+
 use crate::parallel::exponential::ExponentialBackoff;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-struct SpinMutex {
+pub struct SpinMutex {
     _flag: AtomicBool
 }
 

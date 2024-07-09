@@ -1,7 +1,7 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
 
-use crate::math::sfmt::*;
+//use crate::math::sfmt::*;
 use crate::math::sha1::*;
 use std::ops;
 use std::cmp::Ordering;

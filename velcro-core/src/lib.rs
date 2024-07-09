@@ -7,6 +7,8 @@ pub mod interface;
 
 #[cfg(test)]
 mod tests {
+    use crate::parallel::spin_mutex;
+
     use super::*;
 
     #[test]
@@ -28,5 +30,12 @@ mod tests {
         println!("random: {}", math::random::get_random::<i32>().unwrap());
         let mut sft = math::sfmt::Sfmt::new();
         println!("sfmt: {}", sft.rand_r32());
+    }
+
+    #[test]
+    fn it_work_parallel() {
+        let sp = spin_mutex::SpinMutex::new(false);
+        sp.lock();
+        sp.unlock();
     }
 }
