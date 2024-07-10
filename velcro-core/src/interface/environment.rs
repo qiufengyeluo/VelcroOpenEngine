@@ -2,7 +2,7 @@
 #![allow(clippy::many_single_char_names)]
 
 
-use std::{any::{Any, TypeId}, collections::HashMap, fmt::Error, ptr::NonNull, result, sync::Mutex};
+use std::{any::{Any, TypeId}, collections::HashMap, fmt::Error, ptr::NonNull, result, sync::{Mutex, OnceLock, Once}, mem::MaybeUninit};
 use std::sync::Arc;
 use std::rc::Rc;
 use crate::parallel;
@@ -30,45 +30,99 @@ impl<T> EnvironmentVariableResult<T> {
     }
 }
 
-pub trait EnvironmentInterface {
-    fn get_variable(&mut self, uid: &u32) -> EnvironmentVariableResult<Option<&Arc<dyn Any>>>;
+pub trait EnvironmentInterface  {
+    fn remove_variable(&mut self, uid: &u32) -> EnvironmentVariableResult<Option<Box<dyn Any>>>;
+    fn find_variable(&self, uid: &u32) ->Option<&Box<dyn Any>>;
+    fn get_variable(&self, uid: &u32) -> EnvironmentVariableResult<Option<&Box<dyn Any>>>;
 }
 
-pub struct Environment<T: EnvironmentInterface>  {
-    _num_attached: u32,
-    _fallback:  Option<NonNull<T>>,
+pub struct Environment {
     _variables: HashMap<u32, Box<dyn Any>>,
-    _mutex:     Rc<Mutex<u32>>
+    _mutex:     Rc<Mutex<u32>>,
+    _num_attached: u32,
+    _fallback:  Option<NonNull<dyn EnvironmentInterface>>,
 }
 
-impl<T: EnvironmentInterface>  EnvironmentInterface for Environment<T> {
-    /*pub fn new() -> Self {
+pub struct EnvironmentSingleton {
+   inner: Mutex<Option<NonNull<dyn EnvironmentInterface>>>
+}
+
+
+
+impl  Environment  {
+    pub fn new() -> Self {
         Environment {
             _num_attached: 0,
             _fallback: None,
             _variables: HashMap::new(),
             _mutex: Rc::new(Mutex::new(0))
         }
-    }*/
+    }
 
 
-    /*pub fn remove_variable(&mut self, uid: &u32) -> EnvironmentVariableResult<Option<Arc<dyn Any>>> {
-        let _locker = *self._mutex.lock().unwrap();
-        let result = self._variables.remove(uid);
-        if result.is_none() {
-            return EnvironmentVariableResult {
-                state: States::NotFound,
-                variable: None,
+    pub fn get() -> &'static EnvironmentSingleton {
+       static mut ENVIRONMENT_SINGLETON: MaybeUninit<EnvironmentSingleton> = MaybeUninit::uninit();
+       static ENVIRONMENT_SINGLETON_ONCE: Once = Once::new();
+
+       unsafe {
+        ENVIRONMENT_SINGLETON_ONCE.call_once(|| {
+            let _enviroment_singleton = EnvironmentSingleton {
+                inner: Mutex::new(Some((NonNull::<Environment>::new(&mut Environment::new())).unwrap().cast::<Environment>() as  NonNull<dyn EnvironmentInterface>))
+            };
+            ENVIRONMENT_SINGLETON.write(_enviroment_singleton);
+        });
+
+        ENVIRONMENT_SINGLETON.assume_init_ref()
+       }
+    }
+
+    pub fn attach(source_environment: Option<NonNull<dyn EnvironmentInterface>>, use_as_get_fallback: bool) {
+        match  source_environment {
+            None => {
+
+            },
+            Some(res) => {
+                if use_as_get_fallback {
+                    //Environment::get().inner.lock().unwrap().attach_fallback
+                  
+                } else {
+                    let mut ptr_env  = Environment::get().inner.lock().unwrap();
+                    *ptr_env = source_environment;
+                    //Environment::get().inner.lock().unwrap().attach_fallback
+                    //Environment::get().inner.lock().unwrap().addref
+                }
             }
         }
+    }
+}
 
-        return EnvironmentVariableResult {
-            state: States::Removed,
-            variable: result,
+impl EnvironmentInterface for Environment {
+    fn remove_variable(&mut self, uid: &u32) -> EnvironmentVariableResult<Option<Box<dyn Any>>> {
+        let _locker = *self._mutex.lock().unwrap();
+        let result = self._variables.remove(uid);
+        match result {
+            None => {
+                return EnvironmentVariableResult {
+                    state: States::NotFound,
+                    variable: None,
+                }
+            },
+            Some(object) => {
+                return EnvironmentVariableResult {
+                    state: States::Removed,
+                    variable: Some(object),
+                }
+            }
         }
-    }*/
+    }
 
-    fn get_variable(&mut self, uid: &u32) -> EnvironmentVariableResult<Option<&Arc<dyn Any>>>{
+    fn find_variable(&self, uid: &u32) ->Option<&Box<dyn Any>> {
+        let _locker = *self._mutex.lock().unwrap();
+        return self._variables.get(uid);
+    }
+
+    fn get_variable(&self, uid: &u32) -> EnvironmentVariableResult<Option<&Box<dyn Any>>>{
+        let _locker = *self._mutex.lock().unwrap();
         let result = self._variables.get(uid);
         match result {
             None => {
@@ -78,73 +132,16 @@ impl<T: EnvironmentInterface>  EnvironmentInterface for Environment<T> {
                         variable: None,
                     },
                     Some(fallback) => {
-                        return unsafe {
-                         (*fallback.as_ptr()).get_variable(uid) };
+                        return unsafe { (*fallback.as_ptr()).get_variable(uid) };
                     }
                 }
             },
             Some(res) => {
-
+                return EnvironmentVariableResult {
+                    state: States::Found,
+                    variable: Some(res),
+                }
             }
         }
-
     }
 }
-
-
-
-/*pub trait EnvironmentInterface: 'static {
-   fn attach_fallback(source_environment: Option<Arc<EnvironmentInterface>>);
-   fn get_fallback() -> Option<Arc<EnvironmentInterface>>;
-}*/
-
-/*struct EnvironmentVariableHolderBase {
-    _guid: u32,
-    _use_count: int32,
-    _mutex: parallel::SpinMutex,
-}
-
-pub struct EnvironmentVariable {
-
-}
-
-pub trait EnvironmentInterface {
-    type Item;
-
-    fn attach_fallback(&self, source_environment: Box<dyn EnvironmentInterface<Item = Self::Item>> );
-
-    fn detach_fallback(&self);
-
-    fn get_fallback(&self) -> Box<dyn EnvironmentInterface<Item = Self::Item>>;
-    
-    fn find_variable(&self, id: u32) -> Option<Self::Item>;
-    fn remove_variable(&self, id: u32) -> EnvironmentVariableResult<Self::Item>;
-    fn get_variable(&self, id: u32) -> EnvironmentVariableResult<Self::Item>;
-}*/
-
-/*type MapType = collections::HashMap<u32, Box<dyn Any>>;
-
-pub struct Environment {
-    _variable_map: MapType
-}
-
-
-impl Environment {
-    pub fn remove_variable(&mut self, id: &u32) -> EnvironmentVariableResult<Option<Box<dyn Any>>> {
-       let result: Option<Box<dyn Any>> = self._variable_map.remove(id);
-       if result.is_none() {
-        return EnvironmentVariableResult::new(States::NotFound, None);
-       }
-
-       return EnvironmentVariableResult::new(States::Removed, result);
-    }
-
-    pub fn get_variable(&self, id: &u32) -> EnvironmentVariableResult<Option<&Box<dyn Any>>>{
-        let result: Option<&Box<dyn Any>> = self._variable_map.get(id);
-        if result.is_none() {
-            return EnvironmentVariableResult::new(States::NotFound, None);
-        }
-
-        return EnvironmentVariableResult::new(States::Found, result);
-    }
-}*/
