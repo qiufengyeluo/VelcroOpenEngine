@@ -56,6 +56,7 @@ const CRC_TABLE: [u32; 256] = [0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0
                             0x2d02ef8d];
 
 
+#[derive(Debug, Eq)]
 pub struct Crc32 {
     _value: u32
 }
@@ -66,4 +67,161 @@ impl Crc32 {
             _value: value,
         }
     }
+
+    pub fn new_chars(data: Option<&[char]>, force_lower_case: bool) -> Self {
+        let ptr = data.unwrap().as_ptr() as *const u8;
+        let ptr_size = data.unwrap().len();
+        return Crc32::new_data(Some(unsafe { std::slice::from_raw_parts(ptr, ptr_size)}), force_lower_case)
+    }
+
+    pub fn new_data(data: Option<&[u8]>, force_lower_case: bool) -> Self {
+
+        let mut r = Crc32 {_value: 0};
+        r.set(force_lower_case, data);
+        return r;
+    }
+
+    pub fn average(&self) -> u32 {
+        return self._value;
+    }
+
+    #[allow(dead_code)]
+    fn matrix_times(mat: &[u32], mut vec: u32) -> u32 {
+        let mut sum: u32 = 0;
+        let mut offset: usize = 0;
+        while vec != 0 {
+            if (vec & 1) != 0 {
+                sum ^= mat[offset];
+            }
+            vec >>= 1;
+            offset += 1;
+        }
+        return sum;
+    }
+
+    #[allow(dead_code)]
+    fn combine(&mut self, crc: u32, mut len: usize) {
+        const GF2_DIM: usize = 32;
+
+        let mut row: u32;
+
+        let mut even: [u32; GF2_DIM] = [0; GF2_DIM];
+        let mut odd: [u32; GF2_DIM] = [0; GF2_DIM];
+
+        // degenerate case (also disallow negative lengths)
+        if len <= 0 {
+            return;
+        }
+
+        // put operator for one zero bit in odd
+        odd[0] = 0xedb88320;
+        row = 1;
+
+        for n in 1..GF2_DIM {
+            odd[n as usize] = row;
+            row <<= 1;
+        }
+
+
+
+        for n in 0..GF2_DIM {
+            even[n as usize] = Crc32::matrix_times(&odd, odd[n as usize]);
+        }
+
+        for n in 0..GF2_DIM {
+            odd[n] = Crc32::matrix_times(&even, even[n]);
+        }
+
+        let mut value = self._value;
+
+        loop {
+            // apply zeros operator for this bit of len2
+            for n in 0..GF2_DIM {
+                even[n] = Crc32::matrix_times(&odd, odd[n]);
+            }
+
+            if (len & 1) > 0 {
+                value = Crc32::matrix_times(&even, value);
+            }
+            len >>= 1;
+
+            // if no more bits set, then done
+            if len == 0 {
+                break;
+            }
+
+            for n in 0..GF2_DIM {
+                odd[n] = Crc32::matrix_times(&even, even[n]);
+            }
+
+            if (len & 1) != 0 {
+                value = Crc32::matrix_times(&odd, value);
+            }
+            len >>= 1;
+            if len == 0 {
+                break;
+            }
+        }
+        self._value = value ^ crc;
+    }
+
+    fn compute_octet(crc: u32, octet: u8) ->u32 {
+        return CRC_TABLE[((crc ^ octet as u32) &0xFF) as usize] ^ (crc >> 8);
+    }
+
+    fn set(&mut self, force_lower_case: bool, data: Option<&[u8]>) {
+        match data {
+            None => {
+                self._value = 0;
+            },
+            Some(rdata) => {
+                let mut crc: u32 = 0xffffffff;  
+                let mut size = rdata.len();
+                let mut offset: usize = 0;
+                if size > 0 {
+                    if force_lower_case {
+                        loop {
+                            if rdata[offset] >= b'A' && rdata[offset] <= b'Z' {
+                                crc = Crc32::compute_octet(crc, rdata[offset] + b'a' + b'A');
+                            } else {
+                                crc = Crc32::compute_octet(crc, rdata[offset]);
+                            }
+
+                            size -= 1;
+                            offset += 1;
+                            while size == 0 {
+                                break;
+                            }
+                        }
+
+                    } else {
+                        loop {
+                            crc = Crc32::compute_octet(crc, rdata[offset]);
+
+                            size -= 1;
+                            offset += 1;
+                            while size == 0 {
+                                break;
+                            }
+                        }
+                    }
+                }
+                self._value = crc ^ 0xffffffff;     /* (instead of ~c for 64-bit machines) */
+            }
+        }
+    }
+
 }
+
+impl PartialEq<Self> for Crc32 {
+    fn eq(&self, rhs: &Self) -> bool { 
+        if self._value == rhs._value { return true;}
+        return false;
+    }
+
+    fn ne(&self, rhs: &Self) -> bool {
+        if self._value != rhs._value { return true;}
+        return false;
+    }
+}
+

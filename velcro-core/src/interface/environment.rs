@@ -2,10 +2,10 @@
 #![allow(clippy::many_single_char_names)]
 
 
-use std::{any::{Any, TypeId}, collections::HashMap, fmt::Error, ptr::NonNull, result, sync::{Mutex, OnceLock, Once}, mem::MaybeUninit};
-use std::sync::Arc;
+use std::{any::Any, collections::HashMap, ptr::NonNull, sync::{Mutex, Once}, mem::MaybeUninit};
+//use std::sync::Arc;
 use std::rc::Rc;
-use crate::parallel;
+//use crate::parallel;
 
 pub enum States {
     Added,
@@ -35,6 +35,8 @@ pub trait EnvironmentInterface  {
 
     fn attach_fallback(&mut self,source_environment: Option<NonNull<dyn EnvironmentInterface>>);
 
+    fn detach_fallback(&mut self);
+
     fn remove_variable(&mut self, uid: &u32) -> EnvironmentVariableResult<Option<Box<dyn Any>>>;
 
     fn find_variable(&self, uid: &u32) ->Option<&Box<dyn Any>>;
@@ -45,7 +47,6 @@ pub trait EnvironmentInterface  {
 pub struct Environment {
     _variables: HashMap<u32, Box<dyn Any>>,
     _mutex:     Rc<Mutex<u32>>,
-    _num_attached: u32,
     _fallback:  Option<NonNull<dyn EnvironmentInterface>>,
 }
 
@@ -58,7 +59,6 @@ pub struct EnvironmentSingleton {
 impl  Environment  {
     pub fn new() -> Self {
         Environment {
-            _num_attached: 0,
             _fallback: None,
             _variables: HashMap::new(),
             _mutex: Rc::new(Mutex::new(0))
@@ -118,10 +118,17 @@ impl EnvironmentInterface for Environment {
         return Rc::clone(&self._mutex);
     }
 
+
     fn attach_fallback(&mut self,source_environment: Option<NonNull<dyn EnvironmentInterface>>) {
         self._fallback = source_environment;
-        if self._fallback.is_some() {
-          
+    }
+
+    fn detach_fallback(&mut self) {
+        match self._fallback {
+            None => {}
+            Some(..) => {
+                self._fallback = None;
+            }
         }
     }
 
