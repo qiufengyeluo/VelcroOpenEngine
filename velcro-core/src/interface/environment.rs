@@ -31,8 +31,14 @@ impl<T> EnvironmentVariableResult<T> {
 }
 
 pub trait EnvironmentInterface  {
+    fn get_lock(&self) -> Rc<Mutex<u32>>;
+
+    fn attach_fallback(&mut self,source_environment: Option<NonNull<dyn EnvironmentInterface>>);
+
     fn remove_variable(&mut self, uid: &u32) -> EnvironmentVariableResult<Option<Box<dyn Any>>>;
+
     fn find_variable(&self, uid: &u32) ->Option<&Box<dyn Any>>;
+    
     fn get_variable(&self, uid: &u32) -> EnvironmentVariableResult<Option<&Box<dyn Any>>>;
 }
 
@@ -82,21 +88,43 @@ impl  Environment  {
 
             },
             Some(res) => {
-                if use_as_get_fallback {
-                    //Environment::get().inner.lock().unwrap().attach_fallback
-                  
-                } else {
-                    let mut ptr_env  = Environment::get().inner.lock().unwrap();
-                    *ptr_env = source_environment;
-                    //Environment::get().inner.lock().unwrap().attach_fallback
-                    //Environment::get().inner.lock().unwrap().addref
+                
+                Environment::detach();
+
+                {
+                    // 两个生成周期必须同步
+                    let ctrl = unsafe {source_environment.unwrap().as_ref()}.get_lock(); 
+                    let _ctrl_locker =  ctrl.lock().unwrap();
+
+                    if use_as_get_fallback {
+                        unsafe { (*Environment::get().inner.lock().unwrap()).unwrap().as_mut().attach_fallback(Some(res))  };
+                    } else {
+                        let mut environment_ptr  = Environment::get().inner.lock().unwrap();
+                        *environment_ptr = Some(res);
+                        unsafe { (*environment_ptr).unwrap().as_mut().attach_fallback(None) };
+                    }
                 }
             }
         }
     }
+
+    pub fn detach() {
+
+    }
 }
 
 impl EnvironmentInterface for Environment {
+    fn get_lock(&self) -> Rc<Mutex<u32>> {
+        return Rc::clone(&self._mutex);
+    }
+
+    fn attach_fallback(&mut self,source_environment: Option<NonNull<dyn EnvironmentInterface>>) {
+        self._fallback = source_environment;
+        if self._fallback.is_some() {
+          
+        }
+    }
+
     fn remove_variable(&mut self, uid: &u32) -> EnvironmentVariableResult<Option<Box<dyn Any>>> {
         let _locker = *self._mutex.lock().unwrap();
         let result = self._variables.remove(uid);
