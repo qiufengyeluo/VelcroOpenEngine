@@ -56,33 +56,37 @@ const CRC_TABLE: [u32; 256] = [0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0
                             0x2d02ef8d];
 
 
+
+pub trait Overloaded<T> {
+    fn from(value: T) -> Self;
+    fn add(&mut self, view: T);
+}
+
+pub trait OverloadedArray<T> {
+    fn from_array(data: Option<&[T]>, force_lower_case: bool) -> Self;
+    fn add_array(&mut self, data: Option<&[T]>, force_lower_case: bool);
+}
+
+
 #[derive(Debug, Eq)]
 pub struct Crc32 {
     _value: u32
 }
 
 impl Crc32 {
-    pub fn new(value: u32) -> Self  {
-        Crc32 {
-            _value: value,
-        }
+    pub fn new() -> Self {
+        Crc32 { _value: 0 }
+    }
+    
+    pub fn average(&self) -> u32 {
+        return self._value;
     }
 
-    pub fn new_chars(data: Option<&[char]>, force_lower_case: bool) -> Self {
-        let ptr = data.unwrap().as_ptr() as *const u8;
-        let ptr_size = data.unwrap().len();
-        return Crc32::new_data(Some(unsafe { std::slice::from_raw_parts(ptr, ptr_size)}), force_lower_case)
-    }
-
-    pub fn new_data(data: Option<&[u8]>, force_lower_case: bool) -> Self {
+    fn from_data(data: Option<&[u8]>, force_lower_case: bool) -> Self {
 
         let mut r = Crc32 {_value: 0};
         r.set(force_lower_case, data);
         return r;
-    }
-
-    pub fn average(&self) -> u32 {
-        return self._value;
     }
 
     #[allow(dead_code)]
@@ -224,4 +228,56 @@ impl PartialEq<Self> for Crc32 {
         return false;
     }
 }
+
+impl Overloaded<u32> for Crc32 {
+    fn from(v: u32) -> Self {
+       Crc32 { _value: v }
+    }
+
+    fn add(&mut self, _: u32) {
+        panic!("Crc32 add function is not implemented when the parameter is u32")
+    }
+}
+
+impl Overloaded<String> for Crc32 {
+    fn from(s: String) -> Self {
+        return Crc32::from_data(Some(s.as_bytes()), false);
+    }
+
+    fn add(&mut self, s: String) {
+        if !s.is_empty() {
+            let crc = Crc32::from_data(Some(s.as_bytes()), false).average();
+            self.combine(crc, s.len());
+        }
+    }
+}
+
+impl OverloadedArray<char> for Crc32 {
+    fn from_array(data: Option<&[char]>, force_lower_case: bool) -> Self {
+        let ptr = data.unwrap().as_ptr() as *const u8;
+        let ptr_size = data.unwrap().len();
+        return Crc32::from_data(Some(unsafe { std::slice::from_raw_parts(ptr, ptr_size)}), force_lower_case)
+    }
+
+    fn add_array(&mut self, data: Option<&[char]>, force_lower_case: bool) {
+        let ptr = data.unwrap().as_ptr() as *const u8;
+        let ptr_size = data.unwrap().len();
+
+        let crc = Crc32::from_data(Some(unsafe { std::slice::from_raw_parts(ptr, ptr_size)}), force_lower_case).average();
+        self.combine(crc, ptr_size);
+    }
+}
+
+impl OverloadedArray<u8> for Crc32 {
+    fn from_array(data: Option<&[u8]>, force_lower_case: bool) -> Self {
+        return Crc32::from_data(data, force_lower_case);
+    }
+
+    fn add_array(&mut self, data: Option<&[u8]>, force_lower_case: bool) {
+        let len = data.unwrap().len();
+        let crc = Crc32::from_data(data, force_lower_case).average();
+        self.combine(crc, len);
+    }
+}
+
 

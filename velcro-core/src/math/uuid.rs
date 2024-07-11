@@ -5,8 +5,10 @@
 use crate::math::sha1::*;
 use std::ops;
 use std::cmp::Ordering;
-use std::ptr;
+use std::ptr::{self, write_unaligned};
 use std::ptr::read_unaligned;
+
+use super::sfmt::Sfmt;
 
 const UUID_DIGITS: [char; 22] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 
     'A', 'B', 'C', 'D', 'E', 'F', 'a', 'b', 'c', 'd', 'e', 'f'];
@@ -45,8 +47,10 @@ fn get_value(c: char) -> u8 {
     return UUID_VALUES[22];
 }
 
+
+
 // PartialEq 是否相等
-#[derive(Eq, Copy, Clone)]
+#[derive(Debug,Eq, Copy, Clone)]
 pub struct UUID {
     _data: [u8; 16]
 }
@@ -59,20 +63,28 @@ impl UUID {
         }
     }
 
-    pub fn new_null() -> Self {
+    pub fn create_null() -> Self {
         UUID {
             _data: [0; 16],
         }
     }
 
-    pub fn new_string(s :&str) -> UUID {
+    //=========================================================================
+    // create_string 通过一个字符串创建 UUID
+    //=========================================================================
+    pub fn create_string(s: &str) -> UUID {
+        return UUID::create_string_skip_warnings(s, false);
+    }
+
+    pub fn create_string_skip_warnings(s: &str, skip_warnings: bool) -> Self {
+
         if s.len() == 0 {
-            return UUID::new_null();
+            return UUID::create_null();
         }
 
         if s.len() < 32 || s.len() > 38 {
-            // TODO: 打印调试警告
-            return UUID::new_null();
+            assert!(skip_warnings, "Invalid UUID format {} (must be) {{xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}} (or without dashes and braces)", s);
+            return UUID::create_null();
         }
 
         let sary =  s.as_bytes();
@@ -80,15 +92,15 @@ impl UUID {
         let mut sidx = 0;
         let mut c: char =  sary[sidx] as char;
         sidx += 1;
-        //let mut has_open_brace = false;
+        let mut has_open_brace = false;
         if c == '{' {
             c = sary[sidx] as char;
             sidx += 1;
-            //has_open_brace = true;
+            has_open_brace = true;
         }
         
         let mut has_dashes = false;
-        let mut id: UUID = UUID::new_null();
+        let mut id: UUID = UUID::create_null();
         let mut tidx = 0;
         while tidx < 16 {
             if tidx == 4 {
@@ -105,8 +117,8 @@ impl UUID {
                         c = sary[sidx] as char;
                         sidx += 1;
                     } else {
-                        // TODO: 打印调试警告
-                        return UUID::new_null();
+                        assert!(skip_warnings, "Invalid UUID format {} (must be) {{xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}} (or without dashes and braces)", s);
+                        return UUID::create_null();
                     }
                   
                 }
@@ -125,28 +137,95 @@ impl UUID {
             tidx += 1;
         }
 
-        // TODO: V_Warning("Math", !has_open_brace || skipWarnings || c == '}', "Invalid UUID format %s (must be) {xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx} (or without dashes and braces)", string);
+        assert!(!has_open_brace || skip_warnings || c == '}', "Invalid UUID format {} (must be) {{xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}} (or without dashes and braces)", s );
+
         return id;
     }
 
-    //=========================================================================
-    // new_name 通过一个名字字符串创建 UUID
-    //=========================================================================
-    pub fn new_name(name: &str) -> UUID {
-        return Self::new_data(name.as_bytes(), name.as_bytes().len());
+    pub fn create_string_permissive(s: &str, skip_warnings: bool) -> Self {
+        const MaxPermissiveStringSize:usize = 60;
+
+        if s.len() > MaxPermissiveStringSize {
+            if !skip_warnings {
+                assert!(skip_warnings, "Can't create UUID from string length {0} over maximum {1}", s.len(), MaxPermissiveStringSize);
+            }
+            return UUID::create_null();
+        }
+
+        let mut new_str_len: usize = 0;
+        let mut create_str:[u8; MaxPermissiveStringSize] = [0 as u8; MaxPermissiveStringSize];
+        let uuid_array = s.as_bytes();
+        for cps in 0..MaxPermissiveStringSize {
+            let curc = uuid_array[cps];
+            match curc {
+                b'{' => {},
+                b'}' => {},
+                b' ' => {},
+                b'-' => {},
+                b'X'|b'x' => {
+                    if cps > 0 && uuid_array[cps - 1] as char == '0' {
+                        new_str_len -= 1;
+                    }
+                }, 
+                _ => {
+                    if (curc >= b'0' && curc <= b'9') || (curc >= b'a' && curc <= b'f') || (curc >= b'A' && curc <= b'F') {
+                        create_str[new_str_len] = curc;
+                        new_str_len += 1;
+                    } else {
+                        if !skip_warnings {
+                            assert!(skip_warnings, "Unknown UUID character {0} found at position {1}", curc, cps);
+                        }
+                        return UUID::create_null();
+                    }
+                }
+            }
+        }
+
+      
+        return UUID::create_string_skip_warnings(std::str::from_utf8(&create_str.as_slice()[0..new_str_len]).unwrap(), skip_warnings);
     }
 
     //=========================================================================
-    // new_data 通过一个二进制数据创建 UUID
+    // create_name 通过一个名字字符串创建 UUID
     //=========================================================================
-    pub fn new_data(data: &[u8], size: usize) -> UUID {
+    pub fn create_name(name: &str) -> UUID {
+        return Self::from_array(name.as_bytes(), name.as_bytes().len());
+    }
+
+    pub fn create_random() -> Self {
+        let mut srandom =  Sfmt::new();
+        let mut uid = UUID::new();
+        let ptr = uid._data.as_mut_ptr().cast::<u32>();
+        
+        unsafe {
+         write_unaligned(ptr.offset(0), srandom.rand32());
+         write_unaligned(ptr.offset(1), srandom.rand32());
+         write_unaligned(ptr.offset(2), srandom.rand32());
+         write_unaligned(ptr.offset(3), srandom.rand32());
+        };
+        
+        // variant VAR_RFC_4122
+        uid._data[8] &= 0xBF;
+        uid._data[8] |= 0x80;
+ 
+        // version VER_NAME_SHA1
+        uid._data[6] &= 0x5F;
+        uid._data[6] |= 0x50;
+ 
+        return uid
+     }
+
+    //=========================================================================
+    // from_array 通过一个二进制数据创建 UUID
+    //=========================================================================
+    pub fn from_array(data: &[u8], size: usize) -> UUID {
         if size > 0 {
             let mut sa: Sha1 = Sha1::new();
             sa.process_bytes(data, size);
             
             let digest = sa.get_digest();
             
-            let mut id: UUID = UUID::new_null();
+            let mut id: UUID = UUID::create_null();
             for i in 0..4 {
                 id._data[i * 4]     = (digest.get(i) >> 24 & 0xFF) as u8;
                 id._data[i * 4 + 1] = (digest.get(i) >> 16 & 0xFF) as u8;
@@ -165,12 +244,8 @@ impl UUID {
              return id;
         }
 
-        return Self::new_null();
+        return Self::create_null();
     }
-
-    /*pub fn new_random() -> Self {
-
-    }*/
 
     /// is_null UUID 是否是个为创建的对象
     /// @return true.空对象 false.不是空对象
@@ -270,7 +345,7 @@ impl ops::Add for UUID {
         unsafe { ptr::copy(self._data.as_ptr(), merged_data.as_mut_ptr(), self._data.len()) };
         unsafe { ptr::copy(other._data.as_ptr(), merged_data.as_mut_ptr().wrapping_add(4), other._data.len()) };
 
-        return Self::new_data(merged_data.as_mut(), merged_data_len);
+        return Self::from_array(merged_data.as_mut(), merged_data_len);
     }
 }
 
