@@ -51,6 +51,9 @@ mod tests {
         let uid3 = uid1 + uid2;
         let uidstr3 = uid3.to_string(true, true);
         println!("3 add uuid random:{0}", uidstr3);
+        let uid4 = UUID::create_string("{67452301-EFCD-5B89-98BA-DCFE10325471}");
+        let uidstr4 = uid4.to_string(true, true);
+        println!("4 string to uuid random:{0}", uidstr4);
     }
 }
 
