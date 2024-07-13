@@ -143,19 +143,19 @@ impl UUID {
     }
 
     pub fn create_string_permissive(s: &str, skip_warnings: bool) -> Self {
-        const MaxPermissiveStringSize:usize = 60;
+        const MAX_PERMISSIVE_STRING_SIZE:usize = 60;
 
-        if s.len() > MaxPermissiveStringSize {
+        if s.len() > MAX_PERMISSIVE_STRING_SIZE {
             if !skip_warnings {
-                assert!(skip_warnings, "Can't create UUID from string length {0} over maximum {1}", s.len(), MaxPermissiveStringSize);
+                assert!(skip_warnings, "Can't create UUID from string length {0} over maximum {1}", s.len(), MAX_PERMISSIVE_STRING_SIZE);
             }
             return UUID::create_null();
         }
 
         let mut new_str_len: usize = 0;
-        let mut create_str:[u8; MaxPermissiveStringSize] = [0 as u8; MaxPermissiveStringSize];
+        let mut create_str:[u8; MAX_PERMISSIVE_STRING_SIZE] = [0 as u8; MAX_PERMISSIVE_STRING_SIZE];
         let uuid_array = s.as_bytes();
-        for cps in 0..MaxPermissiveStringSize {
+        for cps in 0..MAX_PERMISSIVE_STRING_SIZE {
             let curc = uuid_array[cps];
             match curc {
                 b'{' => {},
@@ -189,7 +189,7 @@ impl UUID {
     // create_name 通过一个名字字符串创建 UUID
     //=========================================================================
     pub fn create_name(name: &str) -> UUID {
-        return Self::from_array(name.as_bytes(), name.as_bytes().len());
+        return Self::from_array(name.as_bytes());
     }
 
     pub fn create_random() -> Self {
@@ -218,10 +218,11 @@ impl UUID {
     //=========================================================================
     // from_array 通过一个二进制数据创建 UUID
     //=========================================================================
-    pub fn from_array(data: &[u8], size: usize) -> UUID {
-        if size > 0 {
+    pub fn from_array(data: &[u8]) -> UUID {
+        println!("from array:{}", data.len());
+        if data.len() > 0 {
             let mut sa: Sha1 = Sha1::new();
-            sa.process_bytes(data, size);
+            sa.process_bytes(data);
             
             let digest = sa.get_digest();
             
@@ -315,6 +316,9 @@ impl UUID {
     pub fn to_string(&self, is_brackets: bool, is_dashes: bool) -> String {
         let mut result:String = String::new();
         let mut tidx = 0;
+        if is_brackets {
+            result.push('{');
+        }
         while tidx < 16 {
             if is_dashes && (tidx == 4 || tidx == 6 || tidx == 8 || tidx == 10) {
                 result.push('-');
@@ -341,11 +345,11 @@ impl ops::Add for UUID {
     fn add(self, other: UUID) -> UUID {
         let merged_data_len = self._data.len().wrapping_mul(2);
         let mut merged_data: Vec<u8> = Vec::<u8>::with_capacity(merged_data_len);
-
+        merged_data.resize(merged_data_len, 0);
         unsafe { ptr::copy(self._data.as_ptr(), merged_data.as_mut_ptr(), self._data.len()) };
         unsafe { ptr::copy(other._data.as_ptr(), merged_data.as_mut_ptr().wrapping_add(4), other._data.len()) };
-
-        return Self::from_array(merged_data.as_mut(), merged_data_len);
+        println!("add len:{}", merged_data_len);
+        return Self::from_array(merged_data.as_mut());
     }
 }
 

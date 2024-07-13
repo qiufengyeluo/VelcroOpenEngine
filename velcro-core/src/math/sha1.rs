@@ -53,8 +53,8 @@ impl Sha1 {
         }
     }
 
-    pub fn process_bytes(&mut self, b: &[u8], count: usize) {
-        for i in 0..count {
+    pub fn process_bytes(&mut self, b: &[u8]) {
+        for i in 0..b.len() {
             self.process_byte(b[i]);
         }
     }
@@ -73,7 +73,7 @@ impl Sha1 {
                 self.process_byte(0);
             }
         } else {
-            while self._block_byte_index < 64 {
+            while self._block_byte_index < 56 {
                 self.process_byte(0);
             }
         }
@@ -136,7 +136,7 @@ impl Sha1 {
                 k = 0xCA62_C1D6;
             }
 
-            let temp = Self::left_rotate(a, 5) + f + e + k + w[i];
+            let temp = Self::left_rotate(a, 5).wrapping_add(f).wrapping_add(e).wrapping_add(k).wrapping_add( w[i]);
 
             e = d; 
             d = c;
@@ -145,11 +145,13 @@ impl Sha1 {
             a = temp;
         }
 
-        self._h[0] += a;
-        self._h[1] += b;
-        self._h[2] += c;
-        self._h[3] += d;
-        self._h[4] += e;
+        self._h[0] = self._h[0].wrapping_add(a);
+        self._h[1] = self._h[1].wrapping_add(b);
+        self._h[2] = self._h[2].wrapping_add(c);
+        self._h[3] = self._h[3].wrapping_add(d);
+        self._h[4] = self._h[4].wrapping_add(e);
+
+        //println!("complate1");
     }
 
     fn left_rotate(x: u32, n: usize) -> u32 {
