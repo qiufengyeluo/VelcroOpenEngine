@@ -15,5 +15,7 @@ readme = "README.md"
 #rust-version = "1.79"
 
 [dependencies]
+velcro-derive = {path = "../velcro-derive", version = "0.1.1"}
+velcro-math = {path = "../velcro-math", version = "0.1.1"}
 velcro-core = {path = "../velcro-core", version = "0.1.1"}
 #serde = { version = "1", features = ["derive"] }

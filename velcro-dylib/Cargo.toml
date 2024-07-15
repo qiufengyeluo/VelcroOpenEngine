@@ -18,5 +18,4 @@ readme = "README.md"
 crate-type = ["dylib"]
 
 [dependencies]
-#
 velcro-impl = {path = "../velcro-impl", version = "0.1.1"}

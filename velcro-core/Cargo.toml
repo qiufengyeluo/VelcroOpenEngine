@@ -11,9 +11,17 @@ documentation = "https://docs.rs/velcro-core"
 repository = "https://github.com/yamakiller/velcro-open"
 
 
+
+
 [dependencies]
-crypto_api_osrandom = {version = "0.2.0"}
+#crypto_api_osrandom = {version = "0.2.0"}
+#syn = "0.12.13"
+#quote = "0.4.2"
+#proc-macro2 = "0.2.2"
+#darling = "0.20.10"
 
 [features]
+
+
 #default = ["stdarch_x86_mm_shuffle"]
 #enable_profiler = []
