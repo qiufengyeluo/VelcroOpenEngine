@@ -4,6 +4,7 @@ mod vsimd;
 pub mod bits;
 pub mod cityhash;
 pub mod sfmt;
+pub mod random;
 pub mod crc;
 
 

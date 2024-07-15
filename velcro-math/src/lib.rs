@@ -1,6 +1,7 @@
 
 pub mod math;
 
+pub use math::random::*;
 
 #[cfg(test)]
 mod tests {
