@@ -3,9 +3,6 @@
 mod vsimd;
 pub mod bits;
 pub mod cityhash;
-pub mod uuid;
-pub mod sha1;
-pub mod random;
 pub mod sfmt;
 pub mod crc;
 
@@ -15,7 +12,6 @@ mod tests {
     use crate::math::crc;
     use crate::math::sfmt::Sfmt;
 
-    use super::uuid::UUID;
 
     #[test]
     fn it_work_crc32() {
@@ -40,6 +36,7 @@ mod tests {
         println!("sfmt random f64_2:{}", vf2);
     }
 
+    /* 
     #[test]
     fn it_work_uuid() {
         let uid1 = UUID::create_random();
@@ -55,5 +52,6 @@ mod tests {
         let uidstr4 = uid4.to_string(true, true);
         println!("4 string to uuid random:{0}", uidstr4);
     }
+    */
 }
 

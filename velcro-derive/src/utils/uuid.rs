@@ -1,14 +1,12 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
 
-//use crate::math::sfmt::*;
-use crate::math::sha1::*;
+use crate::utils::sha1::*;
 use std::ops;
 use std::cmp::Ordering;
-use std::ptr::{self, write_unaligned};
+use std::ptr::{self};
 use std::ptr::read_unaligned;
 
-use super::sfmt::Sfmt;
 
 const UUID_DIGITS: [char; 22] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 
     'A', 'B', 'C', 'D', 'E', 'F', 'a', 'b', 'c', 'd', 'e', 'f'];
@@ -16,6 +14,7 @@ const UUID_DIGITS: [char; 22] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9
 const UUID_VALUES: [u8; 23] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 
     11, 12, 13, 14, 15, 10, 11, 12, 13, 14, 15, u8::MAX];
 
+#[allow(dead_code)]
 pub enum Variant {
     VarUnknown         = -1,
     VarNcs             = 0, // 0 - -
@@ -24,6 +23,7 @@ pub enum Variant {
     VarReserved        = 7  // 1 1 1
 }
 
+#[allow(dead_code)]
 pub enum Version
 {
     VerUnknown         = -1,
@@ -36,6 +36,7 @@ pub enum Version
 
 #[inline]
 #[must_use]
+#[allow(dead_code)]
 fn get_value(c: char) -> u8 {
     let mut i = 0;
     for d in UUID_DIGITS.iter() {
@@ -57,6 +58,7 @@ pub struct UUID {
 
 
 impl UUID {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         UUID {
             _data: [0; 16],
@@ -72,6 +74,7 @@ impl UUID {
     //=========================================================================
     // create_string 通过一个字符串创建 UUID
     //=========================================================================
+    #[allow(dead_code)]
     pub fn create_string(s: &str) -> UUID {
         return UUID::create_string_skip_warnings(s, false);
     }
@@ -142,6 +145,7 @@ impl UUID {
         return id;
     }
 
+    #[allow(dead_code)]
     pub fn create_string_permissive(s: &str, skip_warnings: bool) -> Self {
         const MAX_PERMISSIVE_STRING_SIZE:usize = 60;
 
@@ -188,11 +192,12 @@ impl UUID {
     //=========================================================================
     // create_name 通过一个名字字符串创建 UUID
     //=========================================================================
+    #[allow(dead_code)]
     pub fn create_name(name: &str) -> UUID {
         return Self::from_array(name.as_bytes());
     }
 
-    pub fn create_random() -> Self {
+    /*pub fn create_random() -> Self {
         let mut srandom =  Sfmt::new();
         let mut uid = UUID::new();
         let ptr = uid._data.as_mut_ptr().cast::<u32>();
@@ -213,7 +218,7 @@ impl UUID {
         uid._data[6] |= 0x50;
  
         return uid
-     }
+     }*/
 
     //=========================================================================
     // from_array 通过一个二进制数据创建 UUID
@@ -250,6 +255,7 @@ impl UUID {
 
     /// is_null UUID 是否是个为创建的对象
     /// @return true.空对象 false.不是空对象
+    #[allow(dead_code)]
     pub fn is_null(&self) -> bool {
         let v64h: u64 = unsafe { read_unaligned(self._data.as_ptr().cast::<u64>())};
         let v64l: u64 = unsafe { read_unaligned(self._data[8..].as_ptr().cast::<u64>())};
@@ -260,6 +266,7 @@ impl UUID {
     }
 
     /// get_variant 获取 UUID 对象格式标准
+    #[allow(dead_code)]
     pub fn get_variant(&self) -> Variant {
         let val = self._data[8];
         if (val & 0x80) == 0x00
@@ -283,6 +290,7 @@ impl UUID {
     }
 
     /// get_version 返回 UUID 版本格式信息
+    #[allow(dead_code)]
     pub fn get_version(&self) -> Version {
         let val = self._data[6];
         if (val & 0xF0) == 0x10
@@ -313,6 +321,7 @@ impl UUID {
     /// @param bool is_brackets 是否有大括号
     /// @param bool is_deshes   是否有分割符
     /// @return string 转换后的字符串
+    #[allow(dead_code)]
     pub fn to_string(&self, is_brackets: bool, is_dashes: bool) -> String {
         let mut result:String = String::new();
         let mut tidx = 0;

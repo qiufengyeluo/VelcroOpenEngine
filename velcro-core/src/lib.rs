@@ -2,7 +2,7 @@
 #![allow(clippy::from_over_into)]
 
 
-pub mod parallel;
+mod parallel;
 
 
 

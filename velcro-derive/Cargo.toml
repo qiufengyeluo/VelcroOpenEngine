@@ -3,14 +3,13 @@ name = "velcro-derive"
 version = "0.1.1"
 edition = "2021"
 
-[features]
-diagnostics = []
-suggestions = ["strsim"]
+[lib]
+proc-macro = true
 
 [dependencies]
-ident_case = "1.0.1"
-proc-macro2 = "1.0.37"
-quote = "1.0.18"
-syn = { version = "2.0.15", features = ["full", "extra-traits"] }
-fnv = "1.0.7"
-strsim = { version = "0.11.1", optional = true }
+convert_case = "0.6.0"
+proc-macro2 = "1.0.85"
+quote = "1.0.10"
+syn = "2.0.71"
+darling = "0.20.9"
+fxhash = "0.2.1"

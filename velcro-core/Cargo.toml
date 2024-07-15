@@ -11,14 +11,12 @@ documentation = "https://docs.rs/velcro-core"
 repository = "https://github.com/yamakiller/velcro-open"
 
 
-
+[lib]
+proc-macro = true
+path = "rtti/mod.rs"
 
 [dependencies]
-#crypto_api_osrandom = {version = "0.2.0"}
-#syn = "0.12.13"
-#quote = "0.4.2"
-#proc-macro2 = "0.2.2"
-#darling = "0.20.10"
+velcro-math = {path = "../velcro-math", version = "0.1.1"}
 
 [features]
 
