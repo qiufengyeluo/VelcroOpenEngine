@@ -13,6 +13,7 @@ pub use num_traits;
 pub use parking_lot;
 /*pub mod reflect;*/
 
+mod allocator;
 mod math;
 mod parallel;
 mod interface;

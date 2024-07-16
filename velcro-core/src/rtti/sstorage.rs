@@ -6,6 +6,7 @@ use crate::{
     uuid_provider,
     VHashMap,
 };
+use crate::rtti::visitor::Visit;
 
 pub use velcro_derive::TypeUuidProvider;
 use serde::{Deserialize, Serialize};
@@ -53,6 +54,7 @@ impl Debug for ImmutableString {
         Debug::fmt(&self.0.string, f)
     }
 }
+
 
 impl Default for ImmutableString {
     fn default() -> Self {

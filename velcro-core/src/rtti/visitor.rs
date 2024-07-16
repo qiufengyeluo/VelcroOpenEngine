@@ -10,221 +10,13 @@
 
 pub use velcro_derive::Visit;
 
-pub mod prelude {
-    //! Types to use `#[derive(Visit)]`
-    //pub use super::{Visit, VisitError, VisitResult, Visitor};
-}
+use bitflags::bitflags;
+use std::fmt::{Display, Formatter};
 
-use velcro_utils::base64;
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::any::TypeId;
 use std::error::Error;
-use std::{
-    any::Any,
-    cell::{Cell, RefCell},
-    collections::{hash_map::Entry, HashMap, HashSet},
-    fmt::{Display, Formatter},
-    fs::File,
-    hash::{BuildHasher, Hash},
-    io::{BufWriter, Cursor, Read, Write},
-    ops::{Deref, DerefMut, Range},
-    path::{Path, PathBuf},
-    rc::Rc,
-    string::FromUtf8Error,
-    sync::{Arc, Mutex, RwLock},
-    time::Duration,
-};
-use velcro_utils::UUID;
-pub enum FieldKind {
-    Bool(bool),
-    U8(u8),
-    I8(i8),
-    U16(u16),
-    I16(i16),
-    U32(u32),
-    I32(i32),
-    U64(u64),
-    I64(i64),
-    F32(f32),
-    F64(f64),
-    BinaryBlob(Vec<u8>),
-    UUID(UUID),
-    /// A representation for arrays of [Pod] types as a `Vec<u8>`.
-    PodArray {
-        /// A code to identify the Pod type of the elements of the array.
-        /// Taken from [Pod::type_id].
-        type_id: u8,
-        /// The number of bytes in each array element.
-        element_size: u32,
-        /// The bytes that store the data, with unspecified endianness.
-        bytes: Vec<u8>,
-    },
-}
 
-/// Trait for datatypes that can be converted directly into bytes.
-/// This is required for the type to be used in the Vec of a [PodVecView].
-pub trait Pod: Copy {
-    /// A number which distinguishes each Pod type. Two distinct Pod types must not share the same `type_id` byte.
-    /// The `type_id` is stored with the data when a [PodVecView] is visited and used to confirm that the stored
-    /// data matches the expected type when reading. Otherwise garbage data could be read by interpreting an
-    /// array of i8 as an array of f32 or any other mismatched combination.
-    fn type_id() -> u8;
-}
-
-impl Pod for u8 {
-    fn type_id() -> u8 {
-        0
-    }
-}
-
-impl Pod for i8 {
-    fn type_id() -> u8 {
-        1
-    }
-}
-
-impl Pod for u16 {
-    fn type_id() -> u8 {
-        2
-    }
-}
-
-impl Pod for i16 {
-    fn type_id() -> u8 {
-        3
-    }
-}
-
-impl Pod for u32 {
-    fn type_id() -> u8 {
-        4
-    }
-}
-
-impl Pod for i32 {
-    fn type_id() -> u8 {
-        5
-    }
-}
-
-impl Pod for u64 {
-    fn type_id() -> u8 {
-        6
-    }
-}
-
-impl Pod for i64 {
-    fn type_id() -> u8 {
-        7
-    }
-}
-
-impl Pod for f32 {
-    fn type_id() -> u8 {
-        8
-    }
-}
-
-impl Pod for f64 {
-    fn type_id() -> u8 {
-        9
-    }
-}
-
-/// A [Visit] type for storing a whole Vec of [Pod] values as a single field within a Visitor.
-/// The Vec is reinterpreted as a Vec of bytes, with no consideration given for whether the bytes
-/// are in big-endian or little-endian order by using [std::ptr::copy_nonoverlapping].
-pub struct PodVecView<'a, T: Pod> {
-    type_id: u8,
-    vec: &'a mut Vec<T>,
-}
-
-
-impl<'a, T: Pod> PodVecView<'a, T> {
-    pub fn from_pod_vec(vec: &'a mut Vec<T>) -> Self {
-        Self {
-            type_id: T::type_id(),
-            vec,
-        }
-    }
-}
-
-/*impl<'a, T: Pod> Visit for PodVecView<'a, T> {
-    #[allow(clippy::uninit_vec)]
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        if visitor.reading {
-            if let Some(field) = visitor.find_field(name) {
-                match &field.kind {
-                    FieldKind::PodArray {
-                        type_id,
-                        element_size,
-                        bytes,
-                    } => {
-                        if *type_id == self.type_id {
-                            let len = bytes.len() / *element_size as usize;
-                            let mut data = Vec::<T>::with_capacity(len);
-                            unsafe {
-                                data.set_len(len);
-                                std::ptr::copy_nonoverlapping(
-                                    bytes.as_ptr(),
-                                    data.as_mut_ptr() as *mut u8,
-                                    bytes.len(),
-                                );
-                            }
-                            *self.vec = data;
-                            Ok(())
-                        } else {
-                            Err(VisitError::TypeMismatch)
-                        }
-                    }
-                    _ => Err(VisitError::FieldTypeDoesNotMatch),
-                }
-            } else {
-                Err(VisitError::FieldDoesNotExist(name.to_owned()))
-            }
-        } else if visitor.find_field(name).is_some() {
-            Err(VisitError::FieldAlreadyExists(name.to_owned()))
-        } else {
-            let node = visitor.current_node();
-            node.fields.push(Field::new(
-                name,
-                FieldKind::PodArray {
-                    type_id: T::type_id(),
-                    element_size: std::mem::size_of::<T>() as u32,
-                    bytes: unsafe {
-                        let mut data = self.vec.clone();
-                        let bytes = Vec::from_raw_parts(
-                            data.as_mut_ptr() as *mut u8,
-                            data.len() * std::mem::size_of::<T>(),
-                            data.capacity() * std::mem::size_of::<T>(),
-                        );
-                        std::mem::forget(data);
-                        bytes
-                    },
-                },
-            ));
-            Ok(())
-        }
-    }
-}
-
-
-/// Values within a visitor are constructed from Fields.
-/// Each Field has a name and a value. The name is used as a key to access the value
-/// within the visitor using the [Visit::visit] method, so each field within a value
-/// must have a unique name.
-pub struct Field {
-    /// The key string that allows access to the field.
-    name: String,
-    /// The data stored in the visitor for this field.
-    kind: FieldKind,
-}
-
-/// Errors that may occur while reading or writing [Visitor].
 #[derive(Debug)]
 pub enum VisitError {
-    /// An [std::io::Error] occured while reading or writing a file with Visitor data.
-    Io(std::io::Error),
     /// When a field is encoded as bytes, the field data is prefixed by an identifying byte
     /// to allow the bytes to be decoded. This error happens when an identifying byte is
     /// expected during decoding, but an unknown value is found in that byte.
@@ -269,10 +61,10 @@ pub enum VisitError {
 
 impl Error for VisitError {}
 
+
 impl Display for VisitError {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
-            Self::Io(io) => write!(f, "io error: {}", io),
             Self::UnknownFieldType(type_index) => write!(f, "unknown field type {}", type_index),
             Self::FieldDoesNotExist(name) => write!(f, "field does not exists {}", name),
             Self::FieldAlreadyExists(name) => write!(f, "field already exists {}", name),
@@ -288,85 +80,23 @@ impl Display for VisitError {
             Self::User(msg) => write!(f, "user defined error: {}", msg),
             Self::UnexpectedRcNullIndex => write!(f, "unexpected rc null index"),
             Self::PoisonedMutex => write!(f, "attempt to lock poisoned mutex"),
-            Self::FileLoadError(e) => write!(f, "file load error: {:?}", e),
         }
     }
 }
 
-impl<T> From<std::sync::PoisonError<std::sync::MutexGuard<'_, T>>> for VisitError {
-    fn from(_: std::sync::PoisonError<std::sync::MutexGuard<'_, T>>) -> Self {
-        Self::PoisonedMutex
+use velcro_utils::UUID;
+
+
+
+bitflags! {
+    /// Flags that can be used to influence the behaviour of [Visit::visit] methods.
+    pub struct VisitorFlags: u32 {
+        /// No flags set, do nothing special.
+        const NONE = 0;
+        /// Tell [crate::variable::InheritableVariable::visit] to assume that it's
+        /// [VariableFlags::MODIFIED](create::variable::VariableFlags::MODIFIED) is set,
+        /// and therefore write its data. Otherwise, InheritableVariable has the special
+        /// property of *not writing itself* when the `MODIFIED` flag is not set.
+        const SERIALIZE_EVERYTHING = 1 << 1;
     }
 }
-
-impl<T> From<std::sync::PoisonError<&mut T>> for VisitError {
-    fn from(_: std::sync::PoisonError<&mut T>) -> Self {
-        Self::PoisonedMutex
-    }
-}
-
-impl<T> From<std::sync::PoisonError<std::sync::RwLockWriteGuard<'_, T>>> for VisitError {
-    fn from(_: std::sync::PoisonError<std::sync::RwLockWriteGuard<'_, T>>) -> Self {
-        Self::PoisonedMutex
-    }
-}
-
-impl From<std::io::Error> for VisitError {
-    fn from(io_err: std::io::Error) -> Self {
-        Self::Io(io_err)
-    }
-}
-
-impl From<FromUtf8Error> for VisitError {
-    fn from(_: FromUtf8Error) -> Self {
-        Self::InvalidName
-    }
-}
-
-impl From<String> for VisitError {
-    fn from(s: String) -> Self {
-        Self::User(s)
-    }
-}
-
-/// The result of a [Visit::visit] or of a Visitor encoding operation
-/// such as [Visitor::save_binary]. It has no value unless an error occurred.
-pub type VisitResult = Result<(), VisitError>;
-
-trait VisitableElementaryField {
-    fn write(&self, file: &mut dyn Write) -> VisitResult;
-    fn read(&mut self, file: &mut dyn Read) -> VisitResult;
-}
-
-
-/// A node is a collection of [Fields](Field) that exists within a tree of nodes
-/// that allows a [Visitor] to store its data.
-/// Each node has a name, and may have a parent node and child nodes.
-pub struct VisitorNode {
-    name: String,
-    fields: Vec<Field>,
-    parent: Handle<VisitorNode>,
-    children: Vec<Handle<VisitorNode>>,
-}
-
-impl VisitorNode {
-    fn new(name: &str, parent: Handle<VisitorNode>) -> Self {
-        Self {
-            name: name.to_owned(),
-            fields: Vec::new(),
-            parent,
-            children: Vec::new(),
-        }
-    }
-}
-
-impl Default for VisitorNode {
-    fn default() -> Self {
-        Self {
-            name: String::new(),
-            fields: Vec::new(),
-            parent: Handle::NONE,
-            children: Vec::new(),
-        }
-    }
-}*/
