@@ -20,13 +20,25 @@ pub trait TypeUuidProvider: Sized {
 #[macro_export]
 macro_rules! uuid_provider {
     ($type:ident $(<$($generics:tt),*>)? = $uuid:expr) => {
-        impl$(<$($generics),*>)? $crate::type_traits::TypeUuidProvider for $type $(<$($generics),*>)? {
+        impl$(<$($generics),*>)? $crate::rtti::type_traits::TypeUuidProvider for $type $(<$($generics),*>)? {
             fn type_uuid() -> $crate::UUID {
                 $crate::UUID::create_string($uuid)
             }
         }
     };
 }
+
+#[macro_export]
+macro_rules! stub_uuid_provider {
+    ($type:ty) => {
+        impl $crate::rtti::TypeUuidProvider for $type {
+            fn type_uuid() -> $crate::uuid::Uuid {
+                unimplemented!()
+            }
+        }
+    };
+}
+
 
 
 uuid_provider!(u8 = "{fe415306-719d-4e1e-8b0b-02ed9d572808}");
@@ -99,7 +111,7 @@ impl dyn VObjectProvider {
 #[macro_export]
 macro_rules! impl_vobject_provider {
      ($dest_type:ty) => {
-        impl $crate::type_traits::VObjectProvider for $dest_type {
+        impl $crate::rtti::type_traits::VObjectProvider for $dest_type {
             fn query_vobject_ref(&self, type_id: std::any::TypeId) -> Option<&dyn std::any::Any> {
                 if type_id == std::any::TypeId::of::<Self>() {
                     return Some(self);
@@ -120,7 +132,7 @@ macro_rules! impl_vobject_provider {
     };
 
     ($dest_type:ty, $($($vobj_field:ident).*: $vobj_type:ty),*) => {
-        impl $crate::type_traits::VObjectProvider for $dest_type {
+        impl $crate::rtti::type_traits::VObjectProvider for $dest_type {
             fn query_vobject_ref(&self, type_id: std::any::TypeId) -> Option<&dyn std::any::Any> {
                 if type_id == std::any::TypeId::of::<Self>() {
                     return Some(self);

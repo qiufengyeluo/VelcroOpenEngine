@@ -136,7 +136,8 @@ fn hash32_len_0_to_4(s: &[u8], len: usize) -> u32 {
 
 
 
-pub fn city_hash32(mut s: &[u8], len: usize) -> u32 { 
+pub fn city_hash32(mut s: &[u8]) -> u32 { 
+    let len = s.len();
     if len <= 24 {
         if len <= 12 {
             if len <= 4 {
@@ -385,7 +386,8 @@ fn weak_hash_len32_with_seeds_bytes(s: &[u8], a: u64,  b: u64) -> U128 {
                                     b);
 }
 
-pub fn city_hash64(mut s: &[u8], len: usize) -> u64 {
+pub fn city_hash64(mut s: &[u8]) -> u64 {
+    let len = s.len();
     if len <= 32 {
         if len <= 16 {
             return hash_len_0_to_16(&s[0..], len);

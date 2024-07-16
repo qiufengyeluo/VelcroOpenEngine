@@ -3,7 +3,6 @@
 
 
 use std::{any::Any, collections::HashMap, ptr::NonNull, sync::{Mutex, Once}, mem::MaybeUninit};
-//use std::sync::Arc;
 use std::rc::Rc;
 //use crate::parallel;
 
@@ -64,7 +63,6 @@ impl  Environment  {
             _mutex: Rc::new(Mutex::new(0))
         }
     }
-
 
     pub fn get() -> &'static EnvironmentSingleton {
        static mut ENVIRONMENT_SINGLETON: MaybeUninit<EnvironmentSingleton> = MaybeUninit::uninit();

@@ -60,7 +60,7 @@ impl W128T {
 
 
 
-//assert_eq!(N, MEXP / (mem::size_of::<W128T>() as i32 * 8 ) + 1 , "The smft member array must fit all iterations of the correct 128-bit size.");
+assert_eq!(N, MEXP / (mem::size_of::<W128T>() as i32 * 8 ) + 1 , "The smft member array must fit all iterations of the correct 128-bit size.");
 
 pub struct Sfmt {
     sfmt: [W128T; N as usize],

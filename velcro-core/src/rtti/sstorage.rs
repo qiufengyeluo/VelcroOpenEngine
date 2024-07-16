@@ -1,9 +1,10 @@
 #![warn(missing_docs)]
 
+use crate::VHasher;
 use crate::{
     parking_lot::Mutex,
     uuid_provider,
-    visitor::{Visit},
+    VHashMap,
 };
 
 pub use velcro_derive::TypeUuidProvider;
@@ -138,13 +139,13 @@ impl Eq for ImmutableString {}
 /// storage is a singleton. In normal circumstances you should never use it directly.
 #[derive(Default)]
 pub struct ImmutableStringStorage {
-    vec: HashMap<u64, Arc<State>>,
+    vec: VHashMap<u64, Arc<State>>,
 }
 
 impl ImmutableStringStorage {
     #[inline]
     fn insert<S: AsRef<str>>(&mut self, string: S) -> ImmutableString {
-        /*let mut hasher = FxHasher::default();
+        let mut hasher: VHasher = VHasher::default();
         string.as_ref().hash(&mut hasher);
         let hash = hasher.finish();
 
@@ -157,12 +158,12 @@ impl ImmutableStringStorage {
             });
             self.vec.insert(hash, immutable.clone());
             ImmutableString(immutable)
-        }*/
+        }
     }
     /// Insert without copying the given String.
     #[inline]
     fn insert_owned(&mut self, string: String) -> ImmutableString {
-        /*let mut hasher = FxHasher::default();
+        let mut hasher = VHasher::default();
         string.hash(&mut hasher);
         let hash = hasher.finish();
 
@@ -172,7 +173,7 @@ impl ImmutableStringStorage {
             let immutable = Arc::new(State { string, hash });
             self.vec.insert(hash, immutable.clone());
             ImmutableString(immutable)
-        }*/
+        }
     }
 }
 
