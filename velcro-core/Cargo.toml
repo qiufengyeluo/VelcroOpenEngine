@@ -11,15 +11,18 @@ documentation = "https://docs.rs/velcro-core"
 repository = "https://github.com/yamakiller/velcro-open"
 
 
-[lib]
-proc-macro = true
-path = "rtti/mod.rs"
 
 [dependencies]
-velcro-math = {path = "../velcro-math", version = "0.1.1"}
+velcro-utils = {path = "../velcro-utils", version = "0.1.1"}
+velcro-derive = {path = "../velcro-derive", version = "0.1.1"}
+crypto_api_osrandom = " 0.2.0"
+memoffset = "0.9.0"
+lazy_static = "1.4.0"
+num-traits = "0.2.14"
+parking_lot = "0.12.0"
+byteorder = "1.4.3"
+bitflags = "2.2.1"
+serde = { version = "1", features = ["derive"] }
 
 [features]
 
-
-#default = ["stdarch_x86_mm_shuffle"]
-#enable_profiler = []

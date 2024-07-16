@@ -2,7 +2,6 @@ use darling::*;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::*;
 use syn::*;
-//use velcro_math::UUID;
 
 #[derive(FromDeriveInput)]
 #[darling(attributes(type_uuid), supports(struct_any, enum_any))]

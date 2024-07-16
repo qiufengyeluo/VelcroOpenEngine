@@ -1,9 +1,10 @@
 [workspace]
 members = [
-    "velcro-core", "velcro-derive", 
+    "velcro-derive", 
+    "velcro-core", 
     "velcro-dylib", 
-    "velcro-impl", "velcro-math", 
-    "velcro-open"]
+    "velcro-impl", 
+    "velcro-open", "velcro-utils"]
 resolver = "2"
 
 [profile.dev]

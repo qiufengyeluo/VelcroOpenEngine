@@ -1,18 +1,18 @@
+#![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::from_over_into)]
 
-
-mod vsimd;
-pub mod bits;
+mod bits;
+pub mod sha1;
+pub mod uuid;
 pub mod cityhash;
-pub mod sfmt;
-pub mod random;
 pub mod crc;
+pub mod base64;
 
+pub use uuid::UUID;
 
 #[cfg(test)]
 mod tests {
-    use crate::math::crc;
-    use crate::math::sfmt::Sfmt;
-
+    use super::*;
 
     #[test]
     fn it_work_crc32() {
@@ -21,29 +21,25 @@ mod tests {
     }
 
     #[test]
-    fn it_work_sfmt_random() {
-        let mut srandom =  Sfmt::new();
-
-        let v = srandom.rand32();
-        println!("sfmt random u32:{}", v);
-
-        let vf = srandom.rand_r32();
-        println!("sfmt random f64:{}", vf);
-
-        let vf1 = srandom.rand_r32_1();
-        println!("sfmt random f64_1:{}", vf1);
-
-        let vf2 = srandom.rand_r32_2();
-        println!("sfmt random f64_2:{}", vf2);
+    fn it_work_city_hash32() {
+        let bytes = "bors".as_bytes();
+        let hash32v: u32 = cityhash::city_hash32(bytes, bytes.len());
+        println!("city hash 32 test: {}", hash32v);
     }
 
-    /* 
+    #[test]
+    fn it_work_city_hash64() {
+        let bytes = "bors12233fdfdfdfd".as_bytes();
+        let hash64v: u64 = cityhash::city_hash64(bytes, bytes.len());
+        println!("city hash 64 test: {}", hash64v);
+    }
+
     #[test]
     fn it_work_uuid() {
-        let uid1 = UUID::create_random();
+        let uid1 = UUID::create_string("{f094d7d4-e168-4a3d-89f3-ae3b83b1f5db}");
         let uidstr1 = uid1.to_string(true, true);
         println!("1 uuid random:{0}", uidstr1);
-        let uid2 = UUID::create_random();
+        let uid2 = UUID::create_string("{eb582bb9-b781-4573-ae47-75ca837b8438}");
         let uidstr2 = uid2.to_string(true, true);
         println!("2 uuid random:{0}", uidstr2);
         let uid3 = uid1 + uid2;
@@ -53,6 +49,4 @@ mod tests {
         let uidstr4 = uid4.to_string(true, true);
         println!("4 string to uuid random:{0}", uidstr4);
     }
-    */
 }
-

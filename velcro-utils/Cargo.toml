@@ -1,5 +1,5 @@
 [package]
-name = "velcro-impl"
+name = "velcro-utils"
 version = "0.1.1"
 authors = ["liang yu <296270991@qq.com>", "Velcro Open Engine Contributors"]
 edition = "2021"
@@ -12,9 +12,6 @@ homepage = "https://velcro-open.rs"
 documentation = "https://docs.rs/velcro-open"
 repository = "https://github.com/yamakiller/velcro-open"
 readme = "README.md"
-#rust-version = "1.79"
+rust-version = "1.79"
 
 [dependencies]
-velcro-derive = {path = "../velcro-derive", version = "0.1.1"}
-velcro-core = {path = "../velcro-core", version = "0.1.1"}
-#serde = { version = "1", features = ["derive"] }
