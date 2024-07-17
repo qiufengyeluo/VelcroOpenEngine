@@ -7,9 +7,12 @@ pub mod uuid;
 pub mod cityhash;
 pub mod crc;
 pub mod base64;
+pub mod hasder;
 
 pub use uuid::UUID;
-pub use cityhash::*;
+pub use cityhash::city_hash32;
+pub use cityhash::city_hash64;
+pub use cityhash::city_hash128;
 
 #[cfg(test)]
 mod tests {

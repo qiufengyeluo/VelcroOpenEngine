@@ -10,10 +10,16 @@
 
 pub use velcro_derive::Visit;
 
+pub mod prelude {
+    //! Types to use `#[derive(Visit)]`
+    pub use super::{Visit, VisitError, VisitResult};
+}
+
 use bitflags::bitflags;
 use std::fmt::{Display, Formatter};
 
 use std::error::Error;
+use std::string::FromUtf8Error;
 
 #[derive(Debug)]
 pub enum VisitError {
@@ -83,6 +89,41 @@ impl Display for VisitError {
         }
     }
 }
+
+impl<T> From<std::sync::PoisonError<std::sync::MutexGuard<'_, T>>> for VisitError {
+    fn from(_: std::sync::PoisonError<std::sync::MutexGuard<'_, T>>) -> Self {
+        Self::PoisonedMutex
+    }
+}
+
+impl<T> From<std::sync::PoisonError<&mut T>> for VisitError {
+    fn from(_: std::sync::PoisonError<&mut T>) -> Self {
+        Self::PoisonedMutex
+    }
+}
+
+impl<T> From<std::sync::PoisonError<std::sync::RwLockWriteGuard<'_, T>>> for VisitError {
+    fn from(_: std::sync::PoisonError<std::sync::RwLockWriteGuard<'_, T>>) -> Self {
+        Self::PoisonedMutex
+    }
+}
+
+
+impl From<FromUtf8Error> for VisitError {
+    fn from(_: FromUtf8Error) -> Self {
+        Self::InvalidName
+    }
+}
+
+impl From<String> for VisitError {
+    fn from(s: String) -> Self {
+        Self::User(s)
+    }
+}
+
+/// The result of a [Visit::visit] or of a Visitor encoding operation
+/// such as [Visitor::save_binary]. It has no value unless an error occurred.
+pub type VisitResult = Result<(), VisitError>;
 
 use velcro_utils::UUID;
 

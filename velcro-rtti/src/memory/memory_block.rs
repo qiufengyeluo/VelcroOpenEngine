@@ -1,6 +1,6 @@
 use std::cell::UnsafeCell;
 
-pub trait MemoryBlock: Sized {
+pub trait MemoryBlockContainer: Sized {
     type Element: Sized;
 
     fn new_empty() -> Self;
@@ -18,8 +18,7 @@ pub trait MemoryBlock: Sized {
     fn take(&mut self) -> Option<Self::Element>;
 }
 
-
-impl<T> MemoryBlock for Option<T> {
+impl<T> MemoryBlockContainer for Option<T> {
     type Element = T;
 
     #[inline]
@@ -59,22 +58,22 @@ impl<T> MemoryBlock for Option<T> {
 }
 
 #[derive(Debug)]
-pub struct Memory<P>(pub UnsafeCell<P>);
+pub struct MemoryBlock<P>(pub UnsafeCell<P>);
 
-impl<T, P> Clone for Memory<P>
+impl<T, P> Clone for MemoryBlock<P>
 where
     T: Sized,
-    P: MemoryBlock<Element = T> + Clone,
+    P: MemoryBlockContainer<Element = T> + Clone,
 {
     fn clone(&self) -> Self {
         Self(UnsafeCell::new(self.get().clone()))
     }
 }
 
-impl<T, P> Memory<P>
+impl<T, P> MemoryBlock<P>
 where
     T: Sized,
-    P: MemoryBlock<Element = T>,
+    P: MemoryBlockContainer<Element = T>,
 {
     pub fn new(data: T) -> Self {
         Self(UnsafeCell::new(P::new(data)))
@@ -113,20 +112,20 @@ where
     }
 }
 
-// SAFETY: This is safe, because Payload is never directly exposed to the call site. It is always
+// SAFETY: This is safe, because MemoryBlock is never directly exposed to the call site. It is always
 // accessed using a sort of read-write lock that forces borrowing rules at runtime.
-unsafe impl<T, P> Sync for Payload<P>
+unsafe impl<T, P> Sync for MemoryBlock<P>
 where
     T: Sized,
-    P: MemoryBlock<Element = T>,
+    P: MemoryBlockContainer<Element = T>,
 {
 }
 
-// SAFETY: This is safe, because Payload is never directly exposed to the call site. It is always
+// SAFETY: This is safe, because MemoryBlock is never directly exposed to the call site. It is always
 // accessed using a sort of read-write lock that forces borrowing rules at runtime.
-unsafe impl<T, P> Send for Payload<P>
+unsafe impl<T, P> Send for MemoryBlock<P>
 where
     T: Sized,
-    P: MemoryBlock<Element = T>,
+    P: MemoryBlockContainer<Element = T>,
 {
 }

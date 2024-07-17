@@ -1,0 +1,16 @@
+[package]
+name = "velcro-rtti"
+version = "0.1.1"
+edition = "2021"
+
+[dependencies]
+velcro-utils = {path = "../velcro-utils", version = "0.1.1"}
+velcro-derive = {path = "../velcro-derive", version = "0.1.1"}
+crypto_api_osrandom = " 0.2.0"
+memoffset = "0.9.0"
+lazy_static = "1.4.0"
+num-traits = "0.2.14"
+parking_lot = "0.12.0"
+byteorder = "1.4.3"
+bitflags = "2.2.1"
+serde = { version = "1", features = ["derive"] }

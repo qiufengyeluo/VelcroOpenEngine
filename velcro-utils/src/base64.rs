@@ -25,11 +25,12 @@ const INVERSE_BASE64_TABLE: [u8; 256] = [
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff];
 
+#[inline]
 fn is_valid_encoded_char(echar: char) -> bool {
     return INVERSE_BASE64_TABLE[echar as usize] != 0xFF;
 }
 
-pub fn Encode(source: &[u8]) -> String {
+pub fn encode(source: &[u8]) -> String {
     /*
     figure retrieved from the Base encoding rfc https://tools.ietf.org/html/rfc4648
     +--first octet--+-second octet--+--third octet--+
@@ -71,7 +72,7 @@ pub fn Encode(source: &[u8]) -> String {
 }
 
 
-pub fn Decode(source: &[u8]) -> Vec<u8>{
+pub fn decode(source: &[u8]) -> Vec<u8>{
     assert_eq!(source.len().wrapping_rem(4), 0, "Base 64 encoded data length must be multiple of 4");
 
 

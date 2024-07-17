@@ -1,4 +1,6 @@
 pub use velcro_derive::{VObjectProvider, TypeUuidProvider};
+
+use crate::uuid_provider;
 use std::any::{Any, TypeId};
 use std::path::PathBuf;
 use velcro_utils::UUID;
@@ -16,11 +18,10 @@ pub trait TypeUuidProvider: Sized {
     fn type_uuid() -> UUID;
 }
 
-
 #[macro_export]
 macro_rules! uuid_provider {
     ($type:ident $(<$($generics:tt),*>)? = $uuid:expr) => {
-        impl$(<$($generics),*>)? $crate::rtti::type_traits::TypeUuidProvider for $type $(<$($generics),*>)? {
+        impl$(<$($generics),*>)? $crate::type_traits::TypeUuidProvider for $type $(<$($generics),*>)? {
             fn type_uuid() -> $crate::UUID {
                 $crate::UUID::create_string($uuid)
             }
@@ -31,7 +32,7 @@ macro_rules! uuid_provider {
 #[macro_export]
 macro_rules! stub_uuid_provider {
     ($type:ty) => {
-        impl $crate::rtti::TypeUuidProvider for $type {
+        impl $crate::TypeUuidProvider for $type {
             fn type_uuid() -> $crate::uuid::Uuid {
                 unimplemented!()
             }
