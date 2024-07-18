@@ -28,7 +28,7 @@ impl Vector3 {
     }
 
     pub fn new_splat(x:f32)->Vector3{
-        let mut result:Vector3 = new();
+        let mut result:Vector3 = Self.new();
         unsafe { result._value = splat(x); }
         result
     }
@@ -63,10 +63,10 @@ impl Vector3 {
     pub fn is_close(v:&Vector3, tolerance :f32) ->bool
     {
         let dist:Vector3 = (v - (*Self)).GetAbs();
-        return dist.is_less_equal_than(new_splat(tolerance));
+        return dist.is_less_equal_than(Self.new_splat(tolerance));
     }
-    pub unsafe fn is_less_equal_than(rhs:&Vector3) ->bool
+    pub  fn is_less_equal_than(rhs:&Vector3) ->bool
     {
-        return  cmp_all_lt_eq(Self._value,rhs._value,0b0111);
+        unsafe { return cmp_all_lt_eq(Self._value, rhs._value, 0b0111); }
     }
 }
