@@ -16,8 +16,9 @@ pub mod prelude {
 }
 
 use bitflags::bitflags;
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::fmt::{Display, Formatter};
-
+use std::num;
 use std::error::Error;
 use std::string::FromUtf8Error;
 
@@ -128,10 +129,11 @@ pub type VisitResult = Result<(), VisitError>;
 use velcro_utils::UUID;
 
 
+pub struct VisitorFlags(u32);
 
 bitflags! {
     /// Flags that can be used to influence the behaviour of [Visit::visit] methods.
-    pub struct VisitorFlags: u32 {
+     impl VisitorFlags: u32 {
         /// No flags set, do nothing special.
         const NONE = 0;
         /// Tell [crate::variable::InheritableVariable::visit] to assume that it's
@@ -139,5 +141,20 @@ bitflags! {
         /// and therefore write its data. Otherwise, InheritableVariable has the special
         /// property of *not writing itself* when the `MODIFIED` flag is not set.
         const SERIALIZE_EVERYTHING = 1 << 1;
+     }
+}
+
+
+pub struct Visitor {
+    pub flags: VisitorFlags,
+}
+
+#[cfg(test)]
+mod tests {
+    //use super::*;
+
+    #[test]
+    fn it_works() {
+        let a: u32  = 1;
     }
 }

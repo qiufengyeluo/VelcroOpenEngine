@@ -2,6 +2,8 @@ mod type_traits;
 mod reflect;
 mod sstorage;
 mod memory;
+mod visitor;
+mod variable;
 
 #[macro_use]
 extern crate memoffset;

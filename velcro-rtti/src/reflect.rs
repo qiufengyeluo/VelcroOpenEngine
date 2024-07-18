@@ -25,6 +25,7 @@ pub trait FieldValue: Any + 'static {
     fn as_any(&self) -> &dyn Any;
 }
 
+
 impl<T: 'static> FieldValue for T {
     fn as_any(&self) -> &dyn Any {
         self
