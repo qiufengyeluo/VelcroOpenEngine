@@ -11,8 +11,7 @@ extern crate lazy_static;
 pub use num_traits;
 pub use parking_lot;
 
-use velcro_utils::UUID;
-use velcro_utils::hasder::*;
+use velcro_utils::{UUID, hasder::*};
 
 #[cfg(test)]
 mod tests {

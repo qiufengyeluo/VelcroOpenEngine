@@ -10,9 +10,8 @@ pub mod base64;
 pub mod hasder;
 
 pub use uuid::UUID;
-pub use cityhash::city_hash32;
-pub use cityhash::city_hash64;
-pub use cityhash::city_hash128;
+pub use cityhash::{city_hash32, city_hash64, city_hash128};
+pub use hasder::*;
 
 #[cfg(test)]
 mod tests {
