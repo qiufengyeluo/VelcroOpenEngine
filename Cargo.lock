@@ -270,6 +270,7 @@ dependencies = [
  "parking_lot",
  "serde",
  "velcro-derive",
+ "velcro-rtti",
  "velcro-utils",
 ]
 
@@ -306,6 +307,22 @@ version = "0.1.1"
 dependencies = [
  "velcro-dylib",
  "velcro-impl",
+]
+
+[[package]]
+name = "velcro-rtti"
+version = "0.1.1"
+dependencies = [
+ "bitflags",
+ "byteorder",
+ "crypto_api_osrandom",
+ "lazy_static",
+ "memoffset",
+ "num-traits",
+ "parking_lot",
+ "serde",
+ "velcro-derive",
+ "velcro-utils",
 ]
 
 [[package]]
