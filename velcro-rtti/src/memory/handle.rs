@@ -28,7 +28,7 @@ pub struct Handle<T> {
     pub(super) type_marker: PhantomData<T>,
 }
 
-impl<T> Copy for Handle<T> {}
+//impl<T> Copy for Handle<T> {}
 
 impl<T> Eq for Handle<T> {}
 
