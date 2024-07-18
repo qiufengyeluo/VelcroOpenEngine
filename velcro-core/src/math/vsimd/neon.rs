@@ -23,3 +23,9 @@ pub type Int32ArgType = Int32Type;
 pub unsafe  fn load_aligned(ptr: *const f32) -> FloatType {
     return vld1_f32(ptr);
 }
+#[cfg(target_arch = "arm")]
+#[inline]
+pub unsafe  fn Splat(ptr: *const f32) ->FloatType
+{
+    return vdupq_n_f32(ptr);
+}
