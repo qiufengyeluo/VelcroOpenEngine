@@ -7,24 +7,24 @@ use quote::*;
 use syn::*;
 
 // impl `#[derive(Visit)]` for `struct` or `enum`
-pub fn impl_visit(ast: DeriveInput) -> TokenStream2 {
+pub fn impl_context(ast: DeriveInput) -> TokenStream2 {
     let ty_args = args::TypeArgs::from_derive_input(&ast).unwrap();
     match &ty_args.data {
-        ast::Data::Struct(ref field_args) => self::impl_visit_struct(&ty_args, field_args),
+        ast::Data::Struct(ref field_args) => self::impl_context_struct(&ty_args, field_args),
         ast::Data::Enum(ref variants) => self::impl_visit_enum(&ty_args, variants),
     }
 }
 
-/// impl `Visit` for `struct`
-fn impl_visit_struct(
+/// impl `Context` for `struct`
+fn impl_context_struct(
     ty_args: &args::TypeArgs,
     field_args: &ast::Fields<args::FieldArgs>,
 ) -> TokenStream2 {
-    let visit_fn_body = if field_args.style == ast::Style::Unit {
+    let context_fn_body = if field_args.style == ast::Style::Unit {
         quote! { Ok(()) }
     } else {
-        // `field.visit(..)?;` parts
-        let field_visits = utils::create_field_visits(
+        // `field.context(..)?;` parts
+        let field_contexts = utils::create_field_contexts(
             true,
             ty_args.optional,
             field_args.fields.iter(),
@@ -32,16 +32,16 @@ fn impl_visit_struct(
         );
 
         quote! {
-            let mut region = match visitor.enter_region(name) {
+            let mut region = match reflect_context.enter_region(name) {
                 Ok(x) => x,
                 Err(err) => return Err(err),
             };
-            #(#field_visits)*
+            #(#field_contexts)*
             Ok(())
         }
     };
 
-    utils::create_impl(ty_args, field_args.iter().cloned(), visit_fn_body)
+    utils::create_impl(ty_args, field_args.iter().cloned(), context_fn_body)
 }
 
 /// impl `Visit` for `enum`
@@ -66,7 +66,7 @@ fn impl_visit_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs])
                         #ty_ident::#variant_ident { .. } => #variant_index,
                     },
                     ast::Style::Tuple => {
-                        let idents = (0..variant.fields.len()).map(|__| quote!(_));
+                        let idents = (0..variant.fields.len()).map(|_| quote!(_));
 
                         quote! {
                             #ty_ident::#variant_ident(#(#idents),*) => #variant_index,
@@ -153,14 +153,14 @@ fn impl_visit_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs])
     };
 
     // visit every field of each variant
-    let variant_visits = variant_args.iter().map(|variant| {
+    let variant_contexts = variant_args.iter().map(|variant| {
         let (fields, style) = (&variant.fields, variant.fields.style);
         let variant_ident = &variant.ident;
 
         match style {
             ast::Style::Struct => {
-                let field_visits =
-                    utils::create_field_visits(false, ty_args.optional, fields.iter(), style);
+                let field_contexts =
+                    utils::create_field_contexts(false, ty_args.optional, fields.iter(), style);
 
                 let idents = fields.iter().map(|field| {
                     let ident = &field.ident;
@@ -169,19 +169,19 @@ fn impl_visit_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs])
 
                 quote! {
                     #ty_ident::#variant_ident { #(#idents),* } => {
-                        #(#field_visits)*
+                        #(#field_contexts)*
                     },
                 }
             }
             ast::Style::Tuple => {
-                let field_visits =
-                    utils::create_field_visits(false, ty_args.optional, fields.iter(), style);
+                let field_contexts =
+                    utils::create_field_contexts(false, ty_args.optional, fields.iter(), style);
 
                 let idents = (0..fields.len()).map(|i| format_ident!("f{}", Index::from(i)));
 
                 quote! {
                     #ty_ident::#variant_ident(#(#idents),*) => {
-                        #(#field_visits)*
+                        #(#field_contexts)*
                     },
                 }
             }
@@ -195,13 +195,13 @@ fn impl_visit_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs])
         ty_args,
         variant_args.iter().flat_map(|v| v.fields.iter()).cloned(),
         quote! {
-             let mut region = match visitor.enter_region(name) {
+             let mut region = match reflect_context.enter_region(name) {
                  Ok(x) => x,
                  Err(err) => return Err(err),
              };
 
              let mut id = id(self);
-             if let Err(err) = id.visit("Id", &mut region) {
+             if let Err(err) = id.context("Id", &mut region) {
                  return Err(err);
              };
 
@@ -213,7 +213,7 @@ fn impl_visit_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs])
              }
 
              match self {
-                 #(#variant_visits)*
+                 #(#variant_contexts)*
              }
 
              return Ok(());

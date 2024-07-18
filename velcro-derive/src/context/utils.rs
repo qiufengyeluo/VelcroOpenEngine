@@ -1,12 +1,12 @@
 use darling::ast;
-use fxhash::FxHashSet;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::*;
 use syn::*;
 
 use convert_case::*;
+use velcro_utils::VHashSet;
 
-use crate::visit::args;
+use crate::context::args;
 
 pub fn create_impl(
     ty_args: &args::TypeArgs,
@@ -48,8 +48,8 @@ fn create_impl_generics(
     generics
 }
 
-/// `<prefix>field.visit("name", visitor)?;`
-pub fn create_field_visits<'a>(
+/// `<prefix>field.context("name", reflect_context)?;`
+pub fn create_field_contexts<'a>(
     // false if enum variant
     is_struct: bool,
     optional_override: bool,
@@ -57,12 +57,12 @@ pub fn create_field_visits<'a>(
     field_style: ast::Style,
 ) -> Vec<TokenStream2> {
     if field_style == ast::Style::Unit {
-        // `Unit` struct/enum variant has no field to visit.
+        // `Unit` struct/enum variant has no field to context.
         // We won't even enter this region:
         return vec![];
     }
 
-    let visit_args = fields
+    let context_args = fields
         .filter(|field| !field.skip)
         .enumerate()
         .map(|(field_index, field)| {
@@ -109,8 +109,8 @@ pub fn create_field_visits<'a>(
         })
         .collect::<Vec<_>>();
 
-    let mut no_dup = FxHashSet::default();
-    for name in visit_args.iter().map(|(_, name, _)| name) {
+    let mut no_dup = VHashSet::default();
+    for name in context_args.iter().map(|(_, name, _)| name) {
         if !no_dup.insert(name) {
             panic!("duplicate visiting names detected!");
         }
@@ -118,7 +118,7 @@ pub fn create_field_visits<'a>(
 
     let prefix = if is_struct { Some(quote!(self.)) } else { None };
 
-    visit_args
+    context_args
         .iter()
         .map(|(ident, name, optional)| {
             if optional_override || *optional {

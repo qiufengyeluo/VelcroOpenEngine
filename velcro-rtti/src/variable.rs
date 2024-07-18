@@ -1,6 +1,6 @@
 use crate::{
     reflect::prelude::*,
-    visitor::{prelude::*, VisitorFlags},
+    reflect_context::{prelude::*, VisitorFlags},
 };
 
 use bitflags::{bitflags, Flags};
