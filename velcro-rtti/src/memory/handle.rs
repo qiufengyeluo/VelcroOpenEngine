@@ -1,7 +1,6 @@
-use crate::{reflect::prelude::*, uuid_provider};
-use crate::type_traits::{TypeUuidProvider, combine_uuids};
 use crate::memory::*;
-use velcro_utils::UUID;
+use crate::type_traits::{combine_uuids, TypeUuidProvider};
+use crate::{reflect::prelude::*, uuid_provider};
 use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
@@ -10,6 +9,7 @@ use std::{
     marker::PhantomData,
     sync::atomic::{self, AtomicUsize},
 };
+use velcro_utils::UUID;
 
 /// Handle is some sort of non-owning reference to content in a pool. It stores
 /// index of object and additional information that allows to ensure that handle
@@ -28,7 +28,7 @@ pub struct Handle<T> {
     pub(super) type_marker: PhantomData<T>,
 }
 
-//impl<T> Copy for Handle<T> {}
+impl<T> Copy for Handle<T> {}
 
 impl<T> Eq for Handle<T> {}
 
@@ -140,7 +140,6 @@ impl<T> Ord for Handle<T> {
 unsafe impl<T> Send for Handle<T> {}
 unsafe impl<T> Sync for Handle<T> {}
 
-
 impl<T> Display for Handle<T> {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -240,7 +239,6 @@ pub struct ErasedHandle {
     #[reflect(read_only)]
     generation: u32,
 }
-
 
 uuid_provider!(ErasedHandle = "50131acc-8b3b-40b5-b495-e2c552c94db3");
 
