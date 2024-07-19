@@ -18,12 +18,14 @@ pub struct Vector3 {
 impl Vector3 {
     #[allow(dead_code)]
     pub fn new() -> Vector3 {
-        Vector3 {
-            _x: 0.0,
-            _y: 0.0,
-            _z: 0.0,
-            _value: FloatType,
-            _values: [f32;3],
+        unsafe {
+            Vector3 {
+                _x: 0.0,
+                _y: 0.0,
+                _z: 0.0,
+                _value: zero_float(),
+                _values: [0.0; 3],
+            }
         }
     }
 
@@ -34,35 +36,66 @@ impl Vector3 {
     }
 
     pub fn new_load_immediate(x:f32,y:f32,z:f32)->Vector3{
-        let mut result:Vector3 = new();
+        let mut result:Vector3 = Self.new();
         unsafe { result._value = load_immediate(x,y,z,0.0); }
         result
     }
-
-
-    pub fn new_zero()->Vector3{
-        Vector3{
-            _x: 0.0,
-            _y: 0.0,
-            _z: 0.0,
-            _value: FloatType,
-            _values: [f32;3],
-        }
+    pub fn new_float_type(v :  FloatType)->Vector3{
+        let mut result:Vector3 = Self.new();
+        result._value = v;
+        result
+    }
+    pub fn create_zero() ->Vector3{
+        let result:Vector3 = Self.new_float_type(unsafe { zero_float() });
+        result
     }
     
-    pub fn new_one(x:f32)->Vector3{
-        Vector3{
-            _x : x,
-            _y: 0.0,
-            _z: 0.0,
-            _value: FloatType,
-            _values: [f32;3],
-        }
+    pub fn create_one(x:f32)->Vector3{
+        let result:Vector3 = Self.new_splat(1.0);
+        result
     }
-
-    pub fn is_close(v:&Vector3, tolerance :f32) ->bool
+    pub fn create_axis_x(length:f32)->Vector3{
+        let result:Vector3 = Self.new_load_immediate(length, 0.0, 0.0);
+        result
+    }
+    pub fn create_axis_y(length:f32)->Vector3{
+        let result:Vector3 = Self.new_load_immediate(0.0, length, 0.0);
+        result
+    }
+    pub fn create_axis_z(length:f32)->Vector3{
+        let result:Vector3 = Self.new_load_immediate(0.0, 0.0, length);
+        result
+    }
+    pub fn create_from_float_3(ptr :*const f32)->Vector3{
+        let val =ptr as *[f32;3];
+        let result:Vector3 = Self.new_load_immediate(val[0], val[1], val[2]);
+        result
+    }
+    pub  fn create_select_cmp_equal(cmp1:&Vector3, cmp2:&Vector3, va :&Vector3, vb :&Vector3) ->Vector3{
+        let mask = unsafe { cmp_eq(cmp1._value, cmp2._value) };
+        let result = Self.new_float_type( unsafe { select(va._value,vb._value,mask)});
+        result
+    }
+    pub fn create_select_cmp_greater_equal(cmp1:&Vector3, cmp2:&Vector3, va :&Vector3, vb :&Vector3) ->Vector3{
+        let mask = unsafe { cmp_gt_eq(cmp1._value, cmp2._value) };
+        let result = Self.new_float_type( unsafe { select(va._value,vb._value,mask)});
+        result
+    }
+    pub fn create_select_cmp_greater(cmp1:&Vector3, cmp2:&Vector3, va :&Vector3, vb :&Vector3) ->Vector3{
+        let mask = unsafe { cmp_gt(cmp1._value, cmp2._value) };
+        let result = Self.new_float_type( unsafe { select(va._value,vb._value,mask)});
+        result
+    }
+    pub fn store_to_float_3(ptr :*const f32)->*const f32{
+        let mut result =ptr as *[f32;3];
+        result[0] = Self._values[0];
+        result[1] = Self._values[1];
+        result[2] = Self._values[2];
+        result
+    }
+    pub fn is_close(&self, v:&Vector3, tolerance :f32) ->bool
     {
-        let dist:Vector3 = (v - (*Self)).GetAbs();
+        let dist:Vector3 = (v - (*self)).GetAbs();
         return dist.is_less_equal_than(Self.new_splat(tolerance));
     }
     pub  fn is_less_equal_than(rhs:&Vector3) ->bool
