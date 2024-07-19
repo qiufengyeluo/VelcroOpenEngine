@@ -15,15 +15,12 @@ pub mod prelude {
     pub use super::{Context, ContextError, ReflectResult};
 }
 
-
-
-
 use bitflags::bitflags;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::fmt::{Display, Formatter};
-use std::num;
 use std::error::Error;
+use std::fmt::{Display, Formatter};
 use std::io::{Read, Write};
+use std::num;
 use std::string::FromUtf8Error;
 
 pub enum FieldKind {
@@ -40,7 +37,6 @@ pub enum FieldKind {
     F64(f64),
     BinaryBlob(Vec<u8>),
 }
-
 
 pub trait Pod: Copy {
     fn type_id() -> u8;
@@ -113,7 +109,6 @@ pub struct Field {
     kind: FieldKind,
 }
 
-
 #[derive(Debug)]
 pub enum ContextError {
     /// 未知得字段类型
@@ -149,7 +144,6 @@ pub enum ContextError {
 }
 
 impl Error for ContextError {}
-
 
 impl Display for ContextError {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
@@ -191,7 +185,6 @@ impl<T> From<std::sync::PoisonError<std::sync::RwLockWriteGuard<'_, T>>> for Con
     }
 }
 
-
 impl From<FromUtf8Error> for ContextError {
     fn from(_: FromUtf8Error) -> Self {
         Self::InvalidName
@@ -208,12 +201,12 @@ impl From<String> for ContextError {
 /// such as [ReflectContext::save_binary]. It has no value unless an error occurred.
 pub type ReflectResult = Result<(), ContextError>;
 
-use velcro_utils::UUID;
 use crate::memory::Handle;
+use velcro_utils::UUID;
 
 trait ElementaryField {
     fn write(&self, file: &mut dyn Write) -> ReflectResult;
-    fn read(&mut self, file: &mut dyn Read) ->ReflectResult;
+    fn read(&mut self, file: &mut dyn Read) -> ReflectResult;
 }
 
 macro_rules! imp_elementary_field {
@@ -223,7 +216,7 @@ macro_rules! imp_elementary_field {
                  file.$write::<$($endian)*>(*self)?;
                  Ok(())
              }
-             
+
              fn read(&mut self, file: &mut dyn Read) -> ReflectResult {
                 *self = file.$read::<$($endian)*>()?;
                  Ok(())
@@ -242,10 +235,6 @@ imp_elementary_field!(u32, write_u32, read_u32, LittleEndian);
 imp_elementary_field!(i32, write_i32, read_i32, LittleEndian);
 imp_elementary_field!(u64, write_u64, read_u64, LittleEndian);
 imp_elementary_field!(i64, write_i64, read_i64, LittleEndian);
-
-
-
-
 
 bitflags! {
     /// Flags that can be used to influence the behaviour of [Context::context] methods.
@@ -331,13 +320,15 @@ impl Field {
         let mut raw_name = vec![Default::default(); name_len];
         file.read_exact(raw_name.as_mut_slice())?;
         let id = file.read_u8()?;
-        Ok(Field::new(String::from_utf8(raw_name)?.as_str(),
-        match id {
-            1 => FieldKind::U8(file.read_u8()?),
-            2 => FieldKind::I8(file.read_i8()?),
-        }))
+        Ok(Field::new(
+            String::from_utf8(raw_name)?.as_str(),
+            match id {
+                1 => FieldKind::U8(file.read_u8()?),
+                2 => FieldKind::I8(file.read_i8()?),
+                _ => {}
+            },
+        ))
     }
-
 }
 
 pub struct ContextNode {
@@ -358,7 +349,6 @@ impl ContextNode {
     }
 }
 
-
 pub struct ReflectContext {
     pub flags: ContextFlags,
 }
@@ -369,6 +359,6 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let a: u32  = 1;
+        let a: u32 = 1;
     }
 }
