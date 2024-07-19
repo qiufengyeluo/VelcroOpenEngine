@@ -86,12 +86,11 @@ impl Vector3 {
         let result = Self.new_float_type( unsafe { select(va._value,vb._value,mask)});
         result
     }
-    pub fn store_to_float_3(ptr :*const f32)->*const f32{
-        let mut result =ptr as *[f32;3];
-        result[0] = Self._values[0];
-        result[1] = Self._values[1];
-        result[2] = Self._values[2];
-        result
+    pub fn store_to_float_3(self, &mut  ptr :*const f32){
+        let mut result = ptr as *[f32;3];
+        *result[0] = self._values[0];
+        *result[1] = self._values[1];
+        *result[2] = self._values[2];
     }
     pub fn is_close(&self, v:&Vector3, tolerance :f32) ->bool
     {
