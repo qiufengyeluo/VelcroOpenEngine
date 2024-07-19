@@ -92,6 +92,40 @@ impl Vector3 {
         *result[1] = self._values[1];
         *result[2] = self._values[2];
     }
+    pub fn store_to_float_4(self,&mut value :*const f32){
+        unsafe { store_unaligned(value, self._value) }
+    }
+    pub fn get_x(self)->f32{
+        self._x
+    }
+    pub fn get_y(self)->f32{
+        self._y
+    }
+    pub fn get_z(self)->f32{
+        self._z
+    }
+    pub fn get_element(self,index:i32)->f32{
+        self._values[index]
+    }
+    pub fn set_x(mut self, x :f32){
+        self._x = x
+    }
+    pub fn set_y(mut self, y:f32){
+        self._y = y
+    }
+    pub fn set_z(mut self, z:f32){
+        self._z = z
+    }
+    pub fn set_splat(mut self,x :f32){
+        unsafe { self._value = splat(x) }
+    }
+    pub fn set_element(mut self,index:i32,v:f32){
+        self._values[index] = v
+    }
+    pub fn set_load_immediate(mut self,x:f32,y:f32,z:f32){
+        unsafe { self._value = load_immediate(x, y, z, 0.0) }
+    }
+
     pub fn is_close(&self, v:&Vector3, tolerance :f32) ->bool
     {
         let dist:Vector3 = (v - (*self)).GetAbs();
