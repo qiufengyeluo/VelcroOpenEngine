@@ -8,11 +8,7 @@ use crate::math::vsimd;
 // PartialEq 是否相等
 #[derive(Debug,Eq, Copy, Clone)]
 pub struct Vector3 {
-    _x: f32,
-    _y: f32,
-    _z: f32,
     _value: FloatType,
-    _values:[f32; 3],
 }
 
 impl Vector3 {
@@ -29,15 +25,15 @@ impl Vector3 {
         }
     }
 
-    pub fn new_splat(x:f32)->Vector3{
+    pub unsafe fn new_splat(x:f32) ->Vector3{
         let mut result:Vector3 = Self.new();
-        unsafe { result._value = splat(x); }
+        result._value = splat(x);
         result
     }
 
-    pub fn new_load_immediate(x:f32,y:f32,z:f32)->Vector3{
+    pub unsafe fn new_load_immediate(x:f32, y:f32, z:f32) ->Vector3{
         let mut result:Vector3 = Self.new();
-        unsafe { result._value = load_immediate(x,y,z,0.0); }
+        result._value = load_immediate(x,y,z,0.0);
         result
     }
     pub fn new_float_type(v :  FloatType)->Vector3{
@@ -45,8 +41,8 @@ impl Vector3 {
         result._value = v;
         result
     }
-    pub fn create_zero() ->Vector3{
-        let result:Vector3 = Self.new_float_type(unsafe { zero_float() });
+    pub unsafe fn create_zero() ->Vector3{
+        let result:Vector3 = Self.new_float_type(zero_float());
         result
     }
     
@@ -71,19 +67,19 @@ impl Vector3 {
         let result:Vector3 = Self.new_load_immediate(val[0], val[1], val[2]);
         result
     }
-    pub  fn create_select_cmp_equal(cmp1:&Vector3, cmp2:&Vector3, va :&Vector3, vb :&Vector3) ->Vector3{
-        let mask = unsafe { cmp_eq(cmp1._value, cmp2._value) };
-        let result = Self.new_float_type( unsafe { select(va._value,vb._value,mask)});
+    pub unsafe fn create_select_cmp_equal(cmp1:&Vector3, cmp2:&Vector3, va :&Vector3, vb :&Vector3) ->Vector3{
+        let mask = cmp_eq(cmp1._value, cmp2._value);
+        let result = Self.new_float_type( select(va._value,vb._value,mask));
         result
     }
-    pub fn create_select_cmp_greater_equal(cmp1:&Vector3, cmp2:&Vector3, va :&Vector3, vb :&Vector3) ->Vector3{
-        let mask = unsafe { cmp_gt_eq(cmp1._value, cmp2._value) };
-        let result = Self.new_float_type( unsafe { select(va._value,vb._value,mask)});
+    pub unsafe fn create_select_cmp_greater_equal(cmp1:&Vector3, cmp2:&Vector3, va :&Vector3, vb :&Vector3) ->Vector3{
+        let mask = cmp_gt_eq(cmp1._value, cmp2._value);
+        let result = Self.new_float_type( select(va._value,vb._value,mask));
         result
     }
-    pub fn create_select_cmp_greater(cmp1:&Vector3, cmp2:&Vector3, va :&Vector3, vb :&Vector3) ->Vector3{
-        let mask = unsafe { cmp_gt(cmp1._value, cmp2._value) };
-        let result = Self.new_float_type( unsafe { select(va._value,vb._value,mask)});
+    pub unsafe fn create_select_cmp_greater(cmp1:&Vector3, cmp2:&Vector3, va :&Vector3, vb :&Vector3) ->Vector3{
+        let mask = cmp_gt(cmp1._value, cmp2._value);
+        let result = Self.new_float_type(select(va._value,vb._value,mask));
         result
     }
     pub fn store_to_float_3(self, &mut  ptr :*const f32){
@@ -92,8 +88,8 @@ impl Vector3 {
         *result[1] = self._values[1];
         *result[2] = self._values[2];
     }
-    pub fn store_to_float_4(self,&mut value :*const f32){
-        unsafe { store_unaligned(value, self._value) }
+    pub unsafe fn store_to_float_4(self, &mut value :*const f32){
+        store_unaligned(value, self._value);
     }
     pub fn get_x(self)->f32{
         self._x
@@ -116,14 +112,33 @@ impl Vector3 {
     pub fn set_z(mut self, z:f32){
         self._z = z
     }
-    pub fn set_splat(mut self,x :f32){
-        unsafe { self._value = splat(x) }
+    pub unsafe fn set_value_x(mut self, x :f32){
+        self._value = splat(x);
     }
     pub fn set_element(mut self,index:i32,v:f32){
         self._values[index] = v
     }
-    pub fn set_load_immediate(mut self,x:f32,y:f32,z:f32){
-        unsafe { self._value = load_immediate(x, y, z, 0.0) }
+    pub unsafe fn set_value_xyz(mut self, x:f32, y:f32, z:f32){
+        self._value = load_immediate(x, y, z, 0.0);
+    }
+    pub unsafe fn set_value_ptr(mut self, ptr:*const f32){
+        let val= ptr as [f32;3];
+        self._value = load_immediate(val[0],val[1],val[2], 0.0);
+    }
+    pub unsafe fn get_length_sq(self) ->f32{
+
+        self.dot(&Vector3{_x:self._x,_y:self._y,_z:self._z,_value:self._value,_values:self._values})
+    }
+    pub fn get_simd_value(&self)->FloatType{
+        self._value
+    }
+    pub unsafe fn dot(self, rhs:&Vector3) ->f32{
+
+        let x2  =   mul(self.get_simd_value(), rhs.get_simd_value()) ;
+        let xy  =   add(splat_second(x2), x2);
+        let xyz =   add(splat_third(x2), xy);
+        let result   =   select_first(splat_first(xyz));
+        result
     }
 
     pub fn is_close(&self, v:&Vector3, tolerance :f32) ->bool
