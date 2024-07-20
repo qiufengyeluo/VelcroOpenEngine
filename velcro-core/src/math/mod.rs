@@ -1,11 +1,12 @@
 
 
 mod vsimd;
+mod constants;
 pub mod sfmt;
 pub mod random;
 pub mod vector3;
 pub mod aabb;
-mod constants;
+
 
 #[cfg(test)]
 mod tests {

@@ -699,6 +699,13 @@ pub unsafe fn sqrt(value: FloatType) -> FloatType {
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
 #[inline]
 #[allow(dead_code)]
+pub unsafe fn sqrt_estimate(value: FloatType)->FloatType{
+    let tmp = sqrt_inv_estimate(value);
+    return reciprocal_estimate(tmp);
+}
+#[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
 pub unsafe fn sqrt_inv_estimate(value: FloatType) -> FloatType {
     return _mm_rsqrt_ps(value); // Faster, but roughly half the precision (12ish bits rather than 23ish)
 }
