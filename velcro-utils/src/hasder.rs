@@ -1,4 +1,3 @@
-#![deny(missing_docs)]
 
 use std::collections::{HashMap, HashSet};
 use std::default::Default;
@@ -6,7 +5,7 @@ use std::hash::{BuildHasherDefault, Hash, Hasher};
 use std::ops::BitXor;
 
 //use num_traits::ToBytes;
-use velcro_utils::{city_hash32, city_hash64};
+use crate::{city_hash32, city_hash64};
 
 /// A builder for default velcro hashers.
 pub type VBuildHasher = BuildHasherDefault<VHasher>;

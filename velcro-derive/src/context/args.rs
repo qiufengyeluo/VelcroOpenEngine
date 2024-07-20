@@ -2,7 +2,7 @@ use darling::*;
 use syn::*;
 
 #[derive(FromDeriveInput)]
-#[darling(attributes(visit), supports(struct_any, enum_any))]
+#[darling(attributes(context), supports(struct_any, enum_any))]
 pub struct TypeArgs {
     pub ident: Ident,
     pub generics: Generics,
@@ -13,26 +13,26 @@ pub struct TypeArgs {
 
 /// Parsed from struct's or enum variant's field
 #[derive(FromField, Clone)]
-#[darling(attributes(visit))]
+#[darling(attributes(context))]
 pub struct FieldArgs {
     pub ident: Option<Ident>,
     // pub vis: Visibility,
     pub ty: Type,
     // pub attrs: Vec<Attribute>,
     // ---
-    /// `#[visit(skip)]`
+    /// `#[context(skip)]`
     ///
     /// Skip on read and write
     #[darling(default)]
     pub skip: bool,
 
-    /// `#[visit(rename = "..")]`
+    /// `#[context(rename = "..")]`
     ///
     /// Force this name
     #[darling(default)]
     pub rename: Option<String>,
 
-    /// `#[visit(optional)]`
+    /// `#[context(optional)]`
     ///
     /// Ignore missing field
     #[darling(default)]

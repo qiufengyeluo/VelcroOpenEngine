@@ -1,9 +1,11 @@
 //! Runtime reflection
 
-// mod std_impls;
+mod std_impls;
 
 
 pub use velcro_derive::Reflect;
+
+
 
 use std::{
     any::{Any, TypeId},
@@ -13,7 +15,7 @@ use std::{
 
 pub mod prelude {
     pub use super::{
-        FieldInfo, Reflect, 
+        FieldInfo, Reflect, ReflectArray, ReflectList, ReflectHashMap, 
     };
 }
 
@@ -22,6 +24,7 @@ pub trait FieldValue: Any + 'static {
     /// Casts `self` to a `&dyn Any`
     fn as_any(&self) -> &dyn Any;
 }
+
 
 impl<T: 'static> FieldValue for T {
     fn as_any(&self) -> &dyn Any {
@@ -679,6 +682,33 @@ impl ResolvePath for dyn Reflect {
     }
 }
 
+// Make it a trait?
+impl dyn ReflectList {
+    pub fn get_reflect_index<T: Reflect + 'static>(
+        &self,
+        index: usize,
+        func: &mut dyn FnMut(Option<&T>),
+    ) {
+        if let Some(reflect) = self.reflect_index(index) {
+            reflect.downcast_ref(func)
+        } else {
+            func(None)
+        }
+    }
+
+    pub fn get_reflect_index_mut<T: Reflect + 'static>(
+        &mut self,
+        index: usize,
+        func: &mut dyn FnMut(Option<&mut T>),
+    ) {
+        if let Some(reflect) = self.reflect_index_mut(index) {
+            reflect.downcast_mut(func)
+        } else {
+            func(None)
+        }
+    }
+}
+
 pub enum SetFieldByPathError<'p> {
     InvalidPath {
         value: Box<dyn Reflect>,
@@ -720,3 +750,217 @@ impl dyn Reflect {
 
 
 use crate::sstorage::ImmutableString;
+
+#[macro_export]
+macro_rules! blank_reflect {
+    () => {
+        fn source_path() -> &'static str {
+            file!()
+        }
+
+        fn type_name(&self) -> &'static str {
+            std::any::type_name::<Self>()
+        }
+
+        fn doc(&self) -> &'static str {
+            ""
+        }
+
+        fn assembly_name(&self) -> &'static str {
+            env!("CARGO_PKG_NAME")
+        }
+
+        fn type_assembly_name() -> &'static str {
+            env!("CARGO_PKG_NAME")
+        }
+
+        fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
+            func(&[])
+        }
+
+        fn into_any(self: Box<Self>) -> Box<dyn Any> {
+            self
+        }
+
+        fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
+            func(self)
+        }
+
+        fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
+            func(self)
+        }
+
+        fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+            func(self)
+        }
+
+        fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+            func(self)
+        }
+
+        fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+            func(if name == "self" { Some(self) } else { None })
+        }
+
+        fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+            func(if name == "self" { Some(self) } else { None })
+        }
+
+        fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+            let this = std::mem::replace(self, value.take()?);
+            Ok(Box::new(this))
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! delegate_reflect {
+    () => {
+        fn source_path() -> &'static str {
+            file!()
+        }
+
+        fn type_name(&self) -> &'static str {
+            self.deref().type_name()
+        }
+
+        fn doc(&self) -> &'static str {
+            self.deref().doc()
+        }
+
+        fn assembly_name(&self) -> &'static str {
+            self.deref().assembly_name()
+        }
+
+        fn type_assembly_name() -> &'static str {
+            env!("CARGO_PKG_NAME")
+        }
+
+        fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
+            self.deref().fields_info(func)
+        }
+
+        fn into_any(self: Box<Self>) -> Box<dyn Any> {
+            (*self).into_any()
+        }
+
+        fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
+            self.deref().as_any(func)
+        }
+
+        fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
+            self.deref_mut().as_any_mut(func)
+        }
+
+        fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+            self.deref().as_reflect(func)
+        }
+
+        fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+            self.deref_mut().as_reflect_mut(func)
+        }
+
+        fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+            self.deref_mut().set(value)
+        }
+
+        fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+            self.deref().field(name, func)
+        }
+
+        fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+            self.deref_mut().field_mut(name, func)
+        }
+
+        fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
+            self.deref().as_array(func)
+        }
+
+        fn as_array_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectArray>)) {
+            self.deref_mut().as_array_mut(func)
+        }
+
+        fn as_list(&self, func: &mut dyn FnMut(Option<&dyn ReflectList>)) {
+            self.deref().as_list(func)
+        }
+
+        fn as_list_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectList>)) {
+            self.deref_mut().as_list_mut(func)
+        }
+    };
+}
+
+/*#[macro_export]
+macro_rules! newtype_reflect {
+    () => {
+        fn type_name(&self) -> &'static str {
+            self.0.type_name()
+        }
+
+        fn doc(&self) -> &'static str {
+            self.0.doc()
+        }
+
+        fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
+            self.0.fields_info(func)
+        }
+
+        fn into_any(self: Box<Self>) -> Box<dyn Any> {
+            self
+        }
+
+        fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
+            self.0.as_any(func)
+        }
+
+        fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
+            self.0.as_any_mut(func)
+        }
+
+        fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+            self.0.as_reflect(func)
+        }
+
+        fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+            self.0.as_reflect_mut(func)
+        }
+
+        fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+            self.0.set(value)
+        }
+
+        fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+            self.0.field(name, func)
+        }
+
+        fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+            self.0.field_mut(name, func)
+        }
+
+        fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
+            self.0.as_array(func)
+        }
+
+        fn as_array_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectArray>)) {
+            self.0.as_array_mut(func)
+        }
+
+        fn as_list(&self, func: &mut dyn FnMut(Option<&dyn ReflectList>)) {
+            self.0.as_list(func)
+        }
+
+        fn as_list_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectList>)) {
+            self.0.as_list_mut(func)
+        }
+
+
+        fn as_hash_map(&self, func: &mut dyn FnMut(Option<&dyn ReflectHashMap>)) {
+            self.0.as_hash_map(func)
+        }
+
+        fn as_hash_map_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectHashMap>)) {
+            self.0.as_hash_map_mut(func)
+        }
+    };
+}*/
+
