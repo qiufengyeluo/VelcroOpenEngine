@@ -3,6 +3,7 @@
 
 use vsimd::neon::*;
 use vsimd::sse::*;
+use crate::math::vector::*;
 use crate::math::vsimd;
 
 // PartialEq 是否相等
@@ -131,37 +132,117 @@ impl Vector3 {
         let val= ptr as [f32;3];
         self._value = load_immediate(val[0],val[1],val[2], 0.0);
     }
-    pub unsafe fn get_length_sq(self) ->f32{
-
-        self.dot(&Vector3{_value:self._value})
+    pub unsafe fn get_length_sq(&self) ->f32{
+        let result =  dot_to_f32(self,&Vector3{_value:self._value});
+        result
     }
+
     pub unsafe fn get_length(self) ->f32{
-        let length = self.dot_f32_type();
+        let length = dot_to_f32_type(self._value,self._value);
         let length_sqrt =  sqrt(length);
         let result = select_first(length_sqrt);
         result
     }
     pub unsafe fn get_length_estimate(self) ->f32{
-        let length = self.dot_f32_type();
+        let length = dot_to_f32_type(self._value,self._value);
         let length_sqrt =  sqrt_estimate(length);
         let result = select_first(length_sqrt);
         result
     }
     pub unsafe fn get_length_reciprocal(self) ->f32{
-        let length = self.dot_f32_type();
+        let length = dot_to_f32_type(self._value,self._value);
         let length_sqrt =  sqrt_inv(length);
         let result = select_first(length_sqrt);
         result
     }
     pub unsafe fn get_length_reciprocal_estimate(self) ->f32{
-        let length = self.dot_f32_type();
+        let length = dot_to_f32_type(self._value,self._value);
         let length_sqrt =  sqrt_inv_estimate(length);
         let result = select_first(length_sqrt);
         result
     }
 
-    pub fn get_normalized()->Vector3{
+    pub unsafe fn get_normalized(self) ->Vector3{
+        let tmp = normalize(self._value);
+        let result = Vector3::new_float_type(tmp);
+        result
+    }
+    pub unsafe fn get_normalized_estimate(self)->Vector3{
+        let tmp = normalize_estimate(self._value);
+        let result = Vector3::new_float_type(tmp);
+        result
+    }
+    pub unsafe fn normalize(mut self){
+        self = self.get_normalized();
+    }
+    pub unsafe fn normalize_estimate(mut self){
+        self = self.get_normalized_estimate();
+    }
+    pub unsafe fn normalize_with_length(mut self)->f32{
+        let dot_val = dot_to_f32_type(self._value,self._value);
+        let sqrt_val = sqrt(dot_val);
+        let length = select_first(sqrt_val);
+        let splat_val = splat(length);
+        self._value = div(self._value,splat_val);
+        length
+    }
+    pub unsafe fn normalize_with_length_estimate(mut self)->f32{
+        let dot_val = dot_to_f32_type(self._value,self._value);
+        let sqrt_val = sqrt_estimate(dot_val);
+        let length = select_first(sqrt_val);
+        let splat_val = splat(length);
+        self._value = div(self._value,splat_val);
+        length
+    }
+    pub unsafe fn get_normalized_safe( self,tolerance:f32)->Vector3{
+        let tmp = normalize_safe(self._value,tolerance);
+        let result = Vector3::new_float_type(tmp);
+        result
+    }
+    pub unsafe fn get_normalized_safe_estimate(self,tolerance:f32)->Vector3{
+        let tmp = normalize_safe_estimate(self._value,tolerance);
+        let result = Vector3::new_float_type(tmp);
+        result
+    }
+    pub unsafe fn normalize_safe(mut self, tolerance:f32){
+        self._value = normalize_safe(self._value,tolerance)
+    }
+    pub unsafe fn normalize_safe_estimate(mut self, tolerance:f32){
+        self._value = normalize_safe_estimate(self._value,tolerance);
+    }
+    pub unsafe fn normalize_safe_with_length(mut self, tolerance:f32)->f32{
+        let dot_val = dot_to_f32_type(self._value,self._value);
+        let length = sqrt(dot_val);
+        if select_first(length) < tolerance{
+            self._value = zero_float();
+        }else {
+            let from_val = from_vec_first(length);
+            let splat_val = splat_first(from_val);
+            self._value = div(self._value,splat_val);
+        }
 
+        let result = select_first(length);
+        result
+    }
+    pub unsafe fn normalize_safe_with_length_estimate(mut self, tolerance:f32) ->f32{
+        let dot_val = dot_to_f32_type(self._value,self._value);
+        let length = sqrt_estimate(dot_val);
+        if select_first(length) < tolerance{
+            self._value = zero_float();
+        }else {
+            let from_val = from_vec_first(length);
+            let splat_val = splat_first(from_val);
+            self._value = div(self._value,splat_val);
+        }
+        let result = select_first(length);
+        result
+    }
+    pub unsafe fn is_normalized(self,tolerance:f32)->bool{
+        return abs_i32(self.get_length_sq()-1.0) <= tolerance;
+    }
+    AZ_MATH_INLINE bool Vector3::IsNormalized(float tolerance) const
+    {
+    return (Abs(GetLengthSq() - 1.0f) <= tolerance);
     }
     pub fn get_simd_value(&self)->FloatType{
         self._value
@@ -177,20 +258,7 @@ impl Vector3 {
         unsafe { return cmp_all_lt_eq(Self._value, rhs._value, 0b0111); }
     }
 
-    pub unsafe fn dot_f32(lhs:&Vector3, rhs:&Vector3) ->f32{
-        let x2  =   mul(lhs.get_simd_value(), rhs.get_simd_value()) ;
-        let xy  =   add(splat_second(x2), x2);
-        let xyz =   add(splat_third(x2), xy);
-        let result   =   select_first(splat_first(xyz));
-        result
-    }
-    pub unsafe fn dot_f32_type(self) ->FloatType{
-        let x2  =   mul(self._value,self._value) ;
-        let xy  =   add(splat_second(x2), x2);
-        let xyz =   add(splat_third(x2), xy);
-        let result   =   splat_first(xyz);
-        result
-    }
+
 }
 #[cfg(test)]
 mod tests {

@@ -6,8 +6,10 @@ pub mod sfmt;
 pub mod random;
 pub mod vector3;
 pub mod aabb;
+pub mod plane;
+pub mod vector;
 
-
+use vector::*;
 #[cfg(test)]
 mod tests {
     use crate::math::sfmt::Sfmt;
