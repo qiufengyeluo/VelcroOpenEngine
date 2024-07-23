@@ -4,39 +4,13 @@
 use std::f32::consts::PI;
 use vsimd::neon::*;
 use vsimd::sse::*;
+use crate::math::constants::{HALF_PI, TWO_OVER_PI};
 use crate::math::vector3::Vector3;
 use crate::math::vsimd;
 
 
-const G_SIN_COEF1:[f32;4] = [ -0.0001950727, -0.0001950727, -0.0001950727, -0.0001950727 ];
-const G_SIN_COEF2:[f32;4] = [0.0083320758,  0.0083320758,  0.0083320758,  0.0083320758 ];
-const G_SIN_COEF3:[f32;4] =[-0.1666665247, -0.1666665247, -0.1666665247, -0.1666665247];
-const G_COS_COEF1:[f32;4] = [-0.0013602249, -0.0013602249, -0.0013602249, -0.0013602249 ];
-const G_COS_COEF2:[f32;4] = [0.0416566950,  0.0416566950,  0.0416566950,  0.0416566950];
-const G_COS_COEF3:[f32;4] =[-0.4999990225, -0.4999990225, -0.4999990225, -0.4999990225];
-const G_ACOS_HI_COEF1:[f32;4] = [ -0.0012624911, -0.0012624911, -0.0012624911, -0.0012624911 ];
-const G_ACOS_HI_COEF2:[f32;4] = [  0.0066700901,  0.0066700901,  0.0066700901,  0.0066700901 ];
-const G_ACOS_HI_COEF3:[f32;4] = [ -0.0170881256, -0.0170881256, -0.0170881256, -0.0170881256 ];
-const G_ACOS_HI_COEF4:[f32;4] = [  0.0308918810,  0.0308918810,  0.0308918810,  0.0308918810 ];
-const G_ACOS_LO_COEF1:[f32;4] = [ -0.0501743046, -0.0501743046, -0.0501743046, -0.0501743046 ];
-const G_ACOS_LO_COEF2:[f32;4] = [  0.0889789874,  0.0889789874,  0.0889789874,  0.0889789874 ];
-const G_ACOS_LO_COEF3:[f32;4] = [ -0.2145988016, -0.2145988016, -0.2145988016, -0.2145988016 ];
-const G_ACOS_LO_COEF4:[f32;4] = [  1.5707963050,  1.5707963050,  1.5707963050,  1.5707963050 ];
-const G_ACOS_COEF1:[f32;4]   = [ -0.0200752200, -0.0200752200, -0.0200752200, -0.0200752200 ];
-const G_ACOS_COEF2:[f32;4]   = [  0.0759031500,  0.0759031500,  0.0759031500,  0.0759031500 ];
-const G_ACOS_COEF3:[f32;4]   = [ -0.2126757000, -0.2126757000, -0.2126757000, -0.2126757000 ];
-const G_ATAN_HI_RANGE:[f32;4] = [  2.4142135624,  2.4142135624,  2.4142135624,  2.4142135624 ];
-const G_ATAN_LO_RANGE:[f32;4] = [  0.4142135624,  0.4142135624,  0.4142135624,  0.4142135624 ];
-const G_ATAN_COEF1:[f32;4]   = [  8.05374449538e-2,  8.05374449538e-2,  8.05374449538e-2,  8.05374449538e-2 ];
-const G_ATAN_COEF2:[f32;4]   = [ -1.38776856032e-1, -1.38776856032e-1, -1.38776856032e-1, -1.38776856032e-1 ];
-const G_ATAN_COEF3:[f32;4]   = [  1.99777106478e-1,  1.99777106478e-1,  1.99777106478e-1,  1.99777106478e-1 ];
-const G_ATAN_COEF4:[f32;4]   = [ -3.33329491539e-1, -3.33329491539e-1, -3.33329491539e-1, -3.33329491539e-1 ];
-const G_EXP_COEF1:[f32;4]    = [  1.2102203e7, 1.2102203e7, 1.2102203e7, 1.2102203e7 ];
-const G_EXP_COEF2:[i32;4]  = [ -8388608, -8388608, -8388608, -8388608];
-const G_EXP_COEF3:[f32;4]    = [  1.1920929e-7, 1.1920929e-7, 1.1920929e-7, 1.1920929e-7 ];
-const G_EXP_COEF4:[f32;4]    = [  3.371894346e-1, 3.371894346e-1, 3.371894346e-1, 3.371894346e-1 ];
-const G_EXP_COEF5:[f32;4]    = [  6.57636276e-1, 6.57636276e-1, 6.57636276e-1, 6.57636276e-1 ];
-const G_EXP_COEF6:[f32;4]    = [  1.00172476, 1.00172476, 1.00172476, 1.00172476 ];
+
+
 
 pub unsafe fn dot_to_f32(lhs :&Vector3,rhs :&Vector3)->f32{
     let x2  =   mul(lhs.get_simd_value(), rhs.get_simd_value()) ;
@@ -139,4 +113,40 @@ pub unsafe fn acos(value:FloatArgType) ->FloatType{
     let negative = sub(splat(PI),positive);
     return select(negative,positive,select_val);
 
+}
+AZ_MATH_INLINE typename VecType::FloatType Sin(typename VecType::FloatArgType value)
+{
+// Range Reduction
+typename VecType::FloatType x = VecType::Mul(value, FastLoadConstant<VecType>(Simd::g_TwoOverPi));
+
+// Find offset mod 4
+const typename VecType::Int32Type intx = VecType::ConvertToIntNearest(x);
+const typename VecType::Int32Type offset = VecType::And(intx, VecType::Splat(3));
+
+const typename VecType::FloatType intxFloat = VecType::ConvertToFloat(intx);
+x = VecType::Sub(value, VecType::Mul(intxFloat, FastLoadConstant<VecType>(Simd::g_HalfPi)));
+
+typename VecType::FloatType sinx, cosx;
+ComputeSinxCosx<VecType>(x, sinx, cosx);
+
+// Choose sin for even offset, cos for odd
+typename VecType::Int32Type mask = VecType::CmpEq(VecType::And(offset, VecType::Splat(1)), VecType::ZeroInt());
+typename VecType::FloatType result = VecType::Select(sinx, cosx, VecType::CastToFloat(mask));
+
+// Change sign for result if offset is 1 or 2
+mask = VecType::CmpEq(VecType::And(offset, VecType::Splat(2)), VecType::ZeroInt());
+result = VecType::Select(result, VecType::Xor(result, VecType::Splat(-0.0f)), VecType::CastToFloat(mask));
+
+return result;
+}
+pub unsafe fn sin(value:FloatArgType)->FloatType{
+    let x = mul(value,fast_load_constant_i32(G_));
+    let result = select()
+    result
+}
+
+pub unsafe fn sin_cos(angle:FloatArgType) ->FloatType{
+    let angle_offset = load_immediate(0.0, HALF_PI, 0.0, 0.0);
+    let angles = add(from_vec_first(angle),angle_offset);
+    return sin(angles)
 }

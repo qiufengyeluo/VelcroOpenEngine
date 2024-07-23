@@ -269,9 +269,9 @@ impl Vector3 {
         let result = self.get_length_estimate();
         result
     }
-    pub unsafe fn lerp(self,dest :&Vector3,t :f32)->Vector3{
+    pub unsafe fn lerp(self,dest :&Vector3,t :&f32)->Vector3{
         let sub_val = sub(dest._value,self._value);
-        let splat_val = splat(t);
+        let splat_val = splat(t.to_owned());
 
         Vector3{
             _value : madd(sub_val,splat_val,self._value)
@@ -282,14 +282,10 @@ impl Vector3 {
         let theta = mul(acos(dot_val),splat(t));
         let relativeVec = sub(dest.get_simd_value(),mul(self.get_simd_value(),from_vec_first(dot_val)));
         let relVecNorm = normalize_safe(relativeVec,constants::math_utils:: TOLERANCE);
+        let sin_cos = from_vec_second()
     }
     AZ_MATH_INLINE Vector3 Vector3::Slerp(const Vector3& dest, float t) const
     {
-    const Simd::Vec1::FloatType dot = Simd::Vec1::Clamp(Simd::Vec3::Dot(m_value, dest.m_value), Simd::Vec1::Splat(-1.0f), Simd::Vec1::Splat(1.0f));
-    // Acos(dot) returns the angle between start and end, and multiplying that by proportion returns the angle between start and the final result
-    const Simd::Vec1::FloatType theta = Simd::Vec1::Mul(Simd::Vec1::Acos(dot), Simd::Vec1::Splat(t));
-    const Simd::Vec3::FloatType relativeVec = Simd::Vec3::Sub(dest.GetSimdValue(), Simd::Vec3::Mul(GetSimdValue(), Simd::Vec3::FromVec1(dot)));
-    const Simd::Vec3::FloatType relVecNorm = Simd::Vec3::NormalizeSafe(relativeVec, Constants::Tolerance);
     const Simd::Vec3::FloatType sinCos = Simd::Vec3::FromVec2(Simd::Vec2::SinCos(theta));
     const Simd::Vec3::FloatType relVecSinTheta = Simd::Vec3::Mul(relVecNorm, Simd::Vec3::SplatIndex0(sinCos));
     return Vector3(Simd::Vec3::Madd(GetSimdValue(), Simd::Vec3::SplatIndex1(sinCos), relVecSinTheta));
