@@ -8,6 +8,7 @@ pub mod vector3;
 pub mod aabb;
 pub mod plane;
 pub mod vector;
+mod simd_math;
 
 use vector::*;
 #[cfg(test)]

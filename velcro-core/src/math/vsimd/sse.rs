@@ -724,3 +724,15 @@ pub unsafe fn sqrt_inv(value: FloatType) -> FloatType {
 pub unsafe fn mod_calculate(value: FloatType, divisor: FloatType) -> FloatType {
     return sub(value, mul(_mm_round_ps(div(value, divisor), _MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC), divisor));
 }
+#[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
+pub unsafe fn fast_load_constant_f32(values :*const f32)->FloatType{
+  return   *(values as *FloatType);
+}
+#[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+#[inline]
+#[allow(dead_code)]
+pub unsafe fn fast_load_constant_i32(values :*const i32)->Int32Type{
+    return   *(values as *Int32Type);
+}

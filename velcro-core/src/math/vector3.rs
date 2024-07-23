@@ -1,10 +1,11 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
 
+use std::ops::*;
 use vsimd::neon::*;
 use vsimd::sse::*;
 use crate::math::vector::*;
-use crate::math::vsimd;
+use crate::math::{constants, vsimd};
 
 // PartialEq 是否相等
 #[derive(Debug,Eq, Copy, Clone)]
@@ -238,12 +239,67 @@ impl Vector3 {
         result
     }
     pub unsafe fn is_normalized(self,tolerance:f32)->bool{
-        return abs_i32(self.get_length_sq()-1.0) <= tolerance;
+
+
+        let splat_val = splat(self.get_length_sq()-1.0);
+        let abs_val = abs(splat_val);
+        let val = select_first(abs_val);
+        return val <= tolerance;
     }
-    AZ_MATH_INLINE bool Vector3::IsNormalized(float tolerance) const
+    pub unsafe fn set_length(mut self, length:f32){
+        let scale =   self.get_length_reciprocal() * length;
+        self *= splat(scale) ;
+    }
+    pub unsafe fn set_length_estimate(mut self, length:f32){
+        let scale = length* self.get_length_reciprocal_estimate();
+        self *= splat(scale) ;
+    }
+    pub unsafe fn get_distance_sq(&mut self, v :&Vector3)->f32{
+        self -= v;
+        let result = self.get_length_sq();
+        result
+    }
+    pub unsafe fn get_distance(&mut self, v :&Vector3)->f32{
+        self -= v;
+        let result = self.get_length();
+        result
+    }
+    pub unsafe fn get_distance_estimate(&mut self, v :&Vector3)->f32{
+        self -= v;
+        let result = self.get_length_estimate();
+        result
+    }
+    pub unsafe fn lerp(self,dest :&Vector3,t :f32)->Vector3{
+        let sub_val = sub(dest._value,self._value);
+        let splat_val = splat(t);
+
+        Vector3{
+            _value : madd(sub_val,splat_val,self._value)
+        }
+    }
+    pub unsafe fn slerp(self,dest :&Vector3,t :f32)->Vector3{
+        let dot_val = clamp(dot_to_f32_type(self._value,dest._value),splat(-1.0),splat(1.0));
+        let theta = mul(acos(dot_val),splat(t));
+        let relativeVec = sub(dest.get_simd_value(),mul(self.get_simd_value(),from_vec_first(dot_val)));
+        let relVecNorm = normalize_safe(relativeVec,constants::math_utils:: TOLERANCE);
+    }
+    AZ_MATH_INLINE Vector3 Vector3::Slerp(const Vector3& dest, float t) const
     {
-    return (Abs(GetLengthSq() - 1.0f) <= tolerance);
-    }
+    const Simd::Vec1::FloatType dot = Simd::Vec1::Clamp(Simd::Vec3::Dot(m_value, dest.m_value), Simd::Vec1::Splat(-1.0f), Simd::Vec1::Splat(1.0f));
+    // Acos(dot) returns the angle between start and end, and multiplying that by proportion returns the angle between start and the final result
+    const Simd::Vec1::FloatType theta = Simd::Vec1::Mul(Simd::Vec1::Acos(dot), Simd::Vec1::Splat(t));
+    const Simd::Vec3::FloatType relativeVec = Simd::Vec3::Sub(dest.GetSimdValue(), Simd::Vec3::Mul(GetSimdValue(), Simd::Vec3::FromVec1(dot)));
+    const Simd::Vec3::FloatType relVecNorm = Simd::Vec3::NormalizeSafe(relativeVec, Constants::Tolerance);
+    const Simd::Vec3::FloatType sinCos = Simd::Vec3::FromVec2(Simd::Vec2::SinCos(theta));
+    const Simd::Vec3::FloatType relVecSinTheta = Simd::Vec3::Mul(relVecNorm, Simd::Vec3::SplatIndex0(sinCos));
+    return Vector3(Simd::Vec3::Madd(GetSimdValue(), Simd::Vec3::SplatIndex1(sinCos), relVecSinTheta));
+}
+
+AZ_MATH_INLINE Vector3 Vector3::Nlerp(const Vector3& dest, float t) const
+{
+return Lerp(dest, t).GetNormalizedSafe(Constants::Tolerance);
+}
+
     pub fn get_simd_value(&self)->FloatType{
         self._value
     }
@@ -259,6 +315,38 @@ impl Vector3 {
     }
 
 
+}
+
+impl Add for Vector3 {
+    type Output = ();
+    fn add(self, rhs: Self) -> Self::Output {
+        unsafe { Self { _value: add(self._value, rhs._value) } }
+    }
+}
+
+impl Sub for Vector3 {
+    type Output = ();
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        unsafe { Self { _value: sub(self._value, rhs._value) } }
+    }
+}
+
+impl Mul for Vector3 {
+    type Output = ();
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        unsafe { Self { _value: mul(self._value, rhs._value) } }
+    }
+
+}
+
+impl Div for Vector3 {
+    type Output = ();
+
+    fn div(self, rhs: Self) -> Self::Output {
+        unsafe { Self { _value: div(self._value, rhs._value) } }
+    }
 }
 #[cfg(test)]
 mod tests {
