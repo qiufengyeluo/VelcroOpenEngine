@@ -1,10 +1,11 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
 
+use std::arch::x86_64::{_MM_SHUFFLE, _mm_shuffle_ps};
 use std::f32::consts::PI;
 use vsimd::neon::*;
 use vsimd::sse::*;
-use crate::math::constants::{HALF_PI, TWO_OVER_PI};
+use crate::math::constants::*;
 use crate::math::vector3::Vector3;
 use crate::math::vsimd;
 
@@ -25,6 +26,15 @@ pub unsafe fn dot_to_f32_type(lhs : FloatType,rhs:FloatType) ->FloatType{
     let xyz =   add(splat_third(x2), xy);
     let result   =   splat_first(xyz);
     result
+}
+
+pub unsafe fn cross_f32_type(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType{
+    // Vec3(y * vector.z - z * vector.y, z * vector.x - x * vector.z, x * vector.y - y * a_Vector.x);
+    let arg1_yzx = _mm_shuffle_ps(arg1.to_owned(),arg1.to_owned(),_MM_SHUFFLE(3,0,2,1));
+    let arg2_yzx = _mm_shuffle_ps(arg2.to_owned(),arg2.to_owned(),_MM_SHUFFLE(3, 0, 2, 1));
+    let partial = sub(mul(arg1.to_owned(),arg2_yzx),mul(arg1_yzx,arg2.to_owned()));
+    return _mm_shuffle_ps(partial, partial, _MM_SHUFFLE(3, 0, 2, 1));
+
 }
 
 pub unsafe fn from_vec_first(value :FloatType ) ->FloatType
@@ -114,39 +124,73 @@ pub unsafe fn acos(value:FloatArgType) ->FloatType{
     return select(negative,positive,select_val);
 
 }
-AZ_MATH_INLINE typename VecType::FloatType Sin(typename VecType::FloatArgType value)
-{
-// Range Reduction
-typename VecType::FloatType x = VecType::Mul(value, FastLoadConstant<VecType>(Simd::g_TwoOverPi));
 
-// Find offset mod 4
-const typename VecType::Int32Type intx = VecType::ConvertToIntNearest(x);
-const typename VecType::Int32Type offset = VecType::And(intx, VecType::Splat(3));
+pub unsafe fn compute_sinx_cosx(x:&FloatArgType,mut sinx :&FloatArgType,mut cosx :&FloatArgType){
+    let x2 = mul(x.to_owned(),x.to_owned());
+    let x3 = mul(x2.to_owned(),x.to_owned());
+    sinx = madd(x2,
+                madd(x2,
+                     madd(x2,
+                          fast_load_constant_f32(G_SIN_COEF1 as *const f32),
+                          fast_load_constant_f32(G_SIN_COEF2 as *const f32)),fast_load_constant_f32(G_SIN_COEF3 as *const f32)),x.to_owned()).borrow();
+    cosx =  madd(x2,
+                 madd(x2,
+                      madd(x2,
+                           fast_load_constant_f32(G_COS_COEF1 as *const f32),
+                           fast_load_constant_f32(G_COS_COEF2 as *const f32)),fast_load_constant_f32(G_COS_COEF3 as *const f32)),splat(1.0)).borrow();
 
-const typename VecType::FloatType intxFloat = VecType::ConvertToFloat(intx);
-x = VecType::Sub(value, VecType::Mul(intxFloat, FastLoadConstant<VecType>(Simd::g_HalfPi)));
-
-typename VecType::FloatType sinx, cosx;
-ComputeSinxCosx<VecType>(x, sinx, cosx);
-
-// Choose sin for even offset, cos for odd
-typename VecType::Int32Type mask = VecType::CmpEq(VecType::And(offset, VecType::Splat(1)), VecType::ZeroInt());
-typename VecType::FloatType result = VecType::Select(sinx, cosx, VecType::CastToFloat(mask));
-
-// Change sign for result if offset is 1 or 2
-mask = VecType::CmpEq(VecType::And(offset, VecType::Splat(2)), VecType::ZeroInt());
-result = VecType::Select(result, VecType::Xor(result, VecType::Splat(-0.0f)), VecType::CastToFloat(mask));
-
-return result;
 }
 pub unsafe fn sin(value:FloatArgType)->FloatType{
-    let x = mul(value,fast_load_constant_i32(G_));
-    let result = select()
+    let mut x = mul(value,fast_load_constant_f32(G_TWO_OVER_PI as (*const f32)));
+    let intx = convert_to_int_nearest(x);
+    let offset = and_i32(intx,splat_i32(3));
+    let intx_float = convert_to_float(intx);
+    x = sub(value,mul(intx_float,fast_load_constant_f32(G_HALF_PI as *const f32)));
+    let sinx : FloatType;
+    let cosx : FloatType;
+    compute_sinx_cosx(x.borrow(),sinx.borrow(),cosx.borrow());
+    let mut mask = cmp_eq_i32(and_i32(offset,splat_i32(1)),zero_int());
+    let mut result = select(sinx.to_owned(),cosx.to_owned(),cast_to_float(mask));
+    mask = cmp_eq_i32(and_i32(offset,splat_i32(2)),zero_int());
+    result = select(result,xor(result.to_owned(),splat(-0.0)),cast_to_float(mask));
     result
 }
 
+pub unsafe fn cos(value:FloatArgType)->FloatType{
+    let mut x = mul(value,fast_load_constant_f32(G_TWO_OVER_PI as *const f32));
+    let intx = convert_to_int_nearest(x);
+    let offset = and_i32(and_i32(intx,splat_i32(1)),splat_i32(3));
+    let intx_float = convert_to_float(intx);
+
+    x = sub(value,mul(intx_float, fast_load_constant_f32(G_HALF_PI as *const f32)));
+    let sinx:FloatType;
+    let cosx:FloatType;
+    compute_sinx_cosx(x.borrow(),sinx.borrow(),cosx.borrow());
+    let mut mask = cmp_eq_i32(and_i32(offset,splat_i32(1)),zero_int());
+    let mut result = select(sinx.to_owned(),cosx.to_owned(),cast_to_float(mask));
+    mask = cmp_eq_i32(and_i32(offset,splat_i32(2)),zero_int());
+    result = select(result,xor(result,splat(0.0)),cast_to_float(mask));
+    return result;
+}
 pub unsafe fn sin_cos(angle:FloatArgType) ->FloatType{
     let angle_offset = load_immediate(0.0, HALF_PI, 0.0, 0.0);
     let angles = add(from_vec_first(angle),angle_offset);
     return sin(angles)
+}
+
+pub unsafe fn min_f32(left:&f32,right:&f32)->f32{
+    if left > right{
+        let result = right.to_owned();
+        return  result;
+    }
+    let result = left.to_owned();
+    return result;
+}
+pub unsafe fn max_f32(left:&f32,right:&f32)->f32{
+    if left > right{
+        let result = left.to_owned();
+        return  result;
+    }
+    let result = right.to_owned();
+    return result;
 }
