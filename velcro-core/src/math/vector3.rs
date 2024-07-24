@@ -373,7 +373,21 @@ impl Vector3 {
     pub unsafe fn get_cos(self)->Vector3{
         return  Vector3::new_float_type(cos(self.get_simd_value()))
     }
-    pub unsafe fn get_abs(self)->Vector3{
+
+    pub unsafe fn get_sin_cos(self,sin:&Vector3, cos :&Vector3){
+        sin_cos(self.get_simd_value(),sin.get_simd_value(),cos.get_simd_value().borrow());
+    }
+AZ_MATH_INLINE Vector3 Vector3::GetAcos() const
+{
+return Vector3(Simd::Vec3::Acos(m_value));
+}
+
+AZ_MATH_INLINE Vector3 Vector3::GetAtan() const
+{
+return Vector3(Simd::Vec3::Atan(m_value));
+}
+
+pub unsafe fn get_abs(self)->Vector3{
         return  Vector3::new_float_type(abs(self.get_simd_value()));
     }
 }

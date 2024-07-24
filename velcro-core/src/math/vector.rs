@@ -172,12 +172,38 @@ pub unsafe fn cos(value:FloatArgType)->FloatType{
     result = select(result,xor(result,splat(0.0)),cast_to_float(mask));
     return result;
 }
-pub unsafe fn sin_cos(angle:FloatArgType) ->FloatType{
-    let angle_offset = load_immediate(0.0, HALF_PI, 0.0, 0.0);
-    let angles = add(from_vec_first(angle),angle_offset);
-    return sin(angles)
+pub unsafe fn sin_cos_float_type(angle:FloatArgType) ->FloatType{
+    return sin(add(from_vec_first(angle),load_immediate(0.0, HALF_PI, 0.0, 0.0)))
 }
 
+pub unsafe fn  sin_cos(value:FloatArgType,mut sin:&FloatArgType,mut cos:FloatArgType){
+    let x = mul(value,fast_load_constant_f32(G_TWO_OVER_PI as *const f32));
+
+// Find offset mod 4
+    typename VecType::Int32Type intx = VecType::ConvertToIntNearest(x);
+    typename VecType::Int32Type offsetSin = VecType::And(intx, VecType::Splat(3));
+    typename VecType::Int32Type offsetCos = VecType::And(VecType::Add(intx, VecType::Splat(1)), VecType::Splat(3));
+
+    typename VecType::FloatType intxFloat = VecType::ConvertToFloat(intx);
+    x = VecType::Sub(value, VecType::Mul(intxFloat, FastLoadConstant<VecType>(Simd::g_HalfPi)));
+
+    typename VecType::FloatType sinx, cosx;
+    ComputeSinxCosx<VecType>(x, sinx, cosx);
+
+// Choose sin for even offset, cos for odd
+    typename VecType::FloatType sinMask = VecType::CastToFloat(VecType::CmpEq(VecType::And(offsetSin, VecType::Splat(1)), VecType::ZeroInt()));
+    typename VecType::FloatType cosMask = VecType::CastToFloat(VecType::CmpEq(VecType::And(offsetCos, VecType::Splat(1)), VecType::ZeroInt()));
+
+    sin = VecType::Select(sinx, cosx, sinMask);
+    cos = VecType::Select(sinx, cosx, cosMask);
+
+// Change sign for result if offset puts it in quadrant 1 or 2
+    sinMask = VecType::CastToFloat(VecType::CmpEq(VecType::And(offsetSin, VecType::Splat(2)), VecType::ZeroInt()));
+    cosMask = VecType::CastToFloat(VecType::CmpEq(VecType::And(offsetCos, VecType::Splat(2)), VecType::ZeroInt()));
+
+    sin = VecType::Select(sin, VecType::Xor(sin, FastLoadConstant<VecType>(reinterpret_cast<const float*>(Simd::g_negateMask))), sinMask);
+    cos = VecType::Select(cos, VecType::Xor(cos, FastLoadConstant<VecType>(reinterpret_cast<const float*>(Simd::g_negateMask))), cosMask);
+}
 pub unsafe fn min_f32(left:&f32,right:&f32)->f32{
     if left > right{
         let result = right.to_owned();
