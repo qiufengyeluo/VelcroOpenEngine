@@ -6,8 +6,9 @@ use vsimd::neon::*;
 use vsimd::sse::*;
 use crate::math::vector::*;
 use crate::math::{constants, vsimd};
-use crate::math::constants::TOLERANCE;
-
+use crate::math::constants::*;
+use crate::math::simd_math::*;
+use crate::math::math_utils::*;
 // PartialEq 是否相等
 #[derive(Debug,Eq, Copy, Clone)]
 pub struct Vector3 {
@@ -282,10 +283,10 @@ impl Vector3 {
     }
     pub unsafe fn slerp(self,dest :&Vector3,t :f32)->Vector3{
         let dot_val = clamp(dot_to_f32_type(self._value,dest._value),splat(-1.0),splat(1.0));
-        let theta = mul(acos(dot_val),splat(t));
+        let theta = mul(acos(dot_val.borrow()),splat(t));
         let relative_vec = sub(dest.get_simd_value(), mul(self.get_simd_value(), from_vec_first(dot_val)));
         let rel_vec_norm = normalize_safe(relative_vec, constants::math_utils:: TOLERANCE);
-        let sin_cos = from_vec_second(sin_cos(theta));
+        let sin_cos = from_vec_second(sin_cos_float_type(theta));
         let rel_vec_sin_theta = mul(rel_vec_norm, splat_first(sin_cos));
         let result = Vector3::new_float_type(madd(self.get_simd_value(), splat_first(sin_cos), rel_vec_sin_theta));
         result
@@ -375,19 +376,128 @@ impl Vector3 {
     }
 
     pub unsafe fn get_sin_cos(self,sin:&Vector3, cos :&Vector3){
-        sin_cos(self.get_simd_value(),sin.get_simd_value(),cos.get_simd_value().borrow());
+        sin_cos(self.get_simd_value(),sin.get_simd_value().borrow(),cos.get_simd_value().borrow());
     }
-AZ_MATH_INLINE Vector3 Vector3::GetAcos() const
+    pub unsafe fn get_acos(self)->Vector3{
+        return Vector3::new_float_type(acos(self.get_simd_value().borrow()))
+    }
+    pub unsafe fn get_atan(self)->Vector3{
+        return Vector3::new_float_type(atan(self.get_simd_value().borrow()))
+    }
+    pub unsafe fn get_angle_mod(self)->Vector3{
+        return  Vector3::new_float_type(angle_mod(self.get_simd_value().borrow()));
+    }
+    pub unsafe fn angle(self, v:&Vector3)->f32{
+        let cos =self.dot_f32(v.borrow())*simd_inv_sqrt((self.get_length_sq()*v.get_length_sq()).borrow());
+        let res = simd_acos(get_clamp(&cos,(-1.0 as f32) .borrow(),1.0));
+        AZ_MATH_ASSERT(std::isfinite(res) && (res >= 0.0f) && (res <= Constants::Pi), "Calculated an invalid angle");
+        return res;
+    }
+AZ_MATH_INLINE float Vector3::AngleDeg(const Vector3& v) const
 {
-return Vector3(Simd::Vec3::Acos(m_value));
+return RadToDeg(Angle(v));
 }
 
-AZ_MATH_INLINE Vector3 Vector3::GetAtan() const
+AZ_MATH_INLINE float Vector3::AngleSafe(const Vector3& v) const
 {
-return Vector3(Simd::Vec3::Atan(m_value));
+return (!IsZero() && !v.IsZero()) ? Angle(v) : 0.0f;
 }
 
-pub unsafe fn get_abs(self)->Vector3{
+AZ_MATH_INLINE float Vector3::AngleSafeDeg(const Vector3& v) const
+{
+return (!IsZero() && !v.IsZero()) ? AngleDeg(v) : 0.0f;
+}
+
+AZ_MATH_INLINE Vector3 Vector3::GetAbs() const
+{
+return Vector3(Simd::Vec3::Abs(m_value));
+}
+
+AZ_MATH_INLINE Vector3 Vector3::GetReciprocal() const
+{
+return Vector3(Simd::Vec3::Reciprocal(m_value));
+}
+
+AZ_MATH_INLINE Vector3 Vector3::GetReciprocalEstimate() const
+{
+return Vector3(Simd::Vec3::ReciprocalEstimate(m_value));
+}
+
+AZ_MATH_INLINE Vector3 Vector3::GetMadd(const Vector3& mul, const Vector3& add)
+{
+return Vector3(Simd::Vec3::Madd(GetSimdValue(), mul.GetSimdValue(), add.GetSimdValue()));
+}
+
+AZ_MATH_INLINE void Vector3::Madd(const Vector3& mul, const Vector3& add)
+{
+*this = GetMadd(mul, add);
+}
+
+AZ_MATH_INLINE bool Vector3::IsPerpendicular(const Vector3& v, float tolerance) const
+{
+Simd::Vec1::FloatType absLengthSq = Simd::Vec1::Abs(Simd::Vec3::Dot(m_value, v.m_value));
+return Simd::Vec1::SelectIndex0(absLengthSq) < tolerance;
+}
+
+AZ_MATH_INLINE Vector3 Vector3::GetOrthogonalVector() const
+{
+// for stability choose an axis which has a small component in this vector
+const Vector3 axis = (GetX() * GetX() < 0.5f * GetLengthSq()) ? Vector3::CreateAxisX() : Vector3::CreateAxisY();
+return Cross(axis);
+}
+
+AZ_MATH_INLINE void Vector3::Project(const Vector3& rhs)
+{
+*this = rhs * (Dot(rhs) / rhs.Dot(rhs));
+}
+
+AZ_MATH_INLINE void Vector3::ProjectOnNormal(const Vector3& normal)
+{
+AZ_MATH_ASSERT(normal.IsNormalized(), "This normal is not a normalized");
+*this = normal * Dot(normal);
+}
+
+AZ_MATH_INLINE Vector3 Vector3::GetProjected(const Vector3& rhs) const
+{
+return rhs * (Dot(rhs) / rhs.Dot(rhs));
+}
+
+AZ_MATH_INLINE Vector3 Vector3::GetProjectedOnNormal(const Vector3& normal)
+{
+AZ_MATH_ASSERT(normal.IsNormalized(), "This provided normal is not normalized");
+return normal * Dot(normal);
+}
+
+AZ_MATH_INLINE bool Vector3::IsFinite() const
+{
+return IsFiniteFloat(m_x) && IsFiniteFloat(m_y) && IsFiniteFloat(m_z);
+}
+
+AZ_MATH_INLINE Simd::Vec3::FloatType Vector3::GetSimdValue() const
+{
+return m_value;
+}
+
+AZ_MATH_INLINE void Vector3::SetSimdValue(Simd::Vec3::FloatArgType value)
+{
+m_value = value;
+}
+
+AZ_MATH_INLINE Vector3 operator*(float multiplier, const Vector3& rhs)
+{
+return rhs * multiplier;
+}
+
+AZ_MATH_INLINE Vector3 Vector3RadToDeg(const Vector3& radians)
+{
+return Vector3(Simd::Vec3::Mul(radians.GetSimdValue(), Simd::Vec3::Splat(180.0f / Constants::Pi)));
+}
+
+AZ_MATH_INLINE Vector3 Vector3DegToRad(const Vector3& degrees)
+{
+return Vector3(Simd::Vec3::Mul(degrees.GetSimdValue(), Simd::Vec3::Splat(Constants::Pi / 180.0f)));
+}
+    pub unsafe fn get_abs(self)->Vector3{
         return  Vector3::new_float_type(abs(self.get_simd_value()));
     }
 }

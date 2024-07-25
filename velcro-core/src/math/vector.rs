@@ -96,12 +96,12 @@ pub unsafe fn normalize_safe_estimate(value :FloatArgType,tolerance:f32)->FloatT
         result
     }
 }
-pub unsafe fn acos(value:FloatArgType) ->FloatType{
-    let  xabs = abs(value);
+pub unsafe fn acos(value:&FloatArgType) ->FloatType{
+    let  xabs = abs(value.to_owned());
     let xabs2 = mul(xabs,xabs);
     let xabs4 = mul(xabs2,xabs2);
     let t1 = sqrt(sub(splat(1.0),xabs));
-    let select_val = cmp_lt(value,zero_float());
+    let select_val = cmp_lt(value.to_owned(),zero_float());
 
     let hi = madd(xabs,
                             madd(xabs,
@@ -124,6 +124,110 @@ pub unsafe fn acos(value:FloatArgType) ->FloatType{
     return select(negative,positive,select_val);
 
 }
+
+pub unsafe fn atan(value:&FloatArgType)->FloatType{
+    let mut x = value.to_owned();
+    let signbit = and(x,cast_to_float(fast_load_constant_i32(G_NEGATE_MASK as *const i32)));
+    let xabs = abs(x);
+
+    let cmp0 = cmp_gt(xabs,fast_load_constant_f32(G_ATAN_HI_RANGE as *const f32));
+    let mut cmp1 = cmp_gt(xabs,fast_load_constant_f32(G_ATAN_LO_RANGE as *const f32));
+    let cmp2 = and_not(cmp0,cmp1);
+
+    let xabs_safe = add(xabs, and(cmp_eq(xabs, zero_float()), fast_load_constant_f32(G_VEC1111 as *const f32)));
+    let y0 = and(cmp0,fast_load_constant_f32(G_HALF_PI as *const f32));
+
+    let mut x0 = div(fast_load_constant_f32(G_VEC1111 as *const f32), xabs_safe);
+    x0 = xor(x0,cast_to_float(fast_load_constant_i32(G_NEGATE_MASK as *const i32)));
+    let y1 = and(cmp2,fast_load_constant_f32(G_QUARTER_PI as *const f32));
+    let x1_numer = sub(xabs,fast_load_constant_f32(G_VEC1111 as *const f32));
+    let x1_denom = add(xabs,fast_load_constant_f32(G_VEC1111 as *const f32));
+    let x1 = div(x1_numer,x1_denom);
+    let mut x2 = and(cmp2,x1);
+    x0 = add(cmp0,x0);
+    x2 = or(x2,x0);
+    cmp1 = or(cmp0, cmp2);
+
+    x2 = and(cmp1, x2);
+    x = and_not(cmp1, xabs);
+    x = or(x2, x);
+
+    let mut y = or(y0,y1);
+    let x_sqr = mul(x,x);
+    let x_cub = mul(x_sqr,x);
+    let result = madd(x_cub,
+    madd(x_sqr,
+    madd(x_sqr,
+    madd(x_sqr,
+    fast_load_constant_f32(G_ATAN_COEF1 as *const f32),
+    fast_load_constant_f32(G_ATAN_COEF2 as *const f32)),
+    fast_load_constant_f32(G_ATAN_COEF3 as *const f32)),
+    fast_load_constant_f32(G_ATAN_COEF4 as *const f32)),
+    x);
+    y = add(y, result);
+
+    y = xor(y, signbit);
+    y
+}
+
+pub unsafe fn atan2(y:&FloatArgType,x:&FloatArgType)->FloatType{
+    let x_eq_0 = cmp_eq(x.to_owned(),zero_float());
+    let x_ge_0 = cmp_gt_eq(x.to_owned(),zero_float());
+    let x_lt_0 = cmp_lt(x.to_owned(),zero_float());
+
+    let y_eq_0 = cmp_eq(y.to_owned(),zero_float());
+    let y_lt_0 = cmp_lt(y.to_owned(),zero_float());
+
+    let zero_mask = and(x_ge_0,y_eq_0);
+
+    let pio2_mask = and_not(y_eq_0,x_eq_0);
+    let pio2_mask_sign = and(y_lt_0,cast_to_float(fast_load_constant_i32(G_NEGATE_MASK as *const i32)));
+    let mut pio2_result = fast_load_constant_f32(G_HALF_PI as *const f32);
+    pio2_result = xor(pio2_result, pio2_mask_sign);
+    pio2_result = and(pio2_mask, pio2_result);
+
+    let pi_mask = and(y_eq_0, x_lt_0);
+    let mut pi_result = fast_load_constant_f32(G_PI as *const f32);
+    pi_result = and(pi_mask, pi_result);
+
+    let mut swap_sign_mask_offset = and(x_lt_0, y_lt_0);
+    swap_sign_mask_offset = and(swap_sign_mask_offset, cast_to_float(fast_load_constant_i32(G_NEGATE_MASK as *const i32)));
+
+    let mut offset1 = fast_load_constant_f32(G_PI as *const f32);
+    offset1 = xor(offset1, swap_sign_mask_offset);
+
+    let offset = and(x_lt_0, offset1);
+    let x_safe = add(x.to_owned(), and(x_eq_0, fast_load_constant_f32(G_VEC1111 as *const f32)));
+    let atan_mask = not(or(x_eq_0, y_eq_0));
+    let atan_arg = div(y.to_owned(), x_safe);
+    let mut atan_result = atan(atan_arg.borrow());
+    atan_result = add(atan_result, offset);
+    atan_result = and_not(pio2_mask, atan_result);
+    atan_result = and(atan_mask, atan_result);
+
+    let mut result = and_not(zero_mask, pio2_result);
+    result = or(result, pio2_result);
+    result = or(result, pi_result);
+    result = or(result, atan_result);
+
+    result
+}
+pub unsafe fn wrap(value:&FloatArgType, min_value:&FloatArgType, max_value:&FloatArgType) ->FloatType {
+    let value_adjust = sub(value.to_owned(), min_value.to_owned());
+    let max_adjust = sub(max_value.to_owned(), min_value.to_owned());
+    let value_offset = select(max_adjust, zero_float(), cmp_lt(value_adjust, zero_float()));
+    return add(min_value.to_owned(), add(value_offset.to_owned(), mod_calculate(value_adjust, max_adjust)));
+}
+
+pub unsafe fn angle_mod(value:&FloatArgType)->FloatType {
+    let vec_pi = splat(PI);
+    let vec_two_pi = splat(TWO_PI);
+    let positive_angles = sub(mod_calculate(add(value.to_owned(), vec_pi), vec_two_pi), vec_pi);
+    let negative_angles = add(mod_calculate(sub(value.to_owned(), vec_pi), vec_two_pi), vec_pi);
+    let mask = cmp_gt_eq(value.to_owned(),zero_float());
+    return select(positive_angles, negative_angles, mask);
+}
+
 
 pub unsafe fn compute_sinx_cosx(x:&FloatArgType,mut sinx :&FloatArgType,mut cosx :&FloatArgType){
     let x2 = mul(x.to_owned(),x.to_owned());
@@ -176,33 +280,26 @@ pub unsafe fn sin_cos_float_type(angle:FloatArgType) ->FloatType{
     return sin(add(from_vec_first(angle),load_immediate(0.0, HALF_PI, 0.0, 0.0)))
 }
 
-pub unsafe fn  sin_cos(value:FloatArgType,mut sin:&FloatArgType,mut cos:FloatArgType){
-    let x = mul(value,fast_load_constant_f32(G_TWO_OVER_PI as *const f32));
+pub unsafe fn  sin_cos(value:FloatArgType,mut sin:&FloatArgType,mut cos:&FloatArgType){
+    let mut x = mul(value,fast_load_constant_f32(G_TWO_OVER_PI as *const f32));
 
-// Find offset mod 4
-    typename VecType::Int32Type intx = VecType::ConvertToIntNearest(x);
-    typename VecType::Int32Type offsetSin = VecType::And(intx, VecType::Splat(3));
-    typename VecType::Int32Type offsetCos = VecType::And(VecType::Add(intx, VecType::Splat(1)), VecType::Splat(3));
+    let intx = convert_to_int_nearest(x);
+    let offset_sin = and_i32(intx, splat_i32(3));
+    let offset_cos = add_i32(add_i32(intx, splat_i32(1)), splat_i32(3));
+    let intx_float = convert_to_float(intx);
+    x = sub(value,mul(intx_float, fast_load_constant_f32(G_HALF_PI as *const f32)));
+    let mut sinx:FloatType = zero_float();
+    let mut cosx:FloatType = zero_float();
+    compute_sinx_cosx(x.borrow(),sinx.borrow(),cosx.borrow());
+    let mut sin_mask = cast_to_float(cmp_eq_i32(and_i32(offset_sin, splat_i32(1)), zero_int()));
+    let mut cos_mask = cast_to_float(cmp_eq_i32(and_i32(offset_cos, splat_i32(1)), zero_int()));
+    sin = select(sinx.to_owned(), cosx.to_owned(), sin_mask.to_owned()).borrow();
+    cos = select(sinx.to_owned(), cosx.to_owned(), cos_mask.to_owned()).borrow();
+    sin_mask = cast_to_float(cmp_eq_i32(and_i32(offset_sin,splat_i32(2)),zero_int()));
+    cos_mask = cast_to_float(cmp_eq_i32(and_i32(offset_cos,splat_i32(2)),zero_int()));
+    sin = select(sin.to_owned(),xor(sin.to_owned(),fast_load_constant_f32(G_NEGATE_MASK as *const f32)),sin_mask).borrow();
+    cos = select(cos.to_owned(),xor(cos.to_owned(),fast_load_constant_f32(G_NEGATE_MASK as *const f32)),cos_mask).borrow();
 
-    typename VecType::FloatType intxFloat = VecType::ConvertToFloat(intx);
-    x = VecType::Sub(value, VecType::Mul(intxFloat, FastLoadConstant<VecType>(Simd::g_HalfPi)));
-
-    typename VecType::FloatType sinx, cosx;
-    ComputeSinxCosx<VecType>(x, sinx, cosx);
-
-// Choose sin for even offset, cos for odd
-    typename VecType::FloatType sinMask = VecType::CastToFloat(VecType::CmpEq(VecType::And(offsetSin, VecType::Splat(1)), VecType::ZeroInt()));
-    typename VecType::FloatType cosMask = VecType::CastToFloat(VecType::CmpEq(VecType::And(offsetCos, VecType::Splat(1)), VecType::ZeroInt()));
-
-    sin = VecType::Select(sinx, cosx, sinMask);
-    cos = VecType::Select(sinx, cosx, cosMask);
-
-// Change sign for result if offset puts it in quadrant 1 or 2
-    sinMask = VecType::CastToFloat(VecType::CmpEq(VecType::And(offsetSin, VecType::Splat(2)), VecType::ZeroInt()));
-    cosMask = VecType::CastToFloat(VecType::CmpEq(VecType::And(offsetCos, VecType::Splat(2)), VecType::ZeroInt()));
-
-    sin = VecType::Select(sin, VecType::Xor(sin, FastLoadConstant<VecType>(reinterpret_cast<const float*>(Simd::g_negateMask))), sinMask);
-    cos = VecType::Select(cos, VecType::Xor(cos, FastLoadConstant<VecType>(reinterpret_cast<const float*>(Simd::g_negateMask))), cosMask);
 }
 pub unsafe fn min_f32(left:&f32,right:&f32)->f32{
     if left > right{
