@@ -52,27 +52,61 @@ impl Vector2 {
             _value:source.get_simd_value(),
         }
     }
+
     pub unsafe fn new_vector4(source:&Vector4)->Vector2{
         Vector2{
             _value:source.get_simd_value(),
         }
     }
+
     pub unsafe fn create_zero()->Vector2{
         return Vector2::new_x(0.0.borrow());
     }
+
     pub unsafe fn create_one() ->Vector2{
         return Vector2::new_x(1.0.borrow());
     }
-    AZ_MATH_INLINE Vector2 Vector2::CreateAxisX(float length)
-    {
-    return Vector2(length, 0.0f);
-    }
+
     pub unsafe fn create_axis_x(length:&f32)->Vector2{
        let result = Vector2::new_xy(length,0.0.borrow());
         result
     }
+
     pub unsafe fn create_axis_y(length:&f32)->Vector2{
         let result = Vector2::new_xy(0.0.borrow(),length);
+        result
+    }
+
+
+    pub unsafe fn create_from_float2(values:*const f32)->Vector2{
+        let arr = values as [f32;2];
+        let result = Vector2::new_xy(arr[0].borrow(),arr[1].borrow());
+        result
+    }
+
+    pub unsafe fn create_from_angle(angle:&f32) ->Vector2{
+        let mut sin : f32;
+        let mut cos : f32;
+        simd_sin_cos(angle.borrow(),sin.borrow_mut(),cos.borrow_mut());
+        let result = Vector2::new_xy(sin.borrow(),cos.borrow());
+        result
+    }
+
+    pub unsafe fn create_select_cmp_equal(cmp1:&Vector2,cmp2:&Vector2,va:&Vector2,vb:&Vector2)->Vector2{
+        let mask = cmp_eq(cmp1._value,cmp2._value);
+        let result = Vector2::new_float_type(select(va._value,vb._value,mask).borrow());
+        result
+    }
+
+    pub unsafe fn create_select_cmp_greater_equal(cmp1:&Vector2,cmp2:&Vector2,va:&Vector2,vb:&Vector2)->Vector2{
+        let mask = cmp_gt_eq(cmp1._value,cmp2._value);
+        let result = Vector2::new_float_type(select(va._value,vb._value,mask).borrow());
+        result
+    }
+
+    pub unsafe fn create_select_cmp_greater(cmp1:&Vector2, cmp2:&Vector2, va:&Vector2, vb:&Vector2) ->Vector2{
+        let mask = cmp_gt(cmp1._value,cmp2._value);
+        let result = Vector2::new_float_type(select(va._value,vb._value,mask).borrow());
         result
     }
 }
