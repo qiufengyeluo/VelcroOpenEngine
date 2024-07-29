@@ -2,7 +2,6 @@
 #![allow(clippy::many_single_char_names)]
 
 use std::ops::*;
-use crypto_api_osrandom::to_vec;
 #[cfg(target_arch = "arm")]
 #[allow(dead_code)]
 use vsimd::neon::*;
