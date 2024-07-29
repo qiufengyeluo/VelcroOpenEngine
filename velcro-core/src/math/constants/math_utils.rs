@@ -1,11 +1,11 @@
 #![warn(clip::pedantic)]
 #![allow(clip::many_single_char_names)]
 
-pub(crate) const PI:f32 = std::f32::consts::PI;
+pub(crate) const PI:f32 = 3.14159265358979323846;
 pub(crate) const TWO_PI:f32 = 6.28318530717958647692;
-pub(crate) const HALF_PI:f32 = std::f32::consts::FRAC_PI_2;
-pub(crate) const QUARTER_PI:f32 = std::f32::consts::FRAC_PI_4;
-pub(crate) const TWO_OVER_PI:f32 = std::f32::consts::FRAC_2_PI;
+pub(crate) const HALF_PI:f32 = 1.57079632679489661923;
+pub(crate) const QUARTER_PI:f32 = 0.78539816339744830962;
+pub(crate) const TWO_OVER_PI:f32 = 0.63661977236758134308;
 pub(crate) const MAX_FLOAT_BEFORE_PRECISION_LOSS:f32 = 100000.0;
 pub(crate) const TOLERANCE:f32 = 0.001;
 pub(crate) const FLOAT_MAX:f32 = 3.402823466e+38;

@@ -5,6 +5,7 @@
 extern crate memoffset;
 #[macro_use]
 extern crate lazy_static;
+extern crate core;
 
 use velcro_utils::UUID;
 //use velcro_derive::*;
