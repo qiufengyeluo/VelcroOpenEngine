@@ -497,16 +497,16 @@ impl PartialEq<Self> for Vector3 {
 
 impl Add for Vector3 {
     type Output = Vector3;
-    fn add(self, rhs: Self) -> Self::Output {
-        unsafe { Self { _value: add(self._value, rhs._value) } }
+    fn add(self, rhs: Vector3) -> Self::Output {
+        unsafe { Vector3 { _value: add(self._value, rhs._value) } }
     }
 }
 
 impl Sub for Vector3 {
     type Output = Vector3;
 
-    fn sub(self, rhs: Self) -> Self::Output {
-        unsafe { Self { _value: sub(self._value, rhs._value) } }
+    fn sub(self, rhs: Vector3) -> Self::Output {
+        unsafe { Vector3 { _value: sub(self._value, rhs._value) } }
     }
 }
 
@@ -514,7 +514,7 @@ impl Mul for Vector3 {
     type Output = Vector3;
 
     fn mul(self, rhs: &Vector3) -> Self::Output {
-        unsafe { Self { _value: mul(self._value, rhs._value) } }
+        unsafe { Vector3 { _value: mul(self._value, rhs._value) } }
     }
 
 }
@@ -522,8 +522,8 @@ impl Mul for Vector3 {
 impl Div for Vector3 {
     type Output = Vector3;
 
-    fn div(self, rhs: Self) -> Self::Output {
-        unsafe { Self { _value: div(self._value, rhs._value) } }
+    fn div(self, rhs: Vector3) -> Self::Output {
+        unsafe { Vector3 { _value: div(self._value, rhs._value) } }
     }
 }
 
