@@ -10,6 +10,8 @@ pub mod plane;
 pub mod vector;
 mod simd_math;
 mod math_utils;
+mod vector2;
+mod vector4;
 
 use vector::*;
 #[cfg(test)]
