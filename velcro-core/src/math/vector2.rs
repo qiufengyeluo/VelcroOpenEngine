@@ -2,26 +2,39 @@
 #![allow(clippy::many_single_char_names)]
 
 use std::ops::*;
+use std::ops::{Add, Div, Mul, Sub};
+
 #[cfg(target_arch = "arm")]
 #[allow(dead_code)]
 use vsimd::neon::*;
-
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
 #[allow(dead_code)]
 use vsimd::sse::*;
 
-use crate::math::vector::*;
 use crate::math::*;
 use crate::math::constants::*;
-use crate::math::simd_math::*;
 use crate::math::math_utils::*;
+use crate::math::simd_math::*;
+use crate::math::vector::*;
 use crate::math::vector3::Vector3;
 use crate::math::vector4::Vector4;
 
 // PartialEq 是否相等
-#[derive(Debug,Eq, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Vector2 {
     _value: FloatType,
+}
+
+impl Mul<f32> for &Vector2 {
+    type Output = Vector2;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        unsafe {
+            Vector2 {
+                _value: mul(self._value, splat(rhs)),
+            }
+        }
+    }
 }
 
 impl Vector2 {
@@ -78,8 +91,8 @@ impl Vector2 {
 
 
     pub unsafe fn create_from_float2(values:*const f32)->Vector2{
-        let arr = values as [f32;2];
-        let result = Vector2::new_xy(arr[0].borrow(),arr[1].borrow());
+        let arr = values as *[f32;2];
+        let result = Vector2::new_xy((*arr[0]).borrow(),(*arr[1]).borrow());
         result
     }
 
@@ -111,38 +124,38 @@ impl Vector2 {
 
     pub unsafe fn store_to_float2(self,mut value : *const f32){
         let mut result = value as *[f32;2];
-        let values:*const [f32;2] = (&self._value) as *const [f32;2];
+        let values:*const [f32;2] = (*self._value) as *const [f32;2];
         *result[0] = values[0];
         *result[1] = values[1];
     }
 
     pub fn get_x(self)->f32{
-        let values:*const [f32;2] = (&self._value) as *const [f32;2];
+        let values:*const [f32;2] = (*self._value) as *const [f32;2];
         values[0]
     }
 
     pub fn get_y(self)->f32{
-        let values:*const [f32;2] = (&self._value) as *const [f32;2];
+        let values:*const [f32;2] = (*self._value) as *const [f32;2];
         values[1]
     }
     pub fn set_x(mut self,x:&f32){
-        let mut values:*const [f32;2] = (&self._value) as *const [f32;2];
+        let mut values:*const [f32;2] = (*self._value) as *const [f32;2];
         *values[0] = x
     }
 
     pub fn set_y(mut self,y :&f32){
-        let mut values:*const [f32;2] = (&self._value) as *const [f32;2];
+        let mut values:*const [f32;2] = (*self._value) as *const [f32;2];
         *values[1] = y
     }
 
     pub fn get_element(self, index :&i32) ->f32{
-        let values:*const [f32;2] = (&self._value) as *const [f32;2];
+        let values:*const [f32;2] = (*self._value) as *const [f32;2];
         values[index]
     }
 
 
     pub fn set_element(mut self,index:&i32,value:&f32){
-        let mut values:*const [f32;2] = (&self._value) as *const [f32;2];
+        let mut values:*const [f32;2] = (*self._value) as *const [f32;2];
         *values[index] = value
     }
 
@@ -288,7 +301,7 @@ impl Vector2 {
     }
 
     pub unsafe fn get_perpendicular(self) ->Vector2{
-        return Vector2::new_xy(-self.get_y().borrow(),self.get_x().borrow());
+        return Vector2::new_xy(&-self.get_y().borrow(), self.get_x().borrow());
     }
 
     pub unsafe fn is_close(self,v:&Vector2,tolerance:&f32)->bool{
@@ -335,7 +348,7 @@ impl Vector2 {
     }
 
     pub unsafe fn get_max(self,v:&Vector2)->Vector2{
-        return Vector2::new_float_type(max(self._vlaue,v._value).borrow());
+        return Vector2::new_float_type(max(self._value,v._value).borrow());
     }
 
     pub unsafe fn get_clamp(self,min:&Vector2,max:&Vector2)->Vector2{
@@ -435,7 +448,7 @@ impl Vector2 {
     }
 
     pub unsafe fn project(mut self, rhs:&Vector2){
-        self._value = (rhs .mul(Vector2::new_x((self.dot_f32(rhs)/rhs.dot_f32(rhs)).borrow()).borrow()))._value;
+        self._value = (rhs * (self.dot_f32(rhs)/rhs.dot_f32(rhs)))._value;
     }
 
     pub unsafe fn project_on_normal(mut self, normal:&Vector2){
@@ -488,27 +501,63 @@ impl Mul for Vector2 {
 impl Div for Vector2 {
     type Output = Vector2;
 
-    fn div(self, rhs: Self) -> Self::Output {
+    fn div(self, rhs: &Vector2) -> Self::Output {
         unsafe { Vector2 { _value: div(self._value, rhs._value) } }
+    }
+}
+
+impl Add<Vector2> for &mut Vector2 {
+    type Output = Vector2;
+
+    fn add(self, rhs: Vector2) -> Self::Output {
+        unsafe {
+            Vector2 {
+                _value: add(self._value, rhs._value),
+            }
+        }
     }
 }
 
 impl AddAssign<Vector2> for Vector2 {
     fn add_assign(&mut self, rhs: Vector2) {
-        self = self + rhs;
+        self = &mut (self + rhs);
     }
     /* */
 }
 
+impl Sub<Vector2> for &mut Vector2 {
+    type Output = Vector2;
+
+    fn sub(self, rhs: Vector2) -> Self::Output {
+        unsafe {
+            Vector2 {
+                _value: sub(self._value, rhs._value),
+            }
+        }
+    }
+}
+
 impl SubAssign<Vector2> for  Vector2 {
     fn sub_assign(&mut self, rhs: Vector2) {
-        self = self - rhs;
+        self = &mut (self - rhs);
+    }
+}
+
+impl Mul<Vector2> for &mut Vector2 {
+    type Output = Vector2;
+
+    fn mul(self, rhs: Vector2) -> Self::Output {
+        unsafe {
+            Vector2 {
+                _value: mul(self._value, rhs._value),
+            }
+        }
     }
 }
 
 impl MulAssign<Vector2> for Vector2 {
     fn mul_assign(&mut self, rhs: Vector2) {
-        self = self * rhs;
+        self = &mut (self * rhs);
     }
 }
 
@@ -517,9 +566,22 @@ impl MulAssign<f32> for Vector2 {
         unsafe { self = Vector2::new_float_type(mul(self.get_simd_value(), splat(rhs)).borrow()).to_owned().borrow_mut(); }
     }
 }
+
+impl Div<Vector2> for &mut Vector2 {
+    type Output = Vector2;
+
+    fn div(self, rhs: Vector2) -> Self::Output {
+        unsafe {
+            Vector2 {
+                _value: div(self._value, rhs._value),
+            }
+        }
+    }
+}
+
 impl DivAssign<Vector2> for Vector2 {
-    fn div_assign(&mut self, rhs: Vector3) {
-        self = self / rhs;
+    fn div_assign(&mut self, rhs: Vector2) {
+        self = &mut (self / rhs);
     }
 }
 impl DivAssign<f32> for Vector2 {

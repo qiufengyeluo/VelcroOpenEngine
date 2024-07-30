@@ -1,13 +1,9 @@
-
-
-
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
-
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-#[cfg(not(any(target_arch = "x86_64", target_arch="x86", target_arch = "arm")))] 
+#[cfg(not(any(target_arch = "x86_64", target_arch="x86", target_arch = "arm")))]
 struct __m128 (f32, f32, f32, f32);
 
 #[cfg(not(any(target_arch = "x86_64", target_arch="x86", target_arch = "arm")))]

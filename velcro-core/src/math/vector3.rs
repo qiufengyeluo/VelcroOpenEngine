@@ -2,23 +2,37 @@
 #![allow(clippy::many_single_char_names)]
 
 use std::ops::*;
+use std::ops::{MulAssign, SubAssign};
+
 #[cfg(target_arch = "arm")]
 #[allow(dead_code)]
 use vsimd::neon::*;
-
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
 #[allow(dead_code)]
 use vsimd::sse::*;
 
-use crate::math::vector::*;
 use crate::math::*;
 use crate::math::constants::*;
-use crate::math::simd_math::*;
 use crate::math::math_utils::*;
+use crate::math::simd_math::*;
+use crate::math::vector::*;
+
 // PartialEq 是否相等
-#[derive(Debug,Eq, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Vector3 {
     _value: FloatType,
+}
+
+impl MulAssign<FloatType> for Vector3 {
+    fn mul_assign(&mut self, rhs: FloatType) {
+        unsafe { self._value = mul(self._value, rhs) }
+    }
+}
+
+impl SubAssign<&Vector3> for &mut Vector3 {
+    fn sub_assign(&mut self, rhs: &Vector3) {
+        unsafe { self._value = sub(self._value, rhs._value) }
+    }
 }
 
 impl Vector3 {
@@ -48,71 +62,71 @@ impl Vector3 {
         }
     }
     pub unsafe fn create_zero() ->Vector3{
-        let result:Vector3 = Self.new_float_type(zero_float());
+        let result:Vector3 =Vector3::new_float_type(zero_float().borrow());
         result
     }
     
-    pub fn create_one()->Vector3{
-        let result:Vector3 = Self.new_splat(1.0);
+    pub unsafe fn create_one()->Vector3{
+        let result:Vector3 = Vector3::new_x(1.0.borrow());
         result
     }
-    pub fn create_axis_x(length:f32)->Vector3{
-        let result:Vector3 = Self.new_load_immediate(length, 0.0, 0.0);
+    pub unsafe fn create_axis_x(length:&f32)->Vector3{
+        let result:Vector3 = Vector3::new_xyz(length, 0.0.borrow(), 0.0.borrow());
         result
     }
-    pub fn create_axis_y(length:f32)->Vector3{
-        let result:Vector3 = Self.new_load_immediate(0.0, length, 0.0);
+    pub unsafe fn create_axis_y(length:&f32)->Vector3{
+        let result:Vector3 =  Vector3::new_xyz(0.0.borrow(), length, 0.0.borrow());
         result
     }
-    pub fn create_axis_z(length:f32)->Vector3{
-        let result:Vector3 = Self.new_load_immediate(0.0, 0.0, length);
+    pub unsafe fn create_axis_z(length:&f32)->Vector3{
+        let result:Vector3 =  Vector3::new_xyz(0.0.borrow(), 0.0.borrow(), length);
         result
     }
-    pub fn create_from_float_3(ptr :*const f32)->Vector3{
+    pub unsafe fn create_from_float_3(ptr :*const f32)->Vector3{
         let val =ptr as *[f32;3];
-        let result:Vector3 = Self.new_load_immediate(val[0], val[1], val[2]);
+        let result:Vector3 =  Vector3::new_xyz(val[0].borrow(), val[1].borrow(), val[2].borrow());
         result
     }
     pub unsafe fn create_select_cmp_equal(cmp1:&Vector3, cmp2:&Vector3, va :&Vector3, vb :&Vector3) ->Vector3{
         let mask = cmp_eq(cmp1._value, cmp2._value);
-        let result = Self.new_float_type( select(va._value,vb._value,mask));
+        let result = Vector3::new_float_type( select(va._value,vb._value,mask).borrow());
         result
     }
     pub unsafe fn create_select_cmp_greater_equal(cmp1:&Vector3, cmp2:&Vector3, va :&Vector3, vb :&Vector3) ->Vector3{
         let mask = cmp_gt_eq(cmp1._value, cmp2._value);
-        let result = Self.new_float_type( select(va._value,vb._value,mask));
+        let result = Vector3::new_float_type( select(va._value,vb._value,mask).borrow());
         result
     }
     pub unsafe fn create_select_cmp_greater(cmp1:&Vector3, cmp2:&Vector3, va :&Vector3, vb :&Vector3) ->Vector3{
         let mask = cmp_gt(cmp1._value, cmp2._value);
-        let result = Self.new_float_type(select(va._value,vb._value,mask));
+        let result = Vector3::new_float_type(select(va._value,vb._value,mask).borrow());
         result
     }
-    pub fn store_to_float_3(self, &mut  ptr :*const f32){
-        let mut result = ptr as *[f32;3];
-        let values:*const [f32;3] = (&self._value) as *const [f32;3];
+    pub fn store_to_float_3(self,  ptr :*mut f32){
+        let mut result = ptr.to_owned() as *[f32;3];
+        let values:*const [f32;3] = (*self._value) as *[f32;3];
 
         *result[0] = values[0];
         *result[1] = values[1];
         *result[2] = values[2];
     }
-    pub unsafe fn store_to_float_4(self, &mut value :*const f32){
+    pub unsafe fn store_to_float_4(self,  value : *mut f32){
         store_unaligned(value, self._value);
     }
     pub fn get_x(self)->f32{
-        let values:*const [f32;3] = (&self._value) as *const [f32;3];
+        let values:*const [f32;3] = (*self._value) as *const [f32;3];
         values[0]
     }
     pub fn get_y(self)->f32{
-        let values:*const [f32;3] = (&self._value) as *const [f32;3];
+        let values:*const [f32;3] = (*self._value) as *const [f32;3];
         values[1]
     }
     pub fn get_z(self)->f32{
-        let values:*const [f32;3] = (&self._value) as *const [f32;3];
+        let values:*const [f32;3] = (*self._value) as *const [f32;3];
         values[2]
     }
     pub fn get_element(self,index:i32)->f32{
-        let values:*const [f32;3] = (&self._value) as *const [f32;3];
+        let values:*const [f32;3] = (*self._value) as *const [f32;3];
         values[index]
     }
     pub fn get_simd_value(&self)->FloatType{
@@ -120,30 +134,30 @@ impl Vector3 {
     }
 
     pub fn set_x(mut self, x :f32){
-        let mut values:*const [f32;3] = (&self._value) as *const [f32;3];
+        let mut values:*const [f32;3] = (*self._value) as *const [f32;3];
         *values[0] = x
     }
     pub fn set_y(mut self, y:f32){
-        let mut values:*const [f32;3] = (&self._value) as *const [f32;3];
+        let mut values:*const [f32;3] = (*self._value) as *const [f32;3];
         *values[1] = y
     }
     pub fn set_z(mut self, z:f32){
-        let mut values:*const [f32;3] = (&self._value) as *const [f32;3];
+        let mut values:*const [f32;3] = (*self._value) as *const [f32;3];
         *values[2] = z
     }
     pub unsafe fn set_value_x(mut self, x :f32){
         self._value = splat(x);
     }
     pub fn set_element(mut self,index:i32,v:f32){
-        let mut values:*const [f32;3] = (&self._value) as *const [f32;3];
+        let mut values:*const [f32;3] = (*self._value) as *const [f32;3];
         *values[index] = v
     }
     pub unsafe fn set_value_xyz(mut self, x:f32, y:f32, z:f32){
         self._value = load_immediate(x, y, z, 0.0);
     }
     pub unsafe fn set_value_ptr(mut self, ptr:*const f32){
-        let val= ptr as [f32;3];
-        self._value = load_immediate(val[0],val[1],val[2], 0.0);
+        let val= ptr as *[f32;3];
+        self._value = load_immediate(*val[0],*val[1],*val[2], 0.0);
     }
     pub unsafe fn get_length_sq(&self) ->f32{
         let result =  dot_to_f32(self,&Vector3{_value:self._value});
@@ -319,29 +333,29 @@ impl Vector3 {
         return  Vector3::new_load_immediate(-self.get_y(),self.get_x(),0.0);
     }
 
-    pub fn is_close(&self, v:&Vector3, tolerance :&f32) ->bool
+    pub unsafe  fn is_close(&self, v:&Vector3, tolerance :&f32) ->bool
     {
         let dist:Vector3 = (v - (*self)).get_abs();
-        return dist.is_less_equal_than(Self.new_splat(tolerance));
+        return dist.is_less_equal_than(Vector3::new_x(tolerance));
     }
-    pub fn is_close_with_default(&self, v:&Vector3)->bool{
+    pub unsafe fn is_close_with_default(&self, v:&Vector3)->bool{
         let dist:Vector3 = (v - (*self)).get_abs();
-        return dist.is_less_equal_than(Self.new_splat(TOLERANCE));
+        return dist.is_less_equal_than(Vector3::new_x(TOLERANCE.borrow()));
     }
     pub unsafe fn is_zero(self, tolerance:&f32) ->bool{
         let dist = self.get_abs();
-        return  dist.is_less_equal_than(Self.new_splat(tolerance));
+        return  dist.is_less_equal_than(Vector3::new_x(tolerance).borrow());
     }
     pub unsafe fn is_zero_with_default(self)->bool{
         let dist = self.get_abs();
-        return  dist.is_less_equal_than(Self.new_splat(FLOAT_EPSILON));
+        return  dist.is_less_equal_than(Vector3::new_x(FLOAT_EPSILON.borrow()).borrow());
     }
     pub unsafe fn is_less_than(self, rhs :&Vector3)->bool{
         return cmp_all_lt(self.get_simd_value(),rhs.get_simd_value(),0b0111);
     }
-    pub unsafe fn is_less_equal_than(rhs:&Vector3) ->bool
+    pub unsafe fn is_less_equal_than(self, rhs:&Vector3) ->bool
     {
-        return cmp_all_lt_eq(Self._value, rhs._value, 0b0111);
+        return cmp_all_lt_eq(self._value, rhs._value, 0b0111);
     }
     pub unsafe fn is_greater_than(self,rhs:&Vector3)->bool{
         return  cmp_all_gt(self.get_simd_value(),rhs.get_simd_value(),0b0111);
@@ -448,10 +462,10 @@ impl Vector3 {
     pub unsafe fn get_orthogonal_vector(self)->Vector3{
         let mut axis:Vector3 = Vector3::new();
         let val = (self.get_x() * self.get_x());
-        if val < 0.5 * self.get_langth_sq(){
-            axis = Vector3::create_axis_x(1.0);
+        if val < 0.5 * self.get_length_sq(){
+            axis = Vector3::create_axis_x(1.0.borrow());
         }else{
-            axis = Vector3::create_axis_y(1.0);
+            axis = Vector3::create_axis_y(1.0.borrow());
         }
         return self.cross(axis.borrow());
     }
@@ -497,7 +511,7 @@ impl PartialEq<Self> for Vector3 {
 
 impl Add for Vector3 {
     type Output = Vector3;
-    fn add(self, rhs: Vector3) -> Self::Output {
+    fn add(self, rhs: &Vector3) -> Self::Output {
         unsafe { Vector3 { _value: add(self._value, rhs._value) } }
     }
 }
@@ -505,7 +519,7 @@ impl Add for Vector3 {
 impl Sub for Vector3 {
     type Output = Vector3;
 
-    fn sub(self, rhs: Vector3) -> Self::Output {
+    fn sub(self, rhs: &Vector3) -> Self::Output {
         unsafe { Vector3 { _value: sub(self._value, rhs._value) } }
     }
 }
@@ -522,27 +536,27 @@ impl Mul for Vector3 {
 impl Div for Vector3 {
     type Output = Vector3;
 
-    fn div(self, rhs: Vector3) -> Self::Output {
+    fn div(self, rhs: &Vector3) -> Self::Output {
         unsafe { Vector3 { _value: div(self._value, rhs._value) } }
     }
 }
 
 impl AddAssign<Vector3> for Vector3 {
-    fn add_assign(&mut self, rhs: Vector3) {
-        self = self + rhs;
+    fn add_assign(&mut self, rhs: &Vector3) {
+        self._value = self.add(rhs)._value;
     }
     /* */
 }
 
 impl SubAssign<Vector3> for  Vector3 {
-    fn sub_assign(&mut self, rhs: Vector3) {
-        self = self - rhs;
+    fn sub_assign(&mut self, rhs: &Vector3) {
+        self._value = self.sub(rhs)._value;
     }
 }
 
 impl MulAssign<Vector3> for Vector3 {
-    fn mul_assign(&mut self, rhs: Vector3) {
-        self = self * rhs;
+    fn mul_assign(&mut self, rhs: &Vector3) {
+        self._value = self.mul(rhs)._value;
     }
 }
 
@@ -552,8 +566,8 @@ impl MulAssign<f32> for Vector3 {
     }
 }
 impl DivAssign<Vector3> for Vector3 {
-    fn div_assign(&mut self, rhs: Vector3) {
-        self = self / rhs;
+    fn div_assign(&mut self, rhs: &Vector3) {
+        self._value = self.div(rhs)._value;
     }
 }
 impl DivAssign<f32> for Vector3 {
@@ -564,6 +578,7 @@ impl DivAssign<f32> for Vector3 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn ve3_get_length() {
         let vec3 = Vector3::new();
