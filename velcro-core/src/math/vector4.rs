@@ -25,7 +25,13 @@ impl Vector4 {
         }
     }
 
-
+    pub fn new_zero()->Vector4{
+        unsafe {
+            Vector4 {
+                _value: zero_float(),
+            }
+        }
+    }
     pub fn get_simd_value(self)->FloatType{
         self._value
     }
