@@ -115,19 +115,19 @@ impl Vector3 {
     }
     pub fn get_x(self)->f32{
         let values:*const [f32;3] = (*self._value) as *const [f32;3];
-        values[0]
+       *values[0]
     }
     pub fn get_y(self)->f32{
         let values:*const [f32;3] = (*self._value) as *const [f32;3];
-        values[1]
+        *values[1]
     }
     pub fn get_z(self)->f32{
         let values:*const [f32;3] = (*self._value) as *const [f32;3];
-        values[2]
+        *values[2]
     }
     pub fn get_element(self,index:i32)->f32{
         let values:*const [f32;3] = (*self._value) as *const [f32;3];
-        values[index]
+        *values[index]
     }
     pub fn get_simd_value(&self)->FloatType{
         self._value
@@ -160,12 +160,12 @@ impl Vector3 {
         self._value = load_immediate(*val[0],*val[1],*val[2], 0.0);
     }
     pub unsafe fn get_length_sq(&self) ->f32{
-        let result =  dot_to_f32(self,&Vector3{_value:self._value});
+        let result =  Vec3::(self,&Vector3{_value:self._value});
         result
     }
 
     pub unsafe fn get_length(self) ->f32{
-        let length = dot_to_f32_type(self._value,self._value);
+        let length = vec3_dot_to_float_type(self._value.borrow(),self._value.borrow());
         let length_sqrt =  sqrt(length);
         let result = select_first(length_sqrt);
         result

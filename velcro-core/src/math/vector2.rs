@@ -131,12 +131,12 @@ impl Vector2 {
 
     pub fn get_x(self)->f32{
         let values:*const [f32;2] = (*self._value) as *const [f32;2];
-        values[0]
+        *values[0]
     }
 
     pub fn get_y(self)->f32{
         let values:*const [f32;2] = (*self._value) as *const [f32;2];
-        values[1]
+        *values[1]
     }
     pub fn set_x(mut self,x:&f32){
         let mut values:*const [f32;2] = (*self._value) as *const [f32;2];
@@ -172,19 +172,19 @@ impl Vector2 {
     }
 
     pub  unsafe fn get_length(self) ->f32{
-        return  select_first(sqrt(dot_to_f32_type(self._value,self._value)));
+        return  select_first(sqrt(vec2_dot_to_float_type(self._value.borrow(),self._value.borrow())));
     }
 
     pub unsafe fn get_length_estimate(self) ->f32{
-        return select_first(sqrt_estimate(dot_to_f32_type(self._value,self._value)));
+        return select_first(sqrt_estimate(vec2_dot_to_float_type(self._value.borrow(),self._value.borrow())));
     }
 
     pub unsafe fn get_length_reciprocal(self) ->f32{
-        return select_first(sqrt_inv(dot_to_f32_type(self._value,self._value)));
+        return select_first(sqrt_inv(vec2_dot_to_float_type(self._value.borrow(),self._value.borrow())));
     }
 
     pub unsafe fn get_length_reciprocal_estimate(self) ->f32{
-        return select_first(sqrt_inv_estimate(dot_to_f32_type(self._value,self._value)));
+        return select_first(sqrt_inv_estimate(vec2_dot_to_float_type(self._value.borrow(),self._value.borrow())));
     }
 
     pub unsafe fn get_normalized(self) ->Vector2{

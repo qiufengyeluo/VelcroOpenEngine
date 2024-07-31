@@ -3,30 +3,11 @@
 
 use std::arch::x86_64::{_MM_SHUFFLE, _mm_shuffle_ps};
 use std::f32::consts::PI;
-use vsimd::neon::*;
+
 use vsimd::sse::*;
+
 use crate::math::constants::*;
-use crate::math::vector3::Vector3;
 use crate::math::vsimd;
-
-
-
-
-
-pub unsafe fn dot_to_f32(lhs :&Vector3,rhs :&Vector3)->f32{
-    let x2  =   mul(lhs.get_simd_value(), rhs.get_simd_value()) ;
-    let xy  =   add(splat_second(x2), x2);
-    let xyz =   add(splat_third(x2), xy);
-    let result   =   select_first(splat_first(xyz));
-    result
-}
-pub unsafe fn dot_to_f32_type(lhs : FloatType,rhs:FloatType) ->FloatType{
-    let x2  =   mul(*lhs, rhs) ;
-    let xy  =   add(splat_second(x2), x2);
-    let xyz =   add(splat_third(x2), xy);
-    let result   =   splat_first(xyz);
-    result
-}
 
 pub unsafe fn cross_f32_type(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType{
     // Vec3(y * vector.z - z * vector.y, z * vector.x - x * vector.z, x * vector.y - y * a_Vector.x);

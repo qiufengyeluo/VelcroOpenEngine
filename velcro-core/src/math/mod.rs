@@ -1,6 +1,6 @@
+use vector::*;
 
-
-mod vsimd;
+pub mod vsimd;
 mod constants;
 pub mod sfmt;
 pub mod random;
@@ -12,14 +12,18 @@ mod simd_math;
 mod math_utils;
 mod vector2;
 mod vector4;
+mod simd_math_vec1_see;
+mod simd_math_vec1_neon;
+mod simd_math_vec2_see;
+mod simd_math_vec2_neon;
+mod simd_math_vec3_see;
+mod simd_math_vec3_neon;
+mod simd_math_vec4_neon;
+mod simd_math_vec4_see;
 
-use vector::*;
 #[cfg(test)]
 mod tests {
     use crate::math::sfmt::Sfmt;
-
-
-
 
     #[test]
     fn it_work_sfmt_random() {
