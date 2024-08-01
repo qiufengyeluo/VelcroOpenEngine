@@ -9,6 +9,7 @@ trait Vec {
     fn sub(arg1: &FloatArgType, arg2: &FloatArgType) -> FloatType;
     fn mul(arg1: &FloatArgType, arg2: &FloatArgType) -> FloatType;
     fn madd(mul1:&FloatArgType,mul2:&FloatArgType,add:&FloatArgType)->FloatType;
+    fn add_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type
     fn and_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
     fn splat_i32(value:&i32)->Int32Type;
     fn select(arg1:&FloatArgType,arg2:&FloatArgType,mask:&FloatArgType)->FloatType;
@@ -88,32 +89,22 @@ impl  Common{
         result = T::select(result.borrow(),T::xor(result.borrow(),T::splat(-0.0.borrow()).borrow()),T::cast_to_float(mask.borrow()).borrow());
         result
     }
-    template <typename VecType>
-    AZ_MATH_INLINE typename VecType::FloatType Cos(typename VecType::FloatArgType value)
-    {
-    // Range Reduction
-    typename VecType::FloatType x = VecType::Mul(value, FastLoadConstant<VecType>(Simd::g_TwoOverPi));
-
-    // Find offset mod 4 (additional 1 offset from cos vs sin)
-    typename VecType::Int32Type intx = VecType::ConvertToIntNearest(x);
-    typename VecType::Int32Type offset = VecType::And(VecType::Add(intx, VecType::Splat(1)), VecType::Splat(3));
-
-    typename VecType::FloatType intxFloat = VecType::ConvertToFloat(intx);
-    x = VecType::Sub(value, VecType::Mul(intxFloat, FastLoadConstant<VecType>(Simd::g_HalfPi)));
-
-    typename VecType::FloatType sinx, cosx;
-    ComputeSinxCosx<VecType>(x, sinx, cosx);
-
-    // Choose sin for even offset, cos for odd
-    typename VecType::Int32Type mask = VecType::CmpEq(VecType::And(offset, VecType::Splat(1)), VecType::ZeroInt());
-    typename VecType::FloatType result = VecType::Select(sinx, cosx, VecType::CastToFloat(mask));
-
-    // Change sign for result if offset is 1 or 2
-    mask = VecType::CmpEq(VecType::And(offset, VecType::Splat(2)), VecType::ZeroInt());
-    result = VecType::Select(result, VecType::Xor(result, VecType::Splat(-0.0f)), VecType::CastToFloat(mask));
-
-    return result;
+    pub unsafe fn cos<T:Vec>(value:&FloatArgType)->FloatType{
+        let mut x = T::mul(value,Self::fast_load_constant(G_TWO_OVER_PI.as_ptr()).borrow());
+        let intx = T::convert_to_int_nearest(x.borrow());
+        let offset = T::and_i32(T::add_i32(intx.borrow(), T::splat_i32(1.borrow()).borrow()).borrow(), T::splat_i32(3.borrow()).borrow());
+        let intx_float = T::convert_to_float(intx.borrow());
+        x = T::sub(value,T::mul(intx_float.borrow(), Self::fast_load_constant(G_HALF_PI.as_ptr()).borrow()).borrow());
+        let mut sinx:FloatType;
+        let mut cosx:FloatType;
+        Self::compute_sinx_cosx(x.borrow(),sinx.borrow_mut(),cosx.borrow_mut());
+        let mut mask = T::cmp_eq_i32(T::and_i32(offset.borrow(),T::splat_i32(1.borrow()).borrow()).borrow(),T::zero_int().borrow());
+        let mut result = T::select(sinx.borrow(),cosx.borrow(),T::cast_to_float(mask.borrow()).borrow());
+        mask =T::cmp_eq_i32(T::and_i32(offset.borrow(),T::splat_i32(2.borrow()).borrow()).borrow(),T::zero_int().borrow());
+        result = T::select(result.borrow(),T::xor(result.borrow(),T::splat(-0.0.borrow()).borrow()),T::cast_to_float(mask.borrow()).borrow());
+        result
     }
+
 
     template <typename VecType>
     AZ_MATH_INLINE void SinCos(typename VecType::FloatArgType value, typename VecType::FloatArgType& sin, typename VecType::FloatArgType& cos)
