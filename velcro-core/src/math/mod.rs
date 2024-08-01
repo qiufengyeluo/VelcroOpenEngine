@@ -12,14 +12,15 @@ mod simd_math;
 mod math_utils;
 mod vector2;
 mod vector4;
-mod simd_math_vec1_see;
+mod simd_math_vec1_sse;
 mod simd_math_vec1_neon;
-mod simd_math_vec2_see;
+mod simd_math_vec2_sse;
 mod simd_math_vec2_neon;
-mod simd_math_vec3_see;
+mod simd_math_vec3_sse;
 mod simd_math_vec3_neon;
 mod simd_math_vec4_neon;
-mod simd_math_vec4_see;
+mod simd_math_vec4_sse;
+mod common_sse;
 
 #[cfg(test)]
 mod tests {
