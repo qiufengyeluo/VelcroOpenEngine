@@ -3,6 +3,7 @@
 
 use std::arch::x86_64::{_mm_load_ps1, _mm_set_ps1, _mm_shuffle_ps, _mm_store_ss};
 use crate::math::common_sse::Common;
+use crate::math::constants::HALF_PI;
 use crate::math::vsimd::*;
 
 struct Vec4{
@@ -17,23 +18,20 @@ impl Vec4 {
     pub unsafe fn from_vec1(value:&FloatArgType) ->FloatType{
         return sse::splat_first(value.to_owned());
     }
-    AZ_MATH_INLINE Vec4::FloatType Vec4::FromVec2(Vec2::FloatArgType value)
-    {
-    // Coming from a Vec2 the last 2 elements could be garbage.
-    return Sse::ReplaceIndex3(Sse::ReplaceIndex2(value, 0.0f), 0.0f); // {value.x, value.x, 0.0f, 0.0f}
-    }
+
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn from_vec2(value:&FloatArgType) ->FloatType{
-        return sse::replace_fourth(sse::replace_third(value.to_owned(),0.0) ,0.0);
-    }
-    AZ_MATH_INLINE Vec4::FloatType Vec4::FromVec3(Vec3::FloatArgType value)
-    {
-    // Coming from a Vec3 the last element could be garbage.
-    return Sse::ReplaceIndex3(value, 0.0f); // {value.x, value.y, value.z, 0.0f}
+        return sse::replace_fourth_f32(sse::replace_third_f32(value.to_owned(),0.0) ,0.0);
     }
 
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn from_vec3(value:&FloatArgType) ->FloatType{
+        return sse::replace_fourth_f32(value.to_owned(),0.0);
+    }
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
@@ -684,17 +682,14 @@ impl Vec4 {
     pub unsafe fn sin_cos(value:&FloatArgType,mut sin:&FloatType,mut cos:&FloatType){
         Common::sin_cos(value,sin,cos)
     }
-    AZ_MATH_INLINE Vec4::FloatType Vec4::SinCos(FloatArgType angles)
-    {
-    const FloatType angleOffset = LoadImmediate(0.0f, Constants::HalfPi, 0.0f, Constants::HalfPi);
-    const FloatType sinAngles = Add(angles, angleOffset);
-    return Sin(sinAngles);
-    }
+
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn sin_cos_to_float_type(value:&FloatArgType,mut sin:&FloatType,mut cos:&FloatType){
-        Common::sin_cos(value,sin,cos)
+    pub unsafe fn sin_cos_to_float_type(angles:&FloatArgType)->FloatType{
+        let angle_offset = Vec4::load_immediate_fourth_f32(0.0.borrow(), HALF_PI.borrow(), 0.0.borrow(), HALF_PI.borrow());
+        let sin_angles = Vec4::add(angles, angle_offset.borrow());
+        return Vec4::sin(sin_angles.borrow());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
@@ -734,11 +729,13 @@ impl Vec4 {
         let tmp = Vec4::add(x2.borrow(),_mm_shuffle_ps(x2, x2, _MM_SHUFFLE(2, 3, 0, 1)).borrow());
         return  Vec4::add(tmp.borrow(),_mm_shuffle_ps(tmp, tmp, _MM_SHUFFLE(1, 0, 2, 3)).borrow());
     }
-    AZ_MATH_INLINE Vec4::FloatType Vec4::Normalize(FloatArgType value)
-    {
-    return Common::Normalize<Vec4>(value);
-    }
 
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn normalize(value:&FloatArgType)->FloatType{
+        return Common::normalize(value);
+    }
     AZ_MATH_INLINE Vec4::FloatType Vec4::NormalizeEstimate(FloatArgType value)
     {
     return Common::NormalizeEstimate<Vec4>(value);

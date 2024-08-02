@@ -2,16 +2,20 @@
 #![allow(clippy::many_single_char_names)]
 
 use crate::math::constants::*;
-use crate::math::vsimd::{FloatArgType, FloatType, Int32ArgType, Int32Type, mul};
+use crate::math::vsimd::{cmp_eq, FloatArgType, FloatType, Int32ArgType, Int32Type, mul};
 
 trait Vec {
     fn add(arg1: &FloatArgType, arg2: &FloatArgType) -> FloatType;
     fn sub(arg1: &FloatArgType, arg2: &FloatArgType) -> FloatType;
     fn mul(arg1: &FloatArgType, arg2: &FloatArgType) -> FloatType;
+    fn div(arg1:&FloatType, arg2: &mut FloatType) ->FloatType;
     fn madd(mul1:&FloatArgType,mul2:&FloatArgType,add:&FloatArgType)->FloatType;
+    fn not(value:&FloatArgType)->FloatType;
     fn and(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
     fn add_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
     fn and_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
+    fn and_not(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
+    fn or(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
     fn splat_i32(value:&i32)->Int32Type;
     fn select(arg1:&FloatArgType,arg2:&FloatArgType,mask:&FloatArgType)->FloatType;
     fn splat(value:&f32)->FloatType;
@@ -21,9 +25,12 @@ trait Vec {
     fn load_immediate(x:&f32)->FloatType;
     fn load_immediate_fourth_f32(x:&f32,y:&f32,z:&f32,w:&f32)->FloatType;
     fn sqrt_estimate(value:&FloatArgType)->FloatType;
+    fn atan(value:&FloatArgType) ->FloatType;
+    fn atan2(value:&FloatArgType) ->FloatType;
     fn mod_calculate(arg1: &FloatArgType, arg2: &FloatArgType) -> FloatType;
     fn cmp_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
     fn cmp_lt(arg1: &FloatArgType, arg2: &FloatArgType) -> FloatType;
+    fn cmp_gt(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
     fn cmp_gt_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
     fn cmp_eq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
     fn convert_to_float(value:&Int32ArgType)->FloatType;
@@ -45,7 +52,7 @@ impl  Common{
         unsafe { return *(values as * FloatType); }
     }
 
-    pub fn fast_load_constant_i32<T:Vec>(values:*const f32)->Int32Type{
+    pub fn fast_load_constant_i32<T:Vec>(values:*const i32)->Int32Type{
         unsafe { return *(values as * Int32Type); }
     }
     pub fn wrap<T: Vec>(value :&FloatArgType, min_value:&FloatArgType, max_value:&FloatArgType ) ->FloatType
@@ -187,118 +194,91 @@ impl  Common{
         return T::select(negative.borrow(),positive.borrow(),select.borrow());
     }
 
-    template <typename VecType>
-    AZ_MATH_INLINE typename VecType::FloatType Atan(typename VecType::FloatArgType value)
+    pub fn atan<T:Vec>(value:&FloatArgType)->FloatType
     {
-    typename VecType::FloatType x = value;
-    const typename VecType::FloatType signbit = VecType::And(x, VecType::CastToFloat(FastLoadConstant<VecType>(Simd::g_negateMask)));
+        let mut x = value.to_owned();
+        let signbit = T::and(x.borrow(), T::cast_to_float(Self::fast_load_constant_i32(G_NEGATE_MASK.borrow()).borrow()).borrow());
 
-    const typename VecType::FloatType xabs = VecType::Abs(x);
+        let xabs = T::abs(x.borrow());
+        let cmp0 = T::cmp_gt(xabs.borrow(),Self::fast_load_constant(G_ATAN_HI_RANGE.as_ptr()).borrow());
+        let mut cmp1 = T::cmp_gt(xabs.borrow(),Self::fast_load_constant(G_ATAN_LO_RANGE.as_ptr()).borrow());
+        let cmp2 = T::and_not(cmp0.borrow(),cmp1.borrow());
 
-    // Test for x > Sqrt(2) + 1
-    const typename VecType::FloatType cmp0 = VecType::CmpGt(xabs, FastLoadConstant<VecType>(Simd::g_atanHiRange));
-    // Test for x > Sqrt(2) - 1
-    typename VecType::FloatType cmp1 = VecType::CmpGt(xabs, FastLoadConstant<VecType>(Simd::g_atanLoRange));
-    // Test for Sqrt(2) + 1 >= x > Sqrt(2) - 1
-    const typename VecType::FloatType cmp2 = VecType::AndNot(cmp0, cmp1);
+        let mut xabs_safe = T::add(xabs.borrow(), T::and(T::cmp_eq(xabs.borrow(), T::zero_float().borrow()).borrow(), Self::fast_load_constant(G_VEC1111.as_ptr()).borrow()).borrow());
+        let y0 = T::and(cmp0.borrow(),Self::fast_load_constant(G_HALF_PI.as_ptr()).borrow());
+        let mut x0 = T::div(Self::fast_load_constant(G_VEC1111.as_ptr()).borrow(), xabs_safe.borrow_mut());
+        x0 = T::xor(x0.borrow(),T::cast_to_float(Self::fast_load_constant_i32(G_NEGATE_MASK.borrow()).borrow()).borrow());
+        let y1 = T::and(cmp2.borrow(),Self::fast_load_constant(G_QUARTER_PI.borrow()).borrow());
+        let x1_numer = T::sub(xabs.borrow(),Self::fast_load_constant(G_VEC1111.borrow()).borrow());
+        let mut x1_denom = T::add(xabs.borrow(),Self::fast_load_constant(G_VEC1111.borrow()).borrow());
+        let x1 = T::div(x1_numer.borrow(),x1_denom.borrow_mut());
+        let mut x2 = T::and(cmp2.borrow(),x1.borrow());
+        x0 = T::and(cmp0.borrow(),x0.borrow());
+        x2 = T::or(x2.borrow(),x0.borrow());
+        cmp1 = T::or(cmp0.borrow(),cmp2.borrow());
+        x2 = T::and(cmp1.borrow(),x2.borrow());
+        x = T::and_not(cmp1.borrow(), xabs.borrow());
+        x = T::or(x2.borrow(),x.borrow());
+        let mut y = T::or(y0.borrow(),y1.borrow());
+        let x_sqr = T::mul(x.borrow(),x.borrow());
+        let x_cub = T::mul(x_sqr.borrow(),x.borrow());
 
-    // -1/x
-    // this step is calculated for all values of x, but only used if x > Sqrt(2) + 1
-    // in order to avoid a division by zero, detect if xabs is zero here and replace it with an arbitrary value
-    // if xabs does equal zero, the value here doesn't matter because the result will be thrown away
-    typename VecType::FloatType xabsSafe =
-    VecType::Add(xabs, VecType::And(VecType::CmpEq(xabs, VecType::ZeroFloat()), FastLoadConstant<VecType>(Simd::g_vec1111)));
-    const typename VecType::FloatType y0 = VecType::And(cmp0, FastLoadConstant<VecType>(Simd::g_HalfPi));
-    typename VecType::FloatType x0 = VecType::Div(FastLoadConstant<VecType>(Simd::g_vec1111), xabsSafe);
-    x0 = VecType::Xor(x0, VecType::CastToFloat(FastLoadConstant<VecType>(Simd::g_negateMask)));
 
-    const typename VecType::FloatType y1 = VecType::And(cmp2, FastLoadConstant<VecType>(Simd::g_QuarterPi));
-    // (x-1)/(x+1)
-    const typename VecType::FloatType x1_numer = VecType::Sub(xabs, FastLoadConstant<VecType>(Simd::g_vec1111));
-    const typename VecType::FloatType x1_denom = VecType::Add(xabs, FastLoadConstant<VecType>(Simd::g_vec1111));
-    const typename VecType::FloatType x1 = VecType::Div(x1_numer, x1_denom);
-
-    typename VecType::FloatType x2 = VecType::And(cmp2, x1);
-    x0 = VecType::And(cmp0, x0);
-    x2 = VecType::Or(x2, x0);
-    cmp1 = VecType::Or(cmp0, cmp2);
-    x2 = VecType::And(cmp1, x2);
-    x = VecType::AndNot(cmp1, xabs);
-    x = VecType::Or(x2, x);
-
-    typename VecType::FloatType y = VecType::Or(y0, y1);
-
-    typename VecType::FloatType x_sqr = VecType::Mul(x, x);
-    typename VecType::FloatType x_cub = VecType::Mul(x_sqr, x);
-
-    typename VecType::FloatType result = VecType::Madd(x_cub,
-    VecType::Madd(x_sqr,
-    VecType::Madd(x_sqr,
-    VecType::Madd(x_sqr,
-    FastLoadConstant<VecType>(Simd::g_atanCoef1),
-    FastLoadConstant<VecType>(Simd::g_atanCoef2)),
-    FastLoadConstant<VecType>(Simd::g_atanCoef3)),
-    FastLoadConstant<VecType>(Simd::g_atanCoef4)),
-    x);
-
-    y = VecType::Add(y, result);
-
-    y = VecType::Xor(y, signbit);
-
-    return y;
+        let result = T::madd(x_cub.borrow(),
+                                        T::madd(x_sqr.borrow(),
+                                                T::madd(x_sqr.borrow(),
+                                                        T::madd(x_sqr.borrow(),
+                                                                Self::fast_load_constant(G_ATAN_COEF1.borrow()).borrow(),
+                                                                Self::fast_load_constant(G_ATAN_COEF2.borrow()).borrow()).borrow(),
+                                                        Self::fast_load_constant(G_ATAN_COEF3.borrow()).borrow()).borrow(),
+                                                Self::fast_load_constant(G_ATAN_COEF4.borrow()).borrow()).borrow(),
+                                        x.borrow());
+        y = T::add(y.borrow(),result.borrow());
+        y = T::xor(y.borrow(), signbit.borrow());
+        y
     }
 
-    template <typename VecType>
-    AZ_MATH_INLINE typename VecType::FloatType Atan2(typename VecType::FloatArgType y, typename VecType::FloatArgType x)
+    pub fn atan2<T:Vec>(y:&FloatArgType,x:&FloatArgType)->FloatType
     {
-    const typename VecType::FloatType x_eq_0 = VecType::CmpEq(x, VecType::ZeroFloat());
-    const typename VecType::FloatType x_ge_0 = VecType::CmpGtEq(x, VecType::ZeroFloat());
-    const typename VecType::FloatType x_lt_0 = VecType::CmpLt(x, VecType::ZeroFloat());
+        let x_eq_0 = T::cmp_eq(x,T::zero_float().borrow());
+        let x_ge_0 = T::cmp_gt_eq(x,T::zero_float().borrow());
+        let x_lt_0 = T::cmp_lt(x,T::zero_float().borrow());
 
-    const typename VecType::FloatType y_eq_0 = VecType::CmpEq(y, VecType::ZeroFloat());
-    const typename VecType::FloatType y_lt_0 = VecType::CmpLt(y, VecType::ZeroFloat());
+        let y_eq_0 = T::cmp_eq(y,T::zero_float().borrow());
+        let y_lt_0 = T::cmp_lt(y,T::zero_float().borrow());
 
-    // returns 0 if x == y == 0 (degenerate case) or x >= 0, y == 0
-    const typename VecType::FloatType zero_mask = VecType::And(x_ge_0, y_eq_0);
+        let zero_mask = T::and(x_ge_0.borrow(),y_eq_0.borrow());
+        let pio2_mask = T::and_not(y_eq_0.borrow(),x_eq_0.borrow());
+        let pio2_mask_sign = T::and(y_lt_0.borrow(),T::cast_to_float(Self::fast_load_constant_i32(G_NEGATE_MASK.borrow()).borrow()).borrow());
+        let mut pio2_result = Self::fast_load_constant(G_HALF_PI.borrow());
+        pio2_result = T::xor(pio2_result.borrow(),pio2_mask_sign.borrow());
+        pio2_result = T::and(pio2_mask.borrow(), pio2_result.borrow());
 
-    // returns +/- pi/2 if x == 0, y != 0
-    const typename VecType::FloatType pio2_mask = VecType::AndNot(y_eq_0, x_eq_0);
-    const typename VecType::FloatType pio2_mask_sign = VecType::And(y_lt_0, VecType::CastToFloat(FastLoadConstant<VecType>(Simd::g_negateMask)));
-    typename VecType::FloatType pio2_result = FastLoadConstant<VecType>(g_HalfPi);
-    pio2_result = VecType::Xor(pio2_result, pio2_mask_sign);
-    pio2_result = VecType::And(pio2_mask, pio2_result);
+        let pi_mask = T::and(y_eq_0.borrow(),x_lt_0.borrow());
+        let mut pi_result = Self::fast_load_constant(G_PI.borrow());
+        pi_result = T::and(pi_mask.borrow(),pi_result.borrow());
+        let mut swap_sign_mask_offset = T::and(x_lt_0.borrow(),y_lt_0.borrow());
+        swap_sign_mask_offset = T::and(swap_sign_mask_offset.borrow(),T::cast_to_float(Self::fast_load_constant_i32(G_NEGATE_MASK.borrow()).borrow()).borrow());
 
-    // pi when y == 0 and x < 0
-    const typename VecType::FloatType pi_mask = VecType::And(y_eq_0, x_lt_0);
-    typename VecType::FloatType pi_result = FastLoadConstant<VecType>(g_Pi);
-    pi_result = VecType::And(pi_mask, pi_result);
+        let mut offset1 = Self::fast_load_constant(G_PI.borrow());
+        offset1 = T::xor(offset1.borrow(),swap_sign_mask_offset.borrow());
 
-    typename VecType::FloatType swap_sign_mask_offset = VecType::And(x_lt_0, y_lt_0);
-    swap_sign_mask_offset = VecType::And(swap_sign_mask_offset, VecType::CastToFloat(FastLoadConstant<VecType>(Simd::g_negateMask)));
+        let offset = T::and(x_lt_0.borrow(),offset1.borrow());
 
-    typename VecType::FloatType offset1 = FastLoadConstant<VecType>(g_Pi);
-    offset1 = VecType::Xor(offset1, swap_sign_mask_offset);
+        let mut x_safe = T::add(x, T::and(x_eq_0.borrow(), Self::fast_load_constant(G_VEC1111.borrow()).borrow()).borrow());
+        let atan_mask = T::not(T::or(x_eq_0.borrow(),y_eq_0.borrow()).borrow());
+        let atan_arg = T::div(y.borrow(), x_safe.borrow_mut());
+        let mut atan_result = T::atan(atan_arg.borrow());
+        atan_result = T::add(atan_result.borrow(),offset.borrow());
+        atan_result = T::and_not(pio2_mask.borrow(),atan_result.borrow());
+        atan_result = T::and(atan_mask.borrow(),atan_result.borrow());
 
-    typename VecType::FloatType offset = VecType::And(x_lt_0, offset1);
+        let mut result = T::and_not(zero_mask.borrow(),pio2_result.borrow());
+        result = T::or(result.borrow(),pio2_result.borrow());
+        result = T::or(result.borrow(),pi_result.borrow());
+        result = T::or(result.borrow(),atan_result.borrow());
 
-    // the result of this part of the computation is thrown away if x equals 0,
-    // but if x does equal 0, it will cause a division by zero
-    // so replace zero by an arbitrary value here in that case
-    typename VecType::FloatType xSafe = VecType::Add(x, VecType::And(x_eq_0, FastLoadConstant<VecType>(Simd::g_vec1111)));
-    const typename VecType::FloatType atan_mask = VecType::Not(VecType::Or(x_eq_0, y_eq_0));
-    const typename VecType::FloatType atan_arg = VecType::Div(y, xSafe);
-    typename VecType::FloatType atan_result = VecType::Atan(atan_arg);
-    atan_result = VecType::Add(atan_result, offset);
-    atan_result = VecType::AndNot(pio2_mask, atan_result);
-    atan_result = VecType::And(atan_mask, atan_result);
-
-    // Select between zero, pio2, pi, and atan
-    typename VecType::FloatType result = VecType::AndNot(zero_mask, pio2_result);
-    result = VecType::Or(result, pio2_result);
-    result = VecType::Or(result, pi_result);
-    result = VecType::Or(result, atan_result);
-
-    return result;
+        result
     }
 
     template <typename VecType>
@@ -394,8 +374,9 @@ impl  Common{
     const typename Vec4Type::FloatType referencePoint = Vec4Type::ReplaceIndex3(point, 1.0f); // replace 'w' coordinate with 1.0
     return Vec4Type::Dot(referencePoint, plane);
     }
-    pub fn plane_distance<T:Vec>(plane:&FloatArgType, point:&FloatArgType) ->FloatType{
-        return
+    pub fn plane_distance<T:Vec4>(plane:&FloatArgType, point:&FloatArgType) ->FloatType{
+        let referencePoint = T::re
+        return T::dot
     }
 
 }
