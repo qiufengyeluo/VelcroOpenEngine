@@ -2,19 +2,25 @@
 #![allow(clippy::many_single_char_names)]
 
 use crate::math::constants::*;
-use crate::math::vsimd::{FloatArgType, FloatType, Int32ArgType, Int32Type};
+use crate::math::vsimd::{FloatArgType, FloatType, Int32ArgType, Int32Type, mul};
 
 trait Vec {
     fn add(arg1: &FloatArgType, arg2: &FloatArgType) -> FloatType;
     fn sub(arg1: &FloatArgType, arg2: &FloatArgType) -> FloatType;
     fn mul(arg1: &FloatArgType, arg2: &FloatArgType) -> FloatType;
     fn madd(mul1:&FloatArgType,mul2:&FloatArgType,add:&FloatArgType)->FloatType;
-    fn add_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type
+    fn and(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
+    fn add_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
     fn and_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
     fn splat_i32(value:&i32)->Int32Type;
     fn select(arg1:&FloatArgType,arg2:&FloatArgType,mask:&FloatArgType)->FloatType;
     fn splat(value:&f32)->FloatType;
-
+    fn sin(value:&FloatArgType)->FloatType;
+    fn xor(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
+    fn abs(value:&FloatArgType)->FloatType;
+    fn load_immediate(x:&f32)->FloatType;
+    fn load_immediate_fourth_f32(x:&f32,y:&f32,z:&f32,w:&f32)->FloatType;
+    fn sqrt_estimate(value:&FloatArgType)->FloatType;
     fn mod_calculate(arg1: &FloatArgType, arg2: &FloatArgType) -> FloatType;
     fn cmp_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
     fn cmp_lt(arg1: &FloatArgType, arg2: &FloatArgType) -> FloatType;
@@ -27,9 +33,13 @@ trait Vec {
     fn zero_float()->FloatType;
     fn zero_int() ->Int32Type;
 }
+trait Vec4{
+
+}
 pub struct Common{
 }
 impl  Common{
+
 
     pub fn fast_load_constant<T:Vec>(values:*const f32)->FloatType{
         unsafe { return *(values as * FloatType); }
@@ -86,7 +96,7 @@ impl  Common{
         let mut mask =T::cmp_eq_i32(T::and_i32(offset.borrow(),T::splat_i32(1.borrow()).borrow()).borrow(),T::zero_int().borrow());
         let mut result = T::select(sinx.borrow(),cosx.borrow(),T::cast_to_float(mask.borrow()).borrow());
         mask = T::cmp_eq_i32(T::and_i32(offset.borrow(),T::splat_i32(2.borrow()).borrow()).borrow(),T::zero_int().borrow());
-        result = T::select(result.borrow(),T::xor(result.borrow(),T::splat(-0.0.borrow()).borrow()),T::cast_to_float(mask.borrow()).borrow());
+        result = T::select(result.borrow(),T::xor(result.borrow(),T::splat(-0.0.borrow()).borrow()).borrow(),T::cast_to_float(mask.borrow()).borrow());
         result
     }
     pub unsafe fn cos<T:Vec>(value:&FloatArgType)->FloatType{
@@ -101,117 +111,80 @@ impl  Common{
         let mut mask = T::cmp_eq_i32(T::and_i32(offset.borrow(),T::splat_i32(1.borrow()).borrow()).borrow(),T::zero_int().borrow());
         let mut result = T::select(sinx.borrow(),cosx.borrow(),T::cast_to_float(mask.borrow()).borrow());
         mask =T::cmp_eq_i32(T::and_i32(offset.borrow(),T::splat_i32(2.borrow()).borrow()).borrow(),T::zero_int().borrow());
-        result = T::select(result.borrow(),T::xor(result.borrow(),T::splat(-0.0.borrow()).borrow()),T::cast_to_float(mask.borrow()).borrow());
+        result = T::select(result.borrow(),T::xor(result.borrow(),T::splat(-0.0.borrow()).borrow()).borrow(),T::cast_to_float(mask.borrow()).borrow());
         result
     }
 
-
-    template <typename VecType>
-    AZ_MATH_INLINE void SinCos(typename VecType::FloatArgType value, typename VecType::FloatArgType& sin, typename VecType::FloatArgType& cos)
-    {
-    // Range Reduction
-    typename VecType::FloatType x = VecType::Mul(value, FastLoadConstant<VecType>(Simd::g_TwoOverPi));
-
-    // Find offset mod 4
-    typename VecType::Int32Type intx = VecType::ConvertToIntNearest(x);
-    typename VecType::Int32Type offsetSin = VecType::And(intx, VecType::Splat(3));
-    typename VecType::Int32Type offsetCos = VecType::And(VecType::Add(intx, VecType::Splat(1)), VecType::Splat(3));
-
-    typename VecType::FloatType intxFloat = VecType::ConvertToFloat(intx);
-    x = VecType::Sub(value, VecType::Mul(intxFloat, FastLoadConstant<VecType>(Simd::g_HalfPi)));
-
-    typename VecType::FloatType sinx, cosx;
-    ComputeSinxCosx<VecType>(x, sinx, cosx);
-
-    // Choose sin for even offset, cos for odd
-    typename VecType::FloatType sinMask = VecType::CastToFloat(VecType::CmpEq(VecType::And(offsetSin, VecType::Splat(1)), VecType::ZeroInt()));
-    typename VecType::FloatType cosMask = VecType::CastToFloat(VecType::CmpEq(VecType::And(offsetCos, VecType::Splat(1)), VecType::ZeroInt()));
-
-    sin = VecType::Select(sinx, cosx, sinMask);
-    cos = VecType::Select(sinx, cosx, cosMask);
-
-    // Change sign for result if offset puts it in quadrant 1 or 2
-    sinMask = VecType::CastToFloat(VecType::CmpEq(VecType::And(offsetSin, VecType::Splat(2)), VecType::ZeroInt()));
-    cosMask = VecType::CastToFloat(VecType::CmpEq(VecType::And(offsetCos, VecType::Splat(2)), VecType::ZeroInt()));
-
-    sin = VecType::Select(sin, VecType::Xor(sin, FastLoadConstant<VecType>(reinterpret_cast<const float*>(Simd::g_negateMask))), sinMask);
-    cos = VecType::Select(cos, VecType::Xor(cos, FastLoadConstant<VecType>(reinterpret_cast<const float*>(Simd::g_negateMask))), cosMask);
+    pub fn sin_cos<T:Vec>(value:&FloatArgType,mut sin:&FloatArgType,mut cos:&FloatArgType){
+        let mut x = T::mul(value,Self::fast_load_constant(G_TWO_OVER_PI.as_ptr()).borrow());
+        let intx = T::convert_to_int_nearest(x.borrow());
+        let offset_sin = T::and_i32(intx.borrow(), T::splat_i32(3.borrow()).borrow());
+        let offset_cos = T::and_i32(T::add_i32(intx.borrow(), T::splat_i32(1.borrow()).borrow()).borrow(), T::splat_i32(3.borrow()).borrow());
+        let intx_float = T::convert_to_float(intx.borrow());
+        x = T::sub(value,T::mul(intx_float.borrow(), Self::fast_load_constant(G_HALF_PI.as_ptr()).borrow()).borrow());
+        let mut sinx:FloatType;
+        let mut cosx:FloatType;
+        Self::compute_sinx_cosx(x.borrow(),sinx.borrow_mut(),cosx.borrow_mut());
+        let mut sin_mask = T::cast_to_float(T::cmp_eq_i32(T::and_i32(offset_sin.borrow(), T::splat_i32(1.borrow()).borrow()).borrow(), T::zero_int().borrow()).borrow());
+        let mut cos_mask = T::cast_to_float(T::cmp_eq_i32(T::and_i32(offset_cos.borrow(), T::splat_i32(1.borrow()).borrow()).borrow(), T::zero_int().borrow()).borrow());
+        sin = T::select(sinx.borrow(), cosx.borrow(), sin_mask.borrow()).borrow_mut();
+        cos = T::select(sinx.borrow(), cosx.borrow(), cos_mask.borrow()).borrow_mut();
+        sin_mask = T::cast_to_float(T::cmp_eq_i32(T::and_i32(offset_sin.borrow(), T::splat_i32(2.borrow()).borrow()).borrow(), T::zero_int().borrow()).borrow());
+        cos_mask = T::cast_to_float(T::cmp_eq_i32(T::and_i32(offset_cos.borrow(), T::splat_i32(2.borrow()).borrow()).borrow(), T::zero_int().borrow()).borrow());
+        sin = T::select(sin.borrow(),T::xor(sin.borrow(),Self::fast_load_constant(G_NEGATE_MASK.as_ptr() as *const f32).borrow()).borrow(),sin_mask.borrow()).borrow_mut();
+        cos = T::select(cos.borrow(),T::xor(cos.borrow(),Self::fast_load_constant(G_NEGATE_MASK.as_ptr() as *const f32).borrow()).borrow(),cos_mask.borrow()).borrow_mut();
     }
 
-    template <typename VecType>
-    AZ_MATH_INLINE typename VecType::FloatType SinCos(typename VecType::FloatArgType angles)
-    {
-    const typename VecType::FloatType angleOffset = VecType::LoadImmediate(0.0f, Constants::HalfPi, 0.0f, Constants::HalfPi);
-    const typename VecType::FloatType sinAngles = VecType::Add(angles, angleOffset);
-    return VecType::Sin(sinAngles);
+    pub fn sin_cos_to_float_type<T:Vec>(angles:&FloatArgType)->FloatType{
+        let angle_offset = T::load_immediate_fourth_f32(0.0.borrow(), HALF_PI.borrow(), 0.0.borrow(), HALF_PI.borrow());
+        let sin_angles = T::add(angles, angle_offset.borrow());
+        return  T::sin(sin_angles.borrow());
     }
 
-    template <typename VecType>
-    AZ_MATH_INLINE typename VecType::FloatType Acos(typename VecType::FloatArgType value)
-    {
-    const typename VecType::FloatType xabs = VecType::Abs(value);
-    const typename VecType::FloatType xabs2 = VecType::Mul(xabs, xabs);
-    const typename VecType::FloatType xabs4 = VecType::Mul(xabs2, xabs2);
-    const typename VecType::FloatType t1 = VecType::Sqrt(VecType::Sub(VecType::Splat(1.0f), xabs));
+    pub fn acos<T:Vec>(value:&FloatArgType)->FloatType{
+        let xabs = T::abs(value);
+        let xabs2 = T::mul(xabs.borrow(),xabs.borrow());
+        let xabs4 = T::mul(xabs2.borrow(),xabs2.borrow());
+        let t1 = T::sqrt(T::sub(T::splat(1.0.borrow()).borrow(),xabs.borrow()));
+        let select = T::cmp_lt(value.to_owned().borrow(),T::zero_float().borrow());
 
-    const typename VecType::FloatType select = VecType::CmpLt(value, VecType::ZeroFloat());
+        let hi = T::madd(xabs.borrow(),
+                                    T::madd(xabs.borrow(),
+                                            T::madd(xabs.borrow(),
+                                                    Self::fast_load_constant(G_ACOS_HI_COEF1.as_ptr()).borrow(),
+                                                    Self::fast_load_constant(G_ACOS_HI_COEF2.as_ptr()).borrow()).borrow(),
+                                            Self::fast_load_constant(G_ACOS_HI_COEF3.as_ptr()).borrow()).borrow(),
+                                    Self::fast_load_constant(G_ACOS_HI_COEF4.as_ptr()).borrow());
 
-    const typename VecType::FloatType hi = VecType::Madd(
-    xabs,
-    VecType::Madd(
-    xabs,
-    Vec1::Madd(
-    xabs, FastLoadConstant<VecType>(g_acosHiCoef1), FastLoadConstant<VecType>(g_acosHiCoef2)
-    ),
-    FastLoadConstant<VecType>(g_acosHiCoef3)
-    ),
-    FastLoadConstant<VecType>(g_acosHiCoef4)
-    );
+        let lo = T::madd(xabs.borrow(),
+                                    T::madd(xabs.borrow(),
+                                            T::madd(xabs.borrow(),
+                                                    Self::fast_load_constant_f32(G_ACOS_LO_COEF1.as_ptr()).borrow(),
+                                                    Self::fast_load_constant_f32(G_ACOS_LO_COEF2.as_ptr()).borrow()).borrow(),
+                                            Self::fast_load_constant_f32(G_ACOS_LO_COEF3.as_ptr()).borrow()).borrow(),
+                                    Self::fast_load_constant_f32(G_ACOS_LO_COEF4.as_ptr()).borrow());
 
-    const typename VecType::FloatType lo = VecType::Madd(
-    xabs,
-    VecType::Madd(
-    xabs,
-    VecType::Madd(
-    xabs, FastLoadConstant<VecType>(g_acosLoCoef1), FastLoadConstant<VecType>(g_acosLoCoef2)
-    ),
-    FastLoadConstant<VecType>(g_acosLoCoef3)
-    ),
-    FastLoadConstant<VecType>(g_acosLoCoef4)
-    );
+        let result = T::madd(hi.borrow(),xabs4.borrow(),lo.borrow());
+        let positive = T::mul(t1,result.borrow());
+        let negative = T::sub(T::splat(PI.borrow()).borrow(),positive.borrow());
+        return T::select(negative.borrow(),positive.borrow(),select.borrow());
 
-    const typename VecType::FloatType result = VecType::Madd(hi, xabs4, lo);
-
-    const typename VecType::FloatType positive = VecType::Mul(t1, result);
-    const typename VecType::FloatType negative = VecType::Sub(VecType::Splat(Constants::Pi), positive);
-
-    return VecType::Select(negative, positive, select);
     }
 
-    template <typename VecType>
-    AZ_MATH_INLINE typename VecType::FloatType AcosEstimate(typename VecType::FloatArgType value)
-    {
-    const typename VecType::FloatType xabs = VecType::Abs(value);
-    const typename VecType::FloatType t1 = VecType::SqrtEstimate(VecType::Sub(VecType::Splat(1.0f), xabs));
-
-    const typename VecType::FloatType select = VecType::CmpLt(value, VecType::ZeroFloat());
-
-    const typename VecType::FloatType result = VecType::Madd(
-    xabs,
-    VecType::Madd(
-    xabs,
-    VecType::Madd(
-    xabs, FastLoadConstant<VecType>(g_acosCoef1), FastLoadConstant<VecType>(g_acosCoef2)
-    ),
-    FastLoadConstant<VecType>(g_acosCoef3)
-    ),
-    FastLoadConstant<VecType>(g_HalfPi)
-    );
-
-    const typename VecType::FloatType positive = VecType::Mul(t1, result);
-    const typename VecType::FloatType negative = VecType::Sub(VecType::Splat(Constants::Pi), positive);
-
-    return VecType::Select(negative, positive, select);
+    pub fn acos_estimate<T:Vec>(value:&FloatArgType)->FloatType{
+        let xabs = T::abs(value);
+        let t1 = T::sqrt_estimate(T::sub(T::splat(1.0.borrow()).borrow(),xabs.borrow()).borrow());
+        let select = T::cmp_lt(value,T::zero_float().borrow());
+        let result = T::madd(xabs.borrow(),
+                                        T::madd(xabs.borrow(),
+                                                T::madd(xabs.borrow(),
+                                                        Self::fast_load_constant(G_ACOS_COEF1.as_ptr()).borrow(),
+                                                        Self::fast_load_constant(G_ACOS_COEF2.as_ptr()).borrow()).borrow(),
+                                                Self::fast_load_constant(G_COS_COEF3.as_ptr()).borrow()).borrow(),
+                                        Self::fast_load_constant(G_HALF_PI.as_ptr()).borrow());
+        let positive = T::mul(t1.borrow(),result.borrow());
+        let negative = T::sub(T::splat(PI.borrow()).borrow(),positive.borrow());
+        return T::select(negative.borrow(),positive.borrow(),select.borrow());
     }
 
     template <typename VecType>
@@ -412,13 +385,17 @@ impl  Common{
     const Vec1::FloatType distance = Vec1::Sub(Vec1::ZeroFloat(), Vec3Type::Dot(normal, point));
     return Vec4Type::ReplaceIndex3(normal, Vec4Type::SplatIndex0(Vec4Type::FromVec1(distance))); // replace 'w' coordinate with distance
     }
+    pub fn construct_plane<T:Vec>(normal:&FloatArgType,point:&FloatArgType)->FloatType{
 
+    }
     template <typename Vec4Type, typename Vec3Type>
     AZ_MATH_INLINE Vec1::FloatType PlaneDistance(typename Vec4Type::FloatArgType plane, typename Vec3Type::FloatArgType point)
     {
     const typename Vec4Type::FloatType referencePoint = Vec4Type::ReplaceIndex3(point, 1.0f); // replace 'w' coordinate with 1.0
     return Vec4Type::Dot(referencePoint, plane);
     }
-
+    pub fn plane_distance<T:Vec>(plane:&FloatArgType, point:&FloatArgType) ->FloatType{
+        return
+    }
 
 }

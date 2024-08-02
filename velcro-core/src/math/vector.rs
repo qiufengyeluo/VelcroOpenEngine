@@ -77,34 +77,6 @@ pub unsafe fn normalize_safe_estimate(value :FloatArgType,tolerance:f32)->FloatT
         result
     }
 }
-pub unsafe fn acos(value:&FloatArgType) ->FloatType{
-    let  xabs = abs(value.to_owned());
-    let xabs2 = mul(xabs,xabs);
-    let xabs4 = mul(xabs2,xabs2);
-    let t1 = sqrt(sub(splat(1.0),xabs));
-    let select_val = cmp_lt(value.to_owned(),zero_float());
-
-    let hi = madd(xabs,
-                            madd(xabs,
-                                        madd(xabs,
-                                             fast_load_constant_f32(G_ACOS_HI_COEF1 as (*const f32)),
-                                              fast_load_constant_f32(G_ACOS_HI_COEF2 as (*const f32))),
-                                    fast_load_constant_f32(G_ACOS_HI_COEF3 as (*const f32))),
-                  fast_load_constant_f32(G_ACOS_HI_COEF4 as (*const f32)));
-
-    let lo = madd(xabs,
-                            madd(xabs,
-                                 madd(xabs,fast_load_constant_f32(G_ACOS_LO_COEF1 as (*const f32)),
-                                      fast_load_constant_f32(G_ACOS_LO_COEF2 as (*const f32)))
-                                        ,fast_load_constant_f32(G_ACOS_LO_COEF3 as (*const f32)))
-                            ,fast_load_constant_f32(G_ACOS_LO_COEF4 as (*const f32)));
-
-    let result = madd(hi,xabs4,lo);
-    let positive = mul(t1,result);
-    let negative = sub(splat(PI),positive);
-    return select(negative,positive,select_val);
-
-}
 
 pub unsafe fn atan(value:&FloatArgType)->FloatType{
     let mut x = value.to_owned();

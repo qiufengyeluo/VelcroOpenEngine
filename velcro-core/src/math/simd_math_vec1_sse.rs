@@ -16,7 +16,7 @@ impl Vec1 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn load_aligned_f32(addr :*f32)->FloatType{
+    pub unsafe fn load_aligned(addr :*f32)->FloatType{
         return  _mm_load_ps1(addr);
     }
 
@@ -38,7 +38,7 @@ impl Vec1 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn load_unaligned_i128(addr:*const Int32Type)->Int32Type{
-        return sse::load_aligned_i128(addr as *const Int32Type);
+        return sse::load_aligned_i128(addr);
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
@@ -586,8 +586,8 @@ impl Vec1 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn sin_cos(value:&FloatArgType,mut sin:&FloatType,mut cos:&FloatType) ->FloatType{
-        return Common::sin_cos(value,sin,cos);
+    pub unsafe fn sin_cos(value:&FloatArgType,mut sin:&FloatType,mut cos:&FloatType){
+        Common::sin_cos(value,sin,cos)
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
