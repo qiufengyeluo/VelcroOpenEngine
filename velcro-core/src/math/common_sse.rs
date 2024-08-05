@@ -2,9 +2,11 @@
 #![allow(clippy::many_single_char_names)]
 
 use crate::math::constants::*;
-use crate::math::vsimd::{cmp_eq, FloatArgType, FloatType, Int32ArgType, Int32Type, mul};
+use crate::math::simd_math_vec1_sse::*;
+use crate::math::vsimd::*;
 
-trait Vec {
+pub trait VecType {
+    fn from_vec1(value:&FloatArgType) ->FloatType;
     fn add(arg1: &FloatArgType, arg2: &FloatArgType) -> FloatType;
     fn sub(arg1: &FloatArgType, arg2: &FloatArgType) -> FloatType;
     fn mul(arg1: &FloatArgType, arg2: &FloatArgType) -> FloatType;
@@ -13,10 +15,12 @@ trait Vec {
     fn not(value:&FloatArgType)->FloatType;
     fn and(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
     fn add_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
+    fn sub_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
     fn and_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
     fn and_not(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
     fn or(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
     fn splat_i32(value:&i32)->Int32Type;
+    fn splat_index0(value:&FloatArgType)->FloatType;
     fn select(arg1:&FloatArgType,arg2:&FloatArgType,mask:&FloatArgType)->FloatType;
     fn splat(value:&f32)->FloatType;
     fn sin(value:&FloatArgType)->FloatType;
@@ -24,38 +28,350 @@ trait Vec {
     fn abs(value:&FloatArgType)->FloatType;
     fn load_immediate(x:&f32)->FloatType;
     fn load_immediate_fourth_f32(x:&f32,y:&f32,z:&f32,w:&f32)->FloatType;
+    fn sqrt(value:&FloatArgType)->FloatType;
     fn sqrt_estimate(value:&FloatArgType)->FloatType;
+    fn sqrt_inv_estimate(value:&FloatArgType) ->FloatType;
     fn atan(value:&FloatArgType) ->FloatType;
-    fn atan2(value:&FloatArgType) ->FloatType;
     fn mod_calculate(arg1: &FloatArgType, arg2: &FloatArgType) -> FloatType;
     fn cmp_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
     fn cmp_lt(arg1: &FloatArgType, arg2: &FloatArgType) -> FloatType;
     fn cmp_gt(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
     fn cmp_gt_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
     fn cmp_eq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
+    fn cmp_all_lt(arg1:&FloatArgType,arg2:&FloatArgType) ->bool;
+    fn dot(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
     fn convert_to_float(value:&Int32ArgType)->FloatType;
     fn convert_to_int(value:&FloatArgType)->Int32Type;
     fn convert_to_int_nearest(value:&FloatArgType)->Int32Type;
     fn cast_to_float(value:&Int32ArgType)->FloatType;
+    fn cast_to_int(value:&FloatArgType)->Int32Type;
     fn zero_float()->FloatType;
     fn zero_int() ->Int32Type;
-}
-trait Vec4{
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+    unsafe fn from_vec2(value:&FloatArgType) ->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn normalize(value:&FloatArgType)->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn normalize_estimate(value:&FloatArgType) ->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn from_vec3(value:&FloatArgType) ->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn load_aligned(addr :*f32)->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn load_aligned_i128(addr :*const Int32Type)->Int32Type;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn load_unaligned(addr:&f32)->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn load_unaligned_i128(addr:*const Int32Type)->Int32Type;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn store_aligned( addr:*mut f32,value:&FloatArgType);
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn store_aligned_i128(addr :*mut Int32Type,value:&Int32ArgType);
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn store_unaligned(addr :*mut f32,value:&FloatArgType);
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn store_unaligned_i128(addr:*mut Int32Type,value:&Int32ArgType);
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn stream_aligned(addr :*mut f32,value:&FloatArgType);
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn stream_aligned_i128(addr:*mut Int32Type,value:&Int32ArgType);
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn select_index0(value:&FloatArgType)->f32;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn select_index1(value:&FloatArgType)->f32;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn select_index2(value:&FloatArgType)->f32;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn select_index3(value:&FloatArgType)->f32;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn splat_index1(value:&FloatArgType)->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn splat_index2(value:&FloatArgType)->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn splat_index3(value:&FloatArgType)->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn replace_index0_f32(a:&FloatArgType,b:&f32) ->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn replace_index0(a:&FloatArgType,b:&FloatArgType) ->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn replace_index1_f32(a:&FloatArgType,b:&f32) ->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn replace_index1(a:&FloatArgType,b:&FloatArgType) ->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn replace_index2_f32(a:&FloatArgType,b:&f32) ->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn replace_index2(a:&FloatArgType,b:&FloatArgType) ->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn replace_index3_f32(a:&FloatArgType,b:&f32) ->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn replace_index3(a:&FloatArgType,b:&FloatArgType) ->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn load_immediate_fourth_i32(x:&i32,y:&i32,z:&i32,w:&i32)->Int32Type;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn mul_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn madd_i32(mul1:&Int32ArgType,mul2:&Int32ArgType,add:&Int32ArgType)->Int32Type;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn abs_i32(value:&Int32ArgType)->Int32Type;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn not_i32(value:&Int32ArgType)->Int32Type;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn and_not_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn or_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn xor_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn floor(value:&FloatArgType)->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn ceil(value:&FloatArgType)->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn round(value:&FloatArgType)->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn truncate(value:&FloatArgType) ->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn min(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn max(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn clamp(value:&FloatArgType,min:&FloatArgType,max:&FloatArgType) ->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn min_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn max_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn clamp_i32(value:&Int32ArgType,min:&Int32ArgType,max:&Int32ArgType) ->Int32Type;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn cmp_neq(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn cmp_lt_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn cmp_all_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->bool;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn cmp_all_lt_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->bool;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn cmp_all_gt(arg1:&FloatArgType,arg2:&FloatArgType) ->bool;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn cmp_all_gt_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->bool;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn cmp_neq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn cmp_gt_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn cmp_gt_eq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn cmp_lt_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn cmp_lt_eq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn cmp_all_eq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->bool;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn select_i32(arg1:&Int32ArgType,arg2:&Int32ArgType,mask:&Int32ArgType)->Int32Type;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn reciprocal(value:&FloatArgType)->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn reciprocal_estimate(value:&FloatArgType)->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn  wrap(value:&FloatArgType, min_value:&FloatArgType, max_value:&FloatArgType) ->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn angle_mod(value:&FloatArgType) ->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn sqrt_inv(value:&FloatArgType)->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn cos(value:&FloatArgType)->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn sin_cos(value:&FloatArgType, sin:&FloatType,cos:&FloatType);
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn sin_cos_to_float_type(angles:&FloatArgType)->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn acos(value:&FloatArgType)->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn atan2(y:&FloatArgType,x:&FloatArgType) ->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+     unsafe fn exp_estimate(value:&FloatArgType)->FloatType;
 
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+    unsafe fn normalize_safe(value:&FloatArgType,tolerance:&f32) ->FloatType;
+
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+    unsafe fn normalize_safe_estimate(value:&FloatArgType, tolerance:&f32) ->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+    unsafe fn quaternion_multiply(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+    unsafe fn quaternion_transform(quat:&FloatArgType,vec3:&FloatArgType)->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+    unsafe fn mat4x4_transform_point3(rows:*const FloatType,vector:&FloatArgType)->FloatType;
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+    unsafe fn mat4x4_transpose_transform_vector(rows:*const FloatType,vector:&FloatArgType)->FloatType;
 }
+
 pub struct Common{
 }
 impl  Common{
 
 
-    pub fn fast_load_constant<T:Vec>(values:*const f32)->FloatType{
+    pub fn fast_load_constant<T:VecType>(values:*const f32)->FloatType{
         unsafe { return *(values as * FloatType); }
     }
 
-    pub fn fast_load_constant_i32<T:Vec>(values:*const i32)->Int32Type{
+    pub fn fast_load_constant_i32<T:VecType>(values:*const i32)->Int32Type{
         unsafe { return *(values as * Int32Type); }
     }
-    pub fn wrap<T: Vec>(value :&FloatArgType, min_value:&FloatArgType, max_value:&FloatArgType ) ->FloatType
+    pub fn wrap<T: VecType>(value :&FloatArgType, min_value:&FloatArgType, max_value:&FloatArgType ) ->FloatType
     {
         let value_adjust:FloatType = T::sub(value, min_value);
         let max_adjust:FloatType = T::sub(max_value, min_value);
@@ -63,7 +379,7 @@ impl  Common{
         return  T::add(min_value,T::add(value_offset.borrow(), T::mod_calculate(value_adjust.borrow(), max_adjust.borrow()).borrow()).borrow());
     }
 
-    pub fn angle_mod<T:Vec>(value:&FloatArgType)->FloatType{
+    pub fn angle_mod<T:VecType>(value:&FloatArgType)->FloatType{
         let vec_pi:FloatType = T::splat(PI.borrow());
         let vec_two_pi = T::splat(TWO_PI.borrow());
         let positive_angles = T::sub(T::mod_calculate(T::add(value, vec_pi.borrow()).borrow(), vec_two_pi.borrow()).borrow(), vec_pi.borrow());
@@ -72,7 +388,7 @@ impl  Common{
         return T::select(positive_angles.borrow(), negative_angles.borrow(), mask.borrow());
     }
 
-    pub fn compute_sinx_cosx<T:Vec>(x:&FloatArgType,mut sinx: &FloatArgType,mut cosx: &FloatArgType){
+    pub fn compute_sinx_cosx<T:VecType>(x:&FloatArgType,mut sinx: &FloatArgType,mut cosx: &FloatArgType){
         let x2 = T::mul(x,x);
         let x3 = T::mul(x2.borrow(),x);
         sinx = T::madd(x3.borrow(),
@@ -91,7 +407,7 @@ impl  Common{
                        ).borrow(),T::splat(1.0.borrow()).borrow()).borrow_mut();
     }
 
-    pub unsafe fn sin<T:Vec>(value:&FloatArgType)->FloatType{
+    pub unsafe fn sin<T:VecType>(value:&FloatArgType)->FloatType{
         let mut x = T::mul(value,Self::fast_load_constant(G_TWO_OVER_PI.as_ptr()).borrow());
         let intx =T::convert_to_int_nearest(x.borrow());
         let offset = T::and_i32(intx.borrow(), T::splat_i32(3.borrow()).borrow());
@@ -106,7 +422,7 @@ impl  Common{
         result = T::select(result.borrow(),T::xor(result.borrow(),T::splat(-0.0.borrow()).borrow()).borrow(),T::cast_to_float(mask.borrow()).borrow());
         result
     }
-    pub unsafe fn cos<T:Vec>(value:&FloatArgType)->FloatType{
+    pub unsafe fn cos<T:VecType>(value:&FloatArgType)->FloatType{
         let mut x = T::mul(value,Self::fast_load_constant(G_TWO_OVER_PI.as_ptr()).borrow());
         let intx = T::convert_to_int_nearest(x.borrow());
         let offset = T::and_i32(T::add_i32(intx.borrow(), T::splat_i32(1.borrow()).borrow()).borrow(), T::splat_i32(3.borrow()).borrow());
@@ -122,7 +438,7 @@ impl  Common{
         result
     }
 
-    pub fn sin_cos<T:Vec>(value:&FloatArgType,mut sin:&FloatArgType,mut cos:&FloatArgType){
+    pub fn sin_cos<T:VecType>(value:&FloatArgType,mut sin:&FloatArgType,mut cos:&FloatArgType){
         let mut x = T::mul(value,Self::fast_load_constant(G_TWO_OVER_PI.as_ptr()).borrow());
         let intx = T::convert_to_int_nearest(x.borrow());
         let offset_sin = T::and_i32(intx.borrow(), T::splat_i32(3.borrow()).borrow());
@@ -142,17 +458,17 @@ impl  Common{
         cos = T::select(cos.borrow(),T::xor(cos.borrow(),Self::fast_load_constant(G_NEGATE_MASK.as_ptr() as *const f32).borrow()).borrow(),cos_mask.borrow()).borrow_mut();
     }
 
-    pub fn sin_cos_to_float_type<T:Vec>(angles:&FloatArgType)->FloatType{
+    pub fn sin_cos_to_float_type<T:VecType>(angles:&FloatArgType)->FloatType{
         let angle_offset = T::load_immediate_fourth_f32(0.0.borrow(), HALF_PI.borrow(), 0.0.borrow(), HALF_PI.borrow());
         let sin_angles = T::add(angles, angle_offset.borrow());
         return  T::sin(sin_angles.borrow());
     }
 
-    pub fn acos<T:Vec>(value:&FloatArgType)->FloatType{
+    pub fn acos<T:VecType>(value:&FloatArgType)->FloatType{
         let xabs = T::abs(value);
         let xabs2 = T::mul(xabs.borrow(),xabs.borrow());
         let xabs4 = T::mul(xabs2.borrow(),xabs2.borrow());
-        let t1 = T::sqrt(T::sub(T::splat(1.0.borrow()).borrow(),xabs.borrow()));
+        let t1 = T::sqrt(T::sub(T::splat(1.0.borrow()).borrow(),xabs.borrow()).borrow());
         let select = T::cmp_lt(value.to_owned().borrow(),T::zero_float().borrow());
 
         let hi = T::madd(xabs.borrow(),
@@ -178,7 +494,7 @@ impl  Common{
 
     }
 
-    pub fn acos_estimate<T:Vec>(value:&FloatArgType)->FloatType{
+    pub fn acos_estimate<T:VecType>(value:&FloatArgType)->FloatType{
         let xabs = T::abs(value);
         let t1 = T::sqrt_estimate(T::sub(T::splat(1.0.borrow()).borrow(),xabs.borrow()).borrow());
         let select = T::cmp_lt(value,T::zero_float().borrow());
@@ -194,7 +510,7 @@ impl  Common{
         return T::select(negative.borrow(),positive.borrow(),select.borrow());
     }
 
-    pub fn atan<T:Vec>(value:&FloatArgType)->FloatType
+    pub fn atan<T:VecType>(value:&FloatArgType)->FloatType
     {
         let mut x = value.to_owned();
         let signbit = T::and(x.borrow(), T::cast_to_float(Self::fast_load_constant_i32(G_NEGATE_MASK.borrow()).borrow()).borrow());
@@ -238,7 +554,7 @@ impl  Common{
         y
     }
 
-    pub fn atan2<T:Vec>(y:&FloatArgType,x:&FloatArgType)->FloatType
+    pub fn atan2<T:VecType>(y:&FloatArgType,x:&FloatArgType)->FloatType
     {
         let x_eq_0 = T::cmp_eq(x,T::zero_float().borrow());
         let x_ge_0 = T::cmp_gt_eq(x,T::zero_float().borrow());
@@ -281,102 +597,150 @@ impl  Common{
         result
     }
 
+    pub fn exp_estimate<T:VecType>(x:&FloatArgType)->FloatType{
+        let a = T::convert_to_int_nearest(T::mul(Self::fast_load_constant(G_EXP_COEF1.borrow()).borrow(),x).borrow());
+        let b = T::and_i32(a.borrow(),Self::fast_load_constant_i32(G_EXP_COEF2.borrow()).borrow());
+        let c = T::sub_i32(a.borrow(),b.borrow());
+        let f = T::mul(Self::fast_load_constant(G_EXP_COEF3.borrow()).borrow(),T::convert_to_float(c.borrow()).borrow());
+        let i = T::madd(f.borrow(),Self::fast_load_constant(G_EXP_COEF4.borrow()).borrow(),Self::fast_load_constant(G_EXP_COEF5.borrow()).borrow());
+        let j = T::madd(i.borrow(),f.borrow(),Self::fast_load_constant(G_EXP_COEF6.borrow()).borrow());
+        return T::cast_to_float(T::add_i32(b.borrow(),T::cast_to_int(j.borrow()).borrow()).borrow());
+    }
+
+    pub fn normalize<T:VecType>(value:&FloatArgType)->FloatType{
+        let length_squared = T::splat_index0(T::from_vec1(T::dot(value, value).borrow()).borrow());
+        let mut length = T::sqrt(length_squared.borrow());
+        return  T::div(value,length.borrow_mut());
+    }
+
+    pub fn normalize_estimate<T:VecType>(value:&FloatArgType)->FloatType{
+        let length_squared = T::splat_index0(T::from_vec1(T::dot(value, value).borrow()).borrow());
+        let inv_length = T::sqrt_inv_estimate(length_squared.borrow());
+        return  T::mul(inv_length.borrow(), value);
+    }
+
+    pub fn normalize_safe<T:VecType>(value:&FloatArgType,tolerance:&f32)->FloatType{
+        let float_epsilon = T::splat((tolerance*tolerance).borrow());
+        let length_squared = T::splat_index0(T::from_vec1(T::dot(value, value).borrow()).borrow());
+        if T::cmp_all_lt(length_squared.borrow(), float_epsilon.borrow()){
+            return T::zero_float();
+        }else {
+            return T::div(value,T::sqrt(length_squared.borrow()).borrow_mut());
+        }
+    }
+
+    pub fn normalize_safe_estimate<T:VecType>(value:&FloatArgType,tolerance:&f32) ->FloatType{
+        let float_epsilon = T::splat((tolerance*tolerance).borrow());
+        let length_squared = T::splat_index0(T::from_vec1(T::dot(value, value).borrow()).borrow());
+        if T::cmp_all_lt(length_squared.borrow(), float_epsilon.borrow()){
+            return T::zero_float();
+        }else {
+            return T::mul(value,T::sqrt_inv_estimate(length_squared.borrow()).borrow());
+        }
+    }
+
+    pub fn quaternion_transform<T:VecType>(quat:&FloatArgType,vec3:&FloatArgType) ->FloatType{
+        let two = T::splat(2.0.borrow());
+        let scalar = unsafe { T::splat_index3(quat.borrow()) };
+        let partial1 = T::splat_index0(T::from_vec1(T::dot(quat,vec3).borrow()).borrow());
+        let partial2 = T::mul(quat,partial1.borrow());
+        let sum1 = T::mul(partial2.borrow(),two.borrow());
+        let partial3 = T::splat_index0(T::from_vec1(T::dot(quat,quat).borrow()).borrow());
+        let partial4 = T::mul(scalar.borrow(),scalar.borrow());
+        let partial5 = T::sub(partial4.borrow(),partial3.borrow());
+        let sum2 = T::mul(partial5.borrow(),vec3);
+        let partial6 = T::mul(scalar.borrow(),two.borrow());
+        let partial7 = T::cross(quat,vec3);
+        let sum3 = T::mul(partial6.borrow(),partial7.borrow());
+        return T::add(T::add(sum1.borrow(),sum2.borrow()).borrow(),sum3.borrow());
+    }
+
+    pub fn construct_plane<T:VecType>(normal:&FloatArgType,point:&FloatArgType)->FloatType{
+        let distance = unsafe { Vec1::sub(Vec1::zero_float().borrow(), T::dot(normal.borrow(),point.borrow()).borrow()) };
+        unsafe { return T::replace_index3(normal.borrow(), T::splat_index0(T::from_vec1(distance.borrow()).borrow()).borrow()); }
+    }
+
+    pub fn plane_distance<T:VecType>(plane:&FloatArgType, point:&FloatArgType) ->FloatType{
+        let reference_point = unsafe { T::replace_index3_f32(point.borrow(), 1.0.borrow()) };
+        return T::dot(reference_point.borrow(), plane);
+    }
+
+    pub unsafe fn mat3x3multiply<T:VecType>(rowsA:*const FloatType,rowsB:*const FloatType,mut out:&*const FloatType){
+        *out[0] = T::madd(T::splat_index2(*rowsA[0]).borrow(), *rowsB[2],T::madd(T::splat_index1(rowsA[0]).borrow(), rowsB[1],T::mul(T::splat_index0(*rowsA[0]).borrow(),*rowsB[0]).borrow()).borrow() );
+        *out[0] = T::madd(T::splat_index2(*rowsA[1]).borrow(),*rowsB[2],T::madd(T::splat_index1(rowsA[1]).borrow(), rowsB[1],T::mul(T::splat_index0(*rowsA[1]).borrow(),*rowsB[0]).borrow()).borrow());
+        *out[0] = T::madd(T::splat_index2(*rowsA[2]).borrow(),*rowsB[2],T::madd(T::splat_index1(rowsA[2]).borrow(), rowsB[1],T::mul(T::splat_index0(*rowsA[2]).borrow(),*rowsB[0]).borrow()).borrow());
+    }
+
+    pub unsafe fn mat3x3transpose_multiply<T:VecType>(rowsA:*const FloatType,rowsB:*const FloatType,mut out:*const FloatType){
+        *out[0] = T::madd(T::splat_index0(*rowsA[0]).borrow(), *rowsB[0],T::madd(T::splat_index0(rowsA[1]).borrow(), rowsB[1],T::mul(T::splat_index0(*rowsA[2]).borrow(),*rowsB[2]).borrow()).borrow() );
+        *out[0] = T::madd(T::splat_index1(*rowsA[0]).borrow(),*rowsB[0],T::madd(T::splat_index2(rowsA[1]).borrow(), rowsB[1],T::mul(T::splat_index0(*rowsA[2]).borrow(),*rowsB[2]).borrow()).borrow());
+        *out[0] = T::madd(T::splat_index2(*rowsA[0]).borrow(),*rowsB[0],T::madd(T::splat_index3(rowsA[1]).borrow(), rowsB[1],T::mul(T::splat_index0(*rowsA[2]).borrow(),*rowsB[2]).borrow()).borrow());
+
+    }
     template <typename VecType>
-    AZ_MATH_INLINE typename VecType::FloatType ExpEstimate(typename VecType::FloatArgType x)
+    AZ_MATH_INLINE typename VecType::FloatType Mat3x3TransformVector(const typename VecType::FloatType* __restrict rows, typename VecType::FloatArgType vector)
     {
-    // N. N. Schraudolph, 'A Fast, Compact Approximation of the Exponential Function'
-    // This method exploits the logrithmic nature of IEEE-754 floating point to quickly estimate exp(x)
-    // While the concept is based on that paper, this specific implementation is based on a selection from several variants
-    // of that algorithm to choose the fastest of the variants that had the highest accuracy.
-    typename VecType::Int32Type a = VecType::ConvertToIntNearest(VecType::Mul(FastLoadConstant<VecType>(Simd::g_expCoef1), x));
-    typename VecType::Int32Type b = VecType::And(a, FastLoadConstant<VecType>(Simd::g_expCoef2));
-    typename VecType::Int32Type c = VecType::Sub(a, b);
-    typename VecType::FloatType f = VecType::Mul(FastLoadConstant<VecType>(Simd::g_expCoef3), VecType::ConvertToFloat(c)); // Approximately (x/log(2)) - floor(x/log(2))
-    typename VecType::FloatType i = VecType::Madd(f, FastLoadConstant<VecType>(Simd::g_expCoef4), FastLoadConstant<VecType>(Simd::g_expCoef5));
-    typename VecType::FloatType j = VecType::Madd(i, f, FastLoadConstant<VecType>(Simd::g_expCoef6)); // Approximately 2^f
-    return VecType::CastToFloat(VecType::Add(b, VecType::CastToInt(j)));
+    typename VecType::FloatType transposed[3];
+    VecType::Mat3x3Transpose(rows, transposed);
+    return VecType::Mat3x3TransposeTransformVector(transposed, vector);
     }
 
     template <typename VecType>
-    AZ_MATH_INLINE typename VecType::FloatType Normalize(typename VecType::FloatArgType value)
+    AZ_MATH_INLINE typename VecType::FloatType Mat3x3TransposeTransformVector(const typename VecType::FloatType* __restrict rows, typename VecType::FloatArgType vector)
     {
-    const typename VecType::FloatType lengthSquared = VecType::SplatIndex0(VecType::FromVec1(VecType::Dot(value, value)));
-    const typename VecType::FloatType length = VecType::Sqrt(lengthSquared);
-    return VecType::Div(value, length);
+    return VecType::Madd(VecType::SplatIndex2(vector), rows[2], VecType::Madd(VecType::SplatIndex1(vector), rows[1], VecType::Mul(VecType::SplatIndex0(vector), rows[0])));
     }
 
     template <typename VecType>
-    AZ_MATH_INLINE typename VecType::FloatType NormalizeEstimate(typename VecType::FloatArgType value)
+    AZ_MATH_INLINE void Mat3x4Multiply(const typename VecType::FloatType* __restrict rowsA, const typename VecType::FloatType* __restrict rowsB, typename VecType::FloatType* __restrict out)
     {
-    const typename VecType::FloatType lengthSquared = VecType::SplatIndex0(VecType::FromVec1(VecType::Dot(value, value)));
-    const typename VecType::FloatType invLength = VecType::SqrtInvEstimate(lengthSquared);
-    return VecType::Mul(invLength, value);
+    const typename VecType::FloatType fourth = FastLoadConstant<VecType>(g_vec0001);
+    out[0] = VecType::Madd(VecType::SplatIndex3(rowsA[0]), fourth, VecType::Madd(VecType::SplatIndex2(rowsA[0]), rowsB[2], VecType::Madd(VecType::SplatIndex1(rowsA[0]), rowsB[1], VecType::Mul(VecType::SplatIndex0(rowsA[0]), rowsB[0]))));
+    out[1] = VecType::Madd(VecType::SplatIndex3(rowsA[1]), fourth, VecType::Madd(VecType::SplatIndex2(rowsA[1]), rowsB[2], VecType::Madd(VecType::SplatIndex1(rowsA[1]), rowsB[1], VecType::Mul(VecType::SplatIndex0(rowsA[1]), rowsB[0]))));
+    out[2] = VecType::Madd(VecType::SplatIndex3(rowsA[2]), fourth, VecType::Madd(VecType::SplatIndex2(rowsA[2]), rowsB[2], VecType::Madd(VecType::SplatIndex1(rowsA[2]), rowsB[1], VecType::Mul(VecType::SplatIndex0(rowsA[2]), rowsB[0]))));
     }
 
     template <typename VecType>
-    AZ_MATH_INLINE typename VecType::FloatType NormalizeSafe(typename VecType::FloatArgType value, float tolerance)
+    AZ_MATH_INLINE void Mat4x4InverseFast(const typename VecType::FloatType* __restrict rows, typename VecType::FloatType* __restrict out)
     {
-    const typename VecType::FloatType floatEpsilon = VecType::Splat(tolerance * tolerance);
-    const typename VecType::FloatType lengthSquared = VecType::SplatIndex0(VecType::FromVec1(VecType::Dot(value, value)));
-    if (VecType::CmpAllLt(lengthSquared, floatEpsilon))
-    {
-    return VecType::ZeroFloat();
-    }
-    return VecType::Div(value, VecType::Sqrt(lengthSquared));
+    const typename VecType::FloatType pos = VecType::Madd(VecType::SplatIndex3(rows[2]), rows[2]
+    , VecType::Madd(VecType::SplatIndex3(rows[1]), rows[1]
+    , VecType::Mul (VecType::SplatIndex3(rows[0]), rows[0])));
+    typename VecType::FloatType transposed[4] = { rows[0], rows[1], rows[2], VecType::Xor(pos, FastLoadConstant<VecType>(reinterpret_cast<const float*>(g_negateMask))) };
+    VecType::Mat4x4Transpose(transposed, out);
+    out[3] = FastLoadConstant<VecType>(g_vec0001);
     }
 
     template <typename VecType>
-    AZ_MATH_INLINE typename VecType::FloatType NormalizeSafeEstimate(typename VecType::FloatArgType value, float tolerance)
+    AZ_MATH_INLINE void Mat4x4Multiply(const typename VecType::FloatType* __restrict rowsA, const typename VecType::FloatType* __restrict rowsB, typename VecType::FloatType* __restrict out)
     {
-    const typename VecType::FloatType floatEpsilon = VecType::Splat(tolerance * tolerance);
-    const typename VecType::FloatType lengthSquared = VecType::SplatIndex0(VecType::FromVec1(VecType::Dot(value, value)));
-    if (VecType::CmpAllLt(lengthSquared, floatEpsilon))
+    out[0] = VecType::Madd(VecType::SplatIndex3(rowsA[0]), rowsB[3], VecType::Madd(VecType::SplatIndex2(rowsA[0]), rowsB[2], VecType::Madd(VecType::SplatIndex1(rowsA[0]), rowsB[1], VecType::Mul(VecType::SplatIndex0(rowsA[0]), rowsB[0]))));
+    out[1] = VecType::Madd(VecType::SplatIndex3(rowsA[1]), rowsB[3], VecType::Madd(VecType::SplatIndex2(rowsA[1]), rowsB[2], VecType::Madd(VecType::SplatIndex1(rowsA[1]), rowsB[1], VecType::Mul(VecType::SplatIndex0(rowsA[1]), rowsB[0]))));
+    out[2] = VecType::Madd(VecType::SplatIndex3(rowsA[2]), rowsB[3], VecType::Madd(VecType::SplatIndex2(rowsA[2]), rowsB[2], VecType::Madd(VecType::SplatIndex1(rowsA[2]), rowsB[1], VecType::Mul(VecType::SplatIndex0(rowsA[2]), rowsB[0]))));
+    out[3] = VecType::Madd(VecType::SplatIndex3(rowsA[3]), rowsB[3], VecType::Madd(VecType::SplatIndex2(rowsA[3]), rowsB[2], VecType::Madd(VecType::SplatIndex1(rowsA[3]), rowsB[1], VecType::Mul(VecType::SplatIndex0(rowsA[3]), rowsB[0]))));
+    }
+
+    template <typename VecType>
+    AZ_MATH_INLINE void Mat4x4MultiplyAdd(const typename VecType::FloatType* __restrict rowsA, const typename VecType::FloatType* __restrict rowsB, const typename VecType::FloatType* __restrict add, typename VecType::FloatType* __restrict out)
     {
-    return VecType::ZeroFloat();
-    }
-    return VecType::Mul(value, VecType::SqrtInvEstimate(lengthSquared));
+    out[0] = VecType::Madd(VecType::SplatIndex3(rowsA[0]), rowsB[3], VecType::Madd(VecType::SplatIndex2(rowsA[0]), rowsB[2], VecType::Madd(VecType::SplatIndex1(rowsA[0]), rowsB[1], VecType::Madd(VecType::SplatIndex0(rowsA[0]), rowsB[0], add[0]))));
+    out[1] = VecType::Madd(VecType::SplatIndex3(rowsA[1]), rowsB[3], VecType::Madd(VecType::SplatIndex2(rowsA[1]), rowsB[2], VecType::Madd(VecType::SplatIndex1(rowsA[1]), rowsB[1], VecType::Madd(VecType::SplatIndex0(rowsA[1]), rowsB[0], add[1]))));
+    out[2] = VecType::Madd(VecType::SplatIndex3(rowsA[2]), rowsB[3], VecType::Madd(VecType::SplatIndex2(rowsA[2]), rowsB[2], VecType::Madd(VecType::SplatIndex1(rowsA[2]), rowsB[1], VecType::Madd(VecType::SplatIndex0(rowsA[2]), rowsB[0], add[2]))));
+    out[3] = VecType::Madd(VecType::SplatIndex3(rowsA[3]), rowsB[3], VecType::Madd(VecType::SplatIndex2(rowsA[3]), rowsB[2], VecType::Madd(VecType::SplatIndex1(rowsA[3]), rowsB[1], VecType::Madd(VecType::SplatIndex0(rowsA[3]), rowsB[0], add[3]))));
     }
 
-    template <typename Vec4Type, typename Vec3Type>
-    AZ_MATH_INLINE typename Vec4Type::FloatType QuaternionTransform(typename Vec4Type::FloatArgType quat, typename Vec3Type::FloatArgType vec3)
+    template <typename VecType>
+    AZ_MATH_INLINE void Mat4x4TransposeMultiply(const typename VecType::FloatType* __restrict rowsA, const typename VecType::FloatType* __restrict rowsB, typename VecType::FloatType* __restrict out)
     {
-    const typename Vec4Type::FloatType Two = Vec4Type::Splat(2.0f);
-    const typename Vec4Type::FloatType scalar = Vec4Type::SplatIndex3(quat); // Scalar portion of quat (W, W, W)
-
-    const typename Vec4Type::FloatType partial1 = Vec4Type::SplatIndex0(Vec4Type::FromVec1(Vec3Type::Dot(quat, vec3)));
-    const typename Vec4Type::FloatType partial2 = Vec4Type::Mul(quat, partial1);
-    const typename Vec4Type::FloatType sum1 = Vec4Type::Mul(partial2, Two); // quat.Dot(vec3) * vec3 * 2.0f
-
-    const typename Vec4Type::FloatType partial3 = Vec4Type::SplatIndex0(Vec4Type::FromVec1(Vec3Type::Dot(quat, quat)));
-    const typename Vec4Type::FloatType partial4 = Vec4Type::Mul(scalar, scalar);
-    const typename Vec4Type::FloatType partial5 = Vec4Type::Sub(partial4, partial3);
-    const typename Vec4Type::FloatType sum2 = Vec4Type::Mul(partial5, vec3); // vec3 * (scalar * scalar - quat.Dot(quat))
-
-    const typename Vec4Type::FloatType partial6 = Vec4Type::Mul(scalar, Two);
-    const typename Vec4Type::FloatType partial7 = Vec3Type::Cross(quat, vec3);
-    const typename Vec4Type::FloatType sum3 = Vec4Type::Mul(partial6, partial7); // scalar * 2.0f * quat.Cross(vec3)
-
-    return Vec4Type::Add(Vec4Type::Add(sum1, sum2), sum3);
+    out[0] = VecType::Madd(VecType::SplatIndex0(rowsA[0]), rowsB[0], VecType::Madd(VecType::SplatIndex0(rowsA[1]), rowsB[1], VecType::Madd(VecType::SplatIndex0(rowsA[2]), rowsB[2], VecType::Mul(VecType::SplatIndex0(rowsA[3]), rowsB[3]))));
+    out[1] = VecType::Madd(VecType::SplatIndex1(rowsA[0]), rowsB[0], VecType::Madd(VecType::SplatIndex1(rowsA[1]), rowsB[1], VecType::Madd(VecType::SplatIndex1(rowsA[2]), rowsB[2], VecType::Mul(VecType::SplatIndex1(rowsA[3]), rowsB[3]))));
+    out[2] = VecType::Madd(VecType::SplatIndex2(rowsA[0]), rowsB[0], VecType::Madd(VecType::SplatIndex2(rowsA[1]), rowsB[1], VecType::Madd(VecType::SplatIndex2(rowsA[2]), rowsB[2], VecType::Mul(VecType::SplatIndex2(rowsA[3]), rowsB[3]))));
+    out[3] = VecType::Madd(VecType::SplatIndex3(rowsA[0]), rowsB[0], VecType::Madd(VecType::SplatIndex3(rowsA[1]), rowsB[1], VecType::Madd(VecType::SplatIndex3(rowsA[2]), rowsB[2], VecType::Mul(VecType::SplatIndex3(rowsA[3]), rowsB[3]))));
     }
 
-    template <typename Vec4Type, typename Vec3Type>
-    AZ_MATH_INLINE typename Vec4Type::FloatType ConstructPlane(typename Vec3Type::FloatArgType normal, typename Vec3Type::FloatArgType point)
+    template <typename VecType>
+    AZ_MATH_INLINE typename VecType::FloatType Mat4x4TransposeTransformVector(const typename VecType::FloatType* __restrict rows, typename VecType::FloatArgType vector)
     {
-    const Vec1::FloatType distance = Vec1::Sub(Vec1::ZeroFloat(), Vec3Type::Dot(normal, point));
-    return Vec4Type::ReplaceIndex3(normal, Vec4Type::SplatIndex0(Vec4Type::FromVec1(distance))); // replace 'w' coordinate with distance
+    return VecType::Madd(VecType::SplatIndex3(vector), rows[3], VecType::Madd(VecType::SplatIndex2(vector), rows[2], VecType::Madd(VecType::SplatIndex1(vector), rows[1], VecType::Mul(VecType::SplatIndex0(vector), rows[0]))));
     }
-    pub fn construct_plane<T:Vec>(normal:&FloatArgType,point:&FloatArgType)->FloatType{
-
-    }
-    template <typename Vec4Type, typename Vec3Type>
-    AZ_MATH_INLINE Vec1::FloatType PlaneDistance(typename Vec4Type::FloatArgType plane, typename Vec3Type::FloatArgType point)
-    {
-    const typename Vec4Type::FloatType referencePoint = Vec4Type::ReplaceIndex3(point, 1.0f); // replace 'w' coordinate with 1.0
-    return Vec4Type::Dot(referencePoint, plane);
-    }
-    pub fn plane_distance<T:Vec4>(plane:&FloatArgType, point:&FloatArgType) ->FloatType{
-        let referencePoint = T::re
-        return T::dot
-    }
-
 }

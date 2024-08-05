@@ -8,7 +8,7 @@ use std::arch::x86_64::*;
 use crate::math::common_sse::Common;
 use crate::math::vsimd::*;
 
-struct Vec1 {
+pub struct Vec1 {
 
 }
 impl Vec1 {
