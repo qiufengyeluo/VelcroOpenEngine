@@ -665,52 +665,44 @@ impl  Common{
         return T::dot(reference_point.borrow(), plane);
     }
 
-    pub unsafe fn mat3x3multiply<T:VecType>(rowsA:*const FloatType,rowsB:*const FloatType,mut out:&*const FloatType){
-        *out[0] = T::madd(T::splat_index2(*rowsA[0]).borrow(), *rowsB[2],T::madd(T::splat_index1(rowsA[0]).borrow(), rowsB[1],T::mul(T::splat_index0(*rowsA[0]).borrow(),*rowsB[0]).borrow()).borrow() );
-        *out[0] = T::madd(T::splat_index2(*rowsA[1]).borrow(),*rowsB[2],T::madd(T::splat_index1(rowsA[1]).borrow(), rowsB[1],T::mul(T::splat_index0(*rowsA[1]).borrow(),*rowsB[0]).borrow()).borrow());
-        *out[0] = T::madd(T::splat_index2(*rowsA[2]).borrow(),*rowsB[2],T::madd(T::splat_index1(rowsA[2]).borrow(), rowsB[1],T::mul(T::splat_index0(*rowsA[2]).borrow(),*rowsB[0]).borrow()).borrow());
+    pub unsafe fn mat3x3multiply<T:VecType>(rows_a:*const FloatType, rows_b:*const FloatType, mut out:&*const FloatType){
+        *out[0] = T::madd(T::splat_index2(*rows_a[0]).borrow(), *rows_b[2], T::madd(T::splat_index1(rows_a[0]).borrow(), rows_b[1], T::mul(T::splat_index0(*rows_a[0]).borrow(), *rows_b[0]).borrow()).borrow() );
+        *out[0] = T::madd(T::splat_index2(*rows_a[1]).borrow(), *rows_b[2], T::madd(T::splat_index1(rows_a[1]).borrow(), rows_b[1], T::mul(T::splat_index0(*rows_a[1]).borrow(), *rows_b[0]).borrow()).borrow());
+        *out[0] = T::madd(T::splat_index2(*rows_a[2]).borrow(), *rows_b[2], T::madd(T::splat_index1(rows_a[2]).borrow(), rows_b[1], T::mul(T::splat_index0(*rows_a[2]).borrow(), *rows_b[0]).borrow()).borrow());
     }
 
-    pub unsafe fn mat3x3transpose_multiply<T:VecType>(rowsA:*const FloatType,rowsB:*const FloatType,mut out:*const FloatType){
-        *out[0] = T::madd(T::splat_index0(*rowsA[0]).borrow(), *rowsB[0],T::madd(T::splat_index0(rowsA[1]).borrow(), rowsB[1],T::mul(T::splat_index0(*rowsA[2]).borrow(),*rowsB[2]).borrow()).borrow() );
-        *out[0] = T::madd(T::splat_index1(*rowsA[0]).borrow(),*rowsB[0],T::madd(T::splat_index2(rowsA[1]).borrow(), rowsB[1],T::mul(T::splat_index0(*rowsA[2]).borrow(),*rowsB[2]).borrow()).borrow());
-        *out[0] = T::madd(T::splat_index2(*rowsA[0]).borrow(),*rowsB[0],T::madd(T::splat_index3(rowsA[1]).borrow(), rowsB[1],T::mul(T::splat_index0(*rowsA[2]).borrow(),*rowsB[2]).borrow()).borrow());
+    pub unsafe fn mat3x3transpose_multiply<T:VecType>(rows_a:*const FloatType, rows_b:*const FloatType, mut out:*const FloatType){
+        *out[0] = T::madd(T::splat_index0(*rows_a[0]).borrow(), *rows_b[0], T::madd(T::splat_index0(rows_a[1]).borrow(), rows_b[1], T::mul(T::splat_index0(*rows_a[2]).borrow(), *rows_b[2]).borrow()).borrow() );
+        *out[0] = T::madd(T::splat_index1(*rows_a[0]).borrow(), *rows_b[0], T::madd(T::splat_index2(rows_a[1]).borrow(), rows_b[1], T::mul(T::splat_index0(*rows_a[2]).borrow(), *rows_b[2]).borrow()).borrow());
+        *out[0] = T::madd(T::splat_index2(*rows_a[0]).borrow(), *rows_b[0], T::madd(T::splat_index3(rows_a[1]).borrow(), rows_b[1], T::mul(T::splat_index0(*rows_a[2]).borrow(), *rows_b[2]).borrow()).borrow());
 
     }
-    template <typename VecType>
-    AZ_MATH_INLINE typename VecType::FloatType Mat3x3TransformVector(const typename VecType::FloatType* __restrict rows, typename VecType::FloatArgType vector)
-    {
-    typename VecType::FloatType transposed[3];
-    VecType::Mat3x3Transpose(rows, transposed);
-    return VecType::Mat3x3TransposeTransformVector(transposed, vector);
+
+    pub unsafe fn mat3x3transform_vector<T:VecType>(rows:*const FloatType,vector:&FloatArgType)->FloatType{
+        let mut transposed:[FloatType;3];
+        VecType::mat3x3transpose(rows,transposed.borrow_mut());
+        return VecType::mat3x3transpose_transform_vector(transposed.borrow(),vector);
     }
 
-    template <typename VecType>
-    AZ_MATH_INLINE typename VecType::FloatType Mat3x3TransposeTransformVector(const typename VecType::FloatType* __restrict rows, typename VecType::FloatArgType vector)
-    {
-    return VecType::Madd(VecType::SplatIndex2(vector), rows[2], VecType::Madd(VecType::SplatIndex1(vector), rows[1], VecType::Mul(VecType::SplatIndex0(vector), rows[0])));
+    pub unsafe fn mat3x3transpose_transform_vector<T:VecType>(rows:*const FloatType,vector:&FloatArgType)->FloatType{
+        return  T::madd(T::splat_index2(vector).borrow(),*rows[2],T::madd(T::splat_index1(vector).borrow(),*rows[1],T::mul(T::splat_index0(vector).borrow(),*rows[0]).borrow()).borrow());
     }
 
-    template <typename VecType>
-    AZ_MATH_INLINE void Mat3x4Multiply(const typename VecType::FloatType* __restrict rowsA, const typename VecType::FloatType* __restrict rowsB, typename VecType::FloatType* __restrict out)
-    {
-    const typename VecType::FloatType fourth = FastLoadConstant<VecType>(g_vec0001);
-    out[0] = VecType::Madd(VecType::SplatIndex3(rowsA[0]), fourth, VecType::Madd(VecType::SplatIndex2(rowsA[0]), rowsB[2], VecType::Madd(VecType::SplatIndex1(rowsA[0]), rowsB[1], VecType::Mul(VecType::SplatIndex0(rowsA[0]), rowsB[0]))));
-    out[1] = VecType::Madd(VecType::SplatIndex3(rowsA[1]), fourth, VecType::Madd(VecType::SplatIndex2(rowsA[1]), rowsB[2], VecType::Madd(VecType::SplatIndex1(rowsA[1]), rowsB[1], VecType::Mul(VecType::SplatIndex0(rowsA[1]), rowsB[0]))));
-    out[2] = VecType::Madd(VecType::SplatIndex3(rowsA[2]), fourth, VecType::Madd(VecType::SplatIndex2(rowsA[2]), rowsB[2], VecType::Madd(VecType::SplatIndex1(rowsA[2]), rowsB[1], VecType::Mul(VecType::SplatIndex0(rowsA[2]), rowsB[0]))));
+    pub unsafe fn mat3x4multiply<T:VecType>(rows_a:*const FloatType, rows_b:*const FloatType, mut out:*const FloatType){
+        let fourth = Self::fast_load_constant(G_VEC1111.borrow());
+        *out[0] = T::madd(T::splat_index3(*rows_a[0]).borrow(), fourth.borrow(), T::madd(T::splat_index2(*rows_a[0]).borrow(), *rows_b[2], T::madd(T::splat_index1(*rows_a[0]).borrow(), *rows_b[1], T::mul(T::splat_index0(*rows_a[0]).borrow(), *rows_b[0]).borrow()).borrow()).borrow());
+        *out[1] = T::madd(T::splat_index3(*rows_a[0]).borrow(), fourth.borrow(), T::madd(T::splat_index2(*rows_a[1]).borrow(), *rows_b[2], T::madd(T::splat_index1(*rows_a[1]).borrow(), *rows_b[1], T::mul(T::splat_index0(*rows_a[1]).borrow(), *rows_b[0]).borrow()).borrow()).borrow());
+        *out[2] = T::madd(T::splat_index3(*rows_a[0]).borrow(), fourth.borrow(), T::madd(T::splat_index2(*rows_a[2]).borrow(), *rows_b[2], T::madd(T::splat_index1(*rows_a[2]).borrow(), *rows_b[1], T::mul(T::splat_index0(*rows_a[2]).borrow(), *rows_b[0]).borrow()).borrow()).borrow());
     }
 
-    template <typename VecType>
-    AZ_MATH_INLINE void Mat4x4InverseFast(const typename VecType::FloatType* __restrict rows, typename VecType::FloatType* __restrict out)
-    {
-    const typename VecType::FloatType pos = VecType::Madd(VecType::SplatIndex3(rows[2]), rows[2]
-    , VecType::Madd(VecType::SplatIndex3(rows[1]), rows[1]
-    , VecType::Mul (VecType::SplatIndex3(rows[0]), rows[0])));
-    typename VecType::FloatType transposed[4] = { rows[0], rows[1], rows[2], VecType::Xor(pos, FastLoadConstant<VecType>(reinterpret_cast<const float*>(g_negateMask))) };
-    VecType::Mat4x4Transpose(transposed, out);
-    out[3] = FastLoadConstant<VecType>(g_vec0001);
+    pub unsafe fn mat4x4inverse_fast<T:VecType>(rows:*const FloatType,mut out :*const FloatType){
+        let pos = T::madd(T::splat_index3(*rows[2]).borrow(),
+                          *rows[2], T::madd(T::splat_index3(*rows[1]).borrow(),*rows[1],
+                                            T::mul(T::splat_index3(*rows[0]).borrow(),*rows[0]).borrow()).borrow());
+        let mut transposed : [FloatType;4] = [*rows[0],*rows[1],*rows[2],T::xor(pos.borrow(),Self::fast_load_constant(G_NEGATE_MASK.borrow()).borrow())];
+        T::mat3x3transpose(transposed.borrow_mut(),out);
+        *out[3] = Self::fast_load_constant(G_VEC1111.borrow());
     }
-
     template <typename VecType>
     AZ_MATH_INLINE void Mat4x4Multiply(const typename VecType::FloatType* __restrict rowsA, const typename VecType::FloatType* __restrict rowsB, typename VecType::FloatType* __restrict out)
     {
