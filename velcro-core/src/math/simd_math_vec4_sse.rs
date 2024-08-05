@@ -4,14 +4,14 @@
 use std::arch::x86_64::{_mm_hadd_ps, _mm_shuffle_ps};
 
 use crate::math::common_sse::*;
-use crate::math::constants::{G_NEGATE_MASK, HALF_PI};
+use crate::math::constants::{G_NEGATE_MASK, G_VEC1111, HALF_PI};
 use crate::math::vsimd::*;
 
 pub struct Vec4{
     
 }
 
-impl VecType for Vec4 {
+impl VecType for  Vec4 {
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
@@ -788,138 +788,124 @@ impl VecType for Vec4 {
     unsafe fn quaternion_transform(quat:&FloatArgType,vec3:&FloatArgType)->FloatType{
         return Common::quaternion_transform(quat,vec3);
     }
-    AZ_MATH_INLINE Vec4::FloatType Vec4::ConstructPlane(Vec3::FloatArgType normal, Vec3::FloatArgType point)
-    {
-    return Common::ConstructPlane<Vec4, Vec3>(normal, point);
-    }
+
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn
-    AZ_MATH_INLINE Vec1::FloatType Vec4::PlaneDistance(FloatArgType plane, Vec3::FloatArgType point)
-    {
-    return Common::PlaneDistance<Vec4, Vec3>(plane, point);
+    unsafe fn construct_plane(normal:&FloatArgType,point:&FloatArgType)->FloatType{
+        return Common::construct_plane(normal,point);
     }
+
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn
-    AZ_MATH_INLINE void Vec4::Mat3x4InverseFast(const FloatType* __restrict rows, FloatType* __restrict out)
-    {
-    const FloatType pos = Sub(ZeroFloat(), Madd(rows[0], SplatIndex3(rows[0]), Madd(rows[1], SplatIndex3(rows[1]), Mul(rows[2], SplatIndex3(rows[2])))));
-    const FloatType tmp0 = _mm_shuffle_ps(rows[0], rows[1], 0x44);
-    const FloatType tmp2 = _mm_shuffle_ps(rows[0], rows[1], 0xEE);
-    const FloatType tmp1 = _mm_shuffle_ps(rows[2], pos, 0x44);
-    const FloatType tmp3 = _mm_shuffle_ps(rows[2], pos, 0xEE);
-    out[0] = _mm_shuffle_ps(tmp0, tmp1, 0x88);
-    out[1] = _mm_shuffle_ps(tmp0, tmp1, 0xDD);
-    out[2] = _mm_shuffle_ps(tmp2, tmp3, 0x88);
+    unsafe fn plane_distance(plane:&FloatArgType,point:&FloatArgType)->FloatType{
+        return Common::plane_distance(plane, point);
     }
+
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn
-    AZ_MATH_INLINE void Vec4::Mat3x4Transpose(const FloatType* __restrict rows, FloatType* __restrict out)
-    {
-    const FloatType fourth = Common::FastLoadConstant<Vec4>(g_vec0001);
-    const FloatType tmp0 = _mm_shuffle_ps(rows[0], rows[1], 0x44);
-    const FloatType tmp2 = _mm_shuffle_ps(rows[0], rows[1], 0xEE);
-    const FloatType tmp1 = _mm_shuffle_ps(rows[2], fourth, 0x44);
-    const FloatType tmp3 = _mm_shuffle_ps(rows[2], fourth, 0xEE);
-    out[0] = _mm_shuffle_ps(tmp0, tmp1, 0x88);
-    out[1] = _mm_shuffle_ps(tmp0, tmp1, 0xDD);
-    out[2] = _mm_shuffle_ps(tmp2, tmp3, 0x88);
+    unsafe fn mat3x4inverse_fast(rows:*const FloatType,mut out:*const FloatType){
+        let pos = Vec4::sub(Vec4::zero_float().borrow(), Vec4::madd(*rows[0], Vec4::splat_index3(*rows[0]).borrow(), Vec4::madd(*rows[1], Vec4::splat_index3(*rows[1]).borrow(), Vec4::mul(*rows[2], Vec4::splat_index3(*rows[2]).borrow()).borrow()).borrow()).borrow());
+        let tmp0 = _mm_shuffle_ps(rows[0], rows[1], 0x44);
+        let tmp2 = _mm_shuffle_ps(rows[0], rows[1], 0xEE);
+        let tmp1 = _mm_shuffle_ps(rows[2], pos, 0x44);
+        let tmp3 = _mm_shuffle_ps(rows[2], pos, 0xEE);
+        *out[0] = _mm_shuffle_ps(tmp0, tmp1, 0x88);
+        *out[1] = _mm_shuffle_ps(tmp0, tmp1, 0xDD);
+        *out[2] = _mm_shuffle_ps(tmp2, tmp3, 0x88);
     }
+
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn
-    AZ_MATH_INLINE void Vec4::Mat3x4Multiply(const FloatType* __restrict rowsA, const FloatType* __restrict rowsB, FloatType* __restrict out)
-    {
-    Common::Mat3x4Multiply<Vec4>(rowsA, rowsB, out);
+    unsafe fn mat3x4transpose(rows:*const FloatType,mut out:*const FloatType){
+        let fourth = Common::fast_load_constant(G_VEC1111.borrow());
+        let tmp0 = _mm_shuffle_ps(rows[0], rows[1], 0x44);
+        let tmp2 = _mm_shuffle_ps(rows[0], rows[1], 0xEE);
+        let tmp1 = _mm_shuffle_ps(rows[2], fourth, 0x44);
+        let tmp3 = _mm_shuffle_ps(rows[2], fourth, 0xEE);
+        *out[0] = _mm_shuffle_ps(tmp0, tmp1, 0x88);
+        *out[1] = _mm_shuffle_ps(tmp0, tmp1, 0xDD);
+        *out[2] = _mm_shuffle_ps(tmp2, tmp3, 0x88);
     }
+
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn
-    AZ_MATH_INLINE void Vec4::Mat4x4InverseFast(const FloatType* __restrict rows, FloatType* __restrict out)
-    {
-    Common::Mat4x4InverseFast<Vec4>(rows, out);
+    unsafe fn mat3x4multiply(rows_a:*const FloatType, rows_b:*const FloatType, mut out:*const FloatType){
+        Common::mat3x4multiply(rows_a,rows_b,out);
     }
+
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn
-    AZ_MATH_INLINE void Vec4::Mat4x4Transpose(const FloatType* __restrict rows, FloatType* __restrict out)
-    {
-    const FloatType tmp0 = _mm_shuffle_ps(rows[0], rows[1], 0x44);
-    const FloatType tmp2 = _mm_shuffle_ps(rows[0], rows[1], 0xEE);
-    const FloatType tmp1 = _mm_shuffle_ps(rows[2], rows[3], 0x44);
-    const FloatType tmp3 = _mm_shuffle_ps(rows[2], rows[3], 0xEE);
-    out[0] = _mm_shuffle_ps(tmp0, tmp1, 0x88);
-    out[1] = _mm_shuffle_ps(tmp0, tmp1, 0xDD);
-    out[2] = _mm_shuffle_ps(tmp2, tmp3, 0x88);
-    out[3] = _mm_shuffle_ps(tmp2, tmp3, 0xDD);
+    unsafe fn mat4x4inverse_fast(rows:*const FloatType,mut out :*const FloatType){
+        Common::mat4x4inverse_fast(rows,out);
     }
+
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn
-    AZ_MATH_INLINE void Vec4::Mat4x4Multiply(const FloatType* __restrict rowsA, const FloatType* __restrict rowsB, FloatType* __restrict out)
-    {
-    Common::Mat4x4Multiply<Vec4>(rowsA, rowsB, out);
+    unsafe fn mat4x4transpose(rows:*const FloatType,mut out :*const FloatType){
+        let tmp0 = _mm_shuffle_ps(rows[0], rows[1], 0x44);
+        let tmp2 = _mm_shuffle_ps(rows[0], rows[1], 0xEE);
+        let tmp1 = _mm_shuffle_ps(rows[2], rows[3], 0x44);
+        let tmp3 = _mm_shuffle_ps(rows[2], rows[3], 0xEE);
+        *out[0] = _mm_shuffle_ps(tmp0, tmp1, 0x88);
+        *out[1] = _mm_shuffle_ps(tmp0, tmp1, 0xDD);
+        *out[2] = _mm_shuffle_ps(tmp2, tmp3, 0x88);
+        *out[3] = _mm_shuffle_ps(tmp2, tmp3, 0xDD);
     }
+
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn
-    AZ_MATH_INLINE void Vec4::Mat4x4MultiplyAdd(const FloatType* __restrict rowsA, const FloatType* __restrict rowsB, const FloatType* __restrict add, FloatType* __restrict out)
-    {
-    Common::Mat4x4MultiplyAdd<Vec4>(rowsA, rowsB, add, out);
+    unsafe fn mat4x4multiply(rows_a:*const FloatType, rows_b:*const FloatType, mut out:*const FloatType){
+        Common::mat4x4multiply(rows_a,rows_b,out);
     }
+
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn
-    AZ_MATH_INLINE void Vec4::Mat4x4TransposeMultiply(const FloatType* __restrict rowsA, const FloatType* __restrict rowsB, FloatType* __restrict out)
-    {
-    Common::Mat4x4TransposeMultiply<Vec4>(rowsA, rowsB, out);
+    unsafe fn mat4x4multiply_add(rows_a:*const FloatType, rows_b:*const FloatType, add:*const FloatType, mut out:*const FloatType){
+        Common::mat4x4multiply_add(rows_a,rows_b,add,out);
     }
+
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn
-    AZ_MATH_INLINE Vec4::FloatType Vec4::Mat4x4TransformVector(const FloatType* __restrict rows, FloatArgType vector)
-    {
-    const FloatType prod1 = Mul(rows[0], vector);
-    const FloatType prod2 = Mul(rows[1], vector);
-    const FloatType prod3 = Mul(rows[2], vector);
-    const FloatType prod4 = Mul(rows[3], vector);
-    return _mm_hadd_ps(_mm_hadd_ps(prod1, prod2), _mm_hadd_ps(prod3, prod4));
+    unsafe fn mat4x4transpose_multiply(rows_a:*const FloatType, rows_b:*const FloatType, mut out:*const FloatType){
+        Common::mat4x4transpose_multiply(rows_a, rows_b, out);
     }
+
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn
-    AZ_MATH_INLINE Vec4::FloatType Vec4::Mat4x4TransposeTransformVector(const FloatType* __restrict rows, FloatArgType vector)
-    {
-    return Common::Mat4x4TransposeTransformVector<Vec4>(rows, vector);
+    unsafe fn mat4x4transform_vector(rows:*const FloatType,vector:&FloatArgType)->FloatType{
+        let prod1 = Vec4::mul(*rows[0],vector);
+        let prod2 = Vec4::mul(*rows[1],vector);
+        let prod3 = Vec4::mul(*rows[2],vector);
+        let prod4 = Vec4::mul(*rows[3],vector);
+        return _mm_hadd_ps(_mm_hadd_ps(prod1, prod2), _mm_hadd_ps(prod3, prod4));
     }
+
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
     unsafe fn mat4x4_transpose_transform_vector(rows:*const FloatType,vector:&FloatArgType)->FloatType{
-        return  Common::m
+        return  Common::mat4x4transpose_transform_vector(rows,vector);
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
     unsafe fn mat4x4_transform_point3(rows:*const FloatType,vector:&FloatArgType)->FloatType{
-        let vecXYZ = Vec4::replace_index3_f32(vector,1.0.borrow());
-        let prod1 = Vec4::mul(rows[0],vecXYZ.borrow());
-        let prod2 = Vec4::mul(rows[1],vecXYZ.borrow());
-        let prod3 = Vec4::mul(rows[2],vecXYZ.borrow());
+        let vec_xyz = Vec4::replace_index3_f32(vector, 1.0.borrow());
+        let prod1 = Vec4::mul(rows[0], vec_xyz.borrow());
+        let prod2 = Vec4::mul(rows[1], vec_xyz.borrow());
+        let prod3 = Vec4::mul(rows[2], vec_xyz.borrow());
         return  _mm_hadd_ps(_mm_hadd_ps(prod1, prod2), _mm_hadd_ps(prod3, Vec4::zero_float()));
     }
 
