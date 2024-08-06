@@ -5,439 +5,152 @@ use crate::math::constants::*;
 use crate::math::simd_math_vec1_sse::*;
 use crate::math::vsimd::*;
 
-pub trait VecType {
-    fn add(arg1: &FloatArgType, arg2: &FloatArgType) -> FloatType;
-    fn sub(arg1: &FloatArgType, arg2: &FloatArgType) -> FloatType;
-    fn mul(arg1: &FloatArgType, arg2: &FloatArgType) -> FloatType;
-    fn div(arg1:&FloatType, arg2: &mut FloatType) ->FloatType;
+pub trait VecType{
+    fn load_aligned(addr :*f32)->FloatType;
+    fn load_aligned_i128(addr :*const Int32Type)->Int32Type;
+    fn load_unaligned(addr:&f32)->FloatType;
+    fn load_unaligned_i128(addr:*const Int32Type)->Int32Type;
+    fn store_aligned( addr:*mut f32,value:&FloatArgType);
+    fn store_aligned_i128(addr :*mut Int32Type,value:&Int32ArgType);
+    fn store_unaligned(addr :*mut f32,value:&FloatArgType);
+    fn store_unaligned_i128(addr:*mut Int32Type,value:&Int32ArgType);
+    fn stream_aligned(addr :*mut f32,value:&FloatArgType);
+    fn stream_aligned_i128(addr:*mut Int32Type,value:&Int32ArgType);
+    fn select_index0(value:&FloatArgType)->f32;
+    fn splat(value:&f32)->FloatType;
+    fn splat_i32(value:&i32)->Int32Type;
+
+    fn add(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
+    fn sub(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
+    fn mul(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
     fn madd(mul1:&FloatArgType,mul2:&FloatArgType,add:&FloatArgType)->FloatType;
-    fn not(value:&FloatArgType)->FloatType;
-    fn and(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
+    fn div(arg1:&FloatType, arg2: &mut FloatType) ->FloatType;
+    fn abs(value:&FloatArgType)->FloatType;
     fn add_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
     fn sub_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
-    fn and_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
+    fn mul_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
+    fn madd_i32(mul1:&Int32ArgType,mul2:Int32ArgType,add:&Int32ArgType)->Int32Type;
+    fn abs_i32(value:&Int32ArgType)->Int32Type;
+    fn not(value:&FloatArgType)->FloatType;
+    fn and(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
     fn and_not(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
     fn or(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
-    fn splat_i32(value:&i32)->Int32Type;
-    fn splat_index0(value:&FloatArgType)->FloatType;
-    fn select(arg1:&FloatArgType,arg2:&FloatArgType,mask:&FloatArgType)->FloatType;
-    fn splat(value:&f32)->FloatType;
-    fn sin(value:&FloatArgType)->FloatType;
     fn xor(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
-    fn abs(value:&FloatArgType)->FloatType;
-    fn load_immediate(x:&f32)->FloatType;
-    fn load_immediate_fourth_f32(x:&f32,y:&f32,z:&f32,w:&f32)->FloatType;
-    fn sqrt(value:&FloatArgType)->FloatType;
-    fn sqrt_estimate(value:&FloatArgType)->FloatType;
-    fn sqrt_inv_estimate(value:&FloatArgType) ->FloatType;
-    fn atan(value:&FloatArgType) ->FloatType;
-    fn mod_calculate(arg1: &FloatArgType, arg2: &FloatArgType) -> FloatType;
+    fn not_i32(value:&Int32ArgType)->Int32Type;
+    fn and_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
+    fn or_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
+    fn xor_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
+    fn and_not_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
+    fn floor(value:&FloatArgType)->FloatType;
+    fn ceil(value:&FloatArgType)->FloatType;
+    fn round(value:&FloatArgType)->FloatType;
+    fn truncate(value:&FloatArgType) ->FloatType;
+    fn min(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
+    fn max(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
+    fn clamp(value:&FloatArgType,min:&FloatArgType,max:&FloatArgType) ->FloatType;
+    fn min_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
+    fn max_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
+    fn clamp_i32(value:&Int32ArgType,min:&Int32ArgType,max:&Int32ArgType) ->Int32Type;
     fn cmp_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
-    fn cmp_lt(arg1: &FloatArgType, arg2: &FloatArgType) -> FloatType;
+    fn cmp_neq(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
     fn cmp_gt(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
     fn cmp_gt_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
-    fn cmp_eq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
+    fn cmp_lt(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
+    fn cmp_lt_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
+    fn cmp_all_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->bool;
     fn cmp_all_lt(arg1:&FloatArgType,arg2:&FloatArgType) ->bool;
-    fn dot(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
+    fn cmp_all_lt_eq(arg1:&FloatArgType,arg2:&FloatArgType) -> bool;
+    fn cmp_all_gt(arg1:&FloatArgType,arg2:&FloatArgType) ->bool;
+    fn cmp_all_gt_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->bool;
+    fn cmp_eq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
+    fn cmp_neq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
+    fn cmp_gt_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
+    fn cmp_gt_eq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
+    fn cmp_lt_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
+    fn cmp_lt_eq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
+    fn cmp_all_eq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->bool;
+    fn select(arg1:&FloatArgType,arg2:&FloatArgType,mask:&FloatArgType)->FloatType;
+    fn select_i32(arg1:&Int32ArgType,arg2:&Int32ArgType,mask:&Int32ArgType)->Int32Type;
+    fn reciprocal(value:&FloatArgType)->FloatType;
+    fn reciprocal_estimate(value:&FloatArgType)->FloatType;
+    fn mod_calculate(value:&FloatArgType,divisor:&FloatArgType)->FloatType;
+    fn  wrap(value:&FloatArgType, min_value:&FloatArgType, max_value:&FloatArgType) ->FloatType;
+    fn angle_mod(value:&FloatArgType) ->FloatType;
+    fn sqrt(value:&FloatArgType)->FloatType;
+    fn sqrt_estimate(value:&FloatArgType)->FloatType;
+    fn sqrt_inv(value:&FloatArgType)->FloatType;
+    fn sqrt_inv_estimate(value:&FloatArgType) ->FloatType;
+    fn sin(value:&FloatArgType)->FloatType;
+    fn cos(value:&FloatArgType)->FloatType;
+    fn sin_cos(value:&FloatArgType,sin:&FloatType,cos:&FloatType);
+    fn acos(value:&FloatArgType)->FloatType;
+    fn atan(value:&FloatArgType) ->FloatType;
+    fn atan2(y:&FloatArgType,x:&FloatArgType) ->FloatType;
+    fn exp_estimate(x:&FloatArgType)->FloatType;
     fn convert_to_float(value:&Int32ArgType)->FloatType;
     fn convert_to_int(value:&FloatArgType)->Int32Type;
     fn convert_to_int_nearest(value:&FloatArgType)->Int32Type;
     fn cast_to_float(value:&Int32ArgType)->FloatType;
     fn cast_to_int(value:&FloatArgType)->Int32Type;
-    fn zero_float()->FloatType;
+    fn zero_float() ->FloatType;
     fn zero_int() ->Int32Type;
+}
 
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn normalize(value:&FloatArgType)->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn normalize_estimate(value:&FloatArgType) ->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn from_vec3(value:&FloatArgType) ->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn load_aligned(addr :*f32)->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn load_aligned_i128(addr :*const Int32Type)->Int32Type;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn load_unaligned(addr:&f32)->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn load_unaligned_i128(addr:*const Int32Type)->Int32Type;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn store_aligned( addr:*mut f32,value:&FloatArgType);
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn store_aligned_i128(addr :*mut Int32Type,value:&Int32ArgType);
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn store_unaligned(addr :*mut f32,value:&FloatArgType);
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn store_unaligned_i128(addr:*mut Int32Type,value:&Int32ArgType);
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn stream_aligned(addr :*mut f32,value:&FloatArgType);
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn stream_aligned_i128(addr:*mut Int32Type,value:&Int32ArgType);
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn select_index0(value:&FloatArgType)->f32;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn select_index1(value:&FloatArgType)->f32;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn select_index2(value:&FloatArgType)->f32;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn select_index3(value:&FloatArgType)->f32;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn splat_index1(value:&FloatArgType)->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn splat_index2(value:&FloatArgType)->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn splat_index3(value:&FloatArgType)->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn replace_index0_f32(a:&FloatArgType,b:&f32) ->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn replace_index0(a:&FloatArgType,b:&FloatArgType) ->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn replace_index1_f32(a:&FloatArgType,b:&f32) ->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn replace_index1(a:&FloatArgType,b:&FloatArgType) ->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn replace_index2_f32(a:&FloatArgType,b:&f32) ->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn replace_index2(a:&FloatArgType,b:&FloatArgType) ->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn replace_index3_f32(a:&FloatArgType,b:&f32) ->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn replace_index3(a:&FloatArgType,b:&FloatArgType) ->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn load_immediate_fourth_i32(x:&i32,y:&i32,z:&i32,w:&i32)->Int32Type;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn mul_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn madd_i32(mul1:&Int32ArgType,mul2:&Int32ArgType,add:&Int32ArgType)->Int32Type;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn abs_i32(value:&Int32ArgType)->Int32Type;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn not_i32(value:&Int32ArgType)->Int32Type;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn and_not_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn or_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn xor_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn floor(value:&FloatArgType)->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn ceil(value:&FloatArgType)->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn round(value:&FloatArgType)->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn truncate(value:&FloatArgType) ->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn min(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn max(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn clamp(value:&FloatArgType,min:&FloatArgType,max:&FloatArgType) ->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn min_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn max_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn clamp_i32(value:&Int32ArgType,min:&Int32ArgType,max:&Int32ArgType) ->Int32Type;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn cmp_neq(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn cmp_lt_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn cmp_all_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->bool;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn cmp_all_lt_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->bool;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn cmp_all_gt(arg1:&FloatArgType,arg2:&FloatArgType) ->bool;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn cmp_all_gt_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->bool;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn cmp_neq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn cmp_gt_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn cmp_gt_eq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn cmp_lt_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn cmp_lt_eq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn cmp_all_eq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->bool;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn select_i32(arg1:&Int32ArgType,arg2:&Int32ArgType,mask:&Int32ArgType)->Int32Type;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn reciprocal(value:&FloatArgType)->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn reciprocal_estimate(value:&FloatArgType)->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn  wrap(value:&FloatArgType, min_value:&FloatArgType, max_value:&FloatArgType) ->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn angle_mod(value:&FloatArgType) ->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn sqrt_inv(value:&FloatArgType)->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn cos(value:&FloatArgType)->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn sin_cos(value:&FloatArgType, sin:&FloatType,cos:&FloatType);
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn sin_cos_to_float_type(angles:&FloatArgType)->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn acos(value:&FloatArgType)->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn atan2(y:&FloatArgType,x:&FloatArgType) ->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn exp_estimate(value:&FloatArgType)->FloatType;
+pub trait VecTwoType:VecType{
+    fn value_to_vec1(value:&FloatArgType) ->FloatType;
+    fn from_vec1(value:&FloatArgType) ->FloatType;
+    fn select_index1(value:&FloatArgType)->f32;
+    fn splat_index0(value:&FloatArgType)->FloatType;
+    fn splat_index1(value:&FloatArgType)->FloatType;
+    fn replace_index0(a:&FloatArgType,b:&FloatArgType)->FloatType;
+    fn replace_index0_f32(value:&FloatArgType,b:&f32)->FloatType;
+    fn replace_index1_f32(a:&FloatArgType,b:&f32)->FloatType;
+    fn replace_index1(a:&FloatArgType,b:&FloatArgType)->FloatType;
+    fn dot(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
+    fn normalize(value:&FloatArgType)->FloatType;
+    fn normalize_estimate(value:&FloatArgType)->FloatType;
+    fn normalize_safe(value:&FloatArgType,tolerance:&f32)->FloatType;
+    fn normalize_safe_estimate(value:&FloatArgType,tolerance:&f32)->FloatType;
+}
 
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-    unsafe fn normalize_safe(value:&FloatArgType,tolerance:&f32) ->FloatType;
+pub trait VecThirdType:VecTwoType{
+    fn value_to_vec2(value:&FloatArgType)->FloatType;
+    fn from_vec2(value:&FloatArgType)->FloatType;
+    fn select_index2(value:&FloatArgType)->f32;
+    fn splat_index2(value:&FloatArgType)->FloatType;
+    fn replace_index2_f32(a:&FloatArgType,b:&f32)->FloatType;
+    fn replace_index2(a:&FloatArgType,b:&FloatArgType)->FloatType;
 
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-    unsafe fn normalize_safe_estimate(value:&FloatArgType, tolerance:&f32) ->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-    unsafe fn quaternion_multiply(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-    unsafe fn quaternion_transform(quat:&FloatArgType,vec3:&FloatArgType)->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-    unsafe fn mat4x4_transform_point3(rows:*const FloatType,vector:&FloatArgType)->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-    unsafe fn mat4x4_transpose_transform_vector(rows:*const FloatType,vector:&FloatArgType)->FloatType;
-
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-    unsafe fn construct_plane(normal:&FloatArgType,point:&FloatArgType)->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-    unsafe fn plane_distance(plane:&FloatArgType,point:&FloatArgType)->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-    unsafe fn mat3x4inverse_fast(rows:*const FloatType,mut out:*const FloatType);
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-    unsafe fn mat3x4transpose(rows:*const FloatType,mut out:*const FloatType);
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-    unsafe fn mat3x4multiply(rows_a:*const FloatType, rows_b:*const FloatType, mut out:*const FloatType);
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-    unsafe fn mat4x4inverse_fast(rows:*const FloatType,mut out :*const FloatType);
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-    unsafe fn mat4x4transpose(rows:*const FloatType,mut out :*const FloatType);
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-    unsafe fn mat4x4multiply(rows_a:*const FloatType, rows_b:*const FloatType, mut out:*const FloatType);
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-    unsafe fn mat4x4multiply_add(rows_a:*const FloatType, rows_b:*const FloatType, add:*const FloatType, mut out:*const FloatType);
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-    unsafe fn mat4x4transpose_multiply(rows_a:*const FloatType, rows_b:*const FloatType, mut out:*const FloatType);
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-    unsafe fn mat4x4transform_vector(rows:*const FloatType,vector:&FloatArgType)->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn cmp_all_gt_eq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->bool;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn cmp_all_gt_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->bool;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn cmp_all_lt_eq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->bool;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn cmp_all_lt_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->bool;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-     unsafe fn load_immediate_i32(x:&i32)->Int32Type;
+}
+pub trait VecFourthType:VecThirdType{
+    fn value_to_vec3(value:&FloatArgType)->FloatType;
+    fn from_vec3(value:&FloatArgType)->FloatType;
+    fn select_index3(value:&FloatArgType)->f32;
+    fn splat_index3(value:&FloatArgType)->FloatType;
+    fn replace_index3_f32(a:&FloatArgType,b:&f32)->FloatType;
+    fn replace_index3(a:&FloatArgType,b:&FloatArgType)->FloatType;
 }
 
 pub trait Vec1Type:VecType{
+    fn load_immediate(x:&f32)->FloatType;
+    fn load_immediate_i32(x:&i32)->Int32Type;
+}
+pub trait Vec2Type :VecTwoType{
+    fn load_immediate(x:&f32,y:&f32)->FloatType;
+    fn load_immediate_i32(x:&i32,y:&i32)->Int32Type;
+    fn atan2_float_type(value:&FloatArgType)->FloatType;
+    fn sin_cos_to_float_type(angle:&FloatArgType)->FloatType;
 
 }
-pub trait Vec2Type:VecType{
-
+pub trait Vec3Type :VecThirdType{
+    fn load_immediate(x:&f32,y:&f32,z:&f32)->FloatType;
+    fn load_immediate_i32(x:&i32,y:&i32,z:&i32)->Int32Type;
+    fn cross(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
+    fn mat3x3inverse(rows:*const FloatType,out :*const FloatType);
 }
-pub trait Vec3Type:VecType{
-
-}
-pub trait Vec4Type:VecType{
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-    unsafe fn from_vec1(value:&FloatArgType) ->FloatType;
-    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
-    #[inline]
-    #[allow(dead_code)]
-    unsafe fn from_vec2(value:&FloatArgType) ->FloatType;
+pub trait Vec4Type :VecFourthType{
+    fn load_immediate(x:&f32,y:&f32,z:&f32,w:&f32)->FloatType;
+    fn load_immediate_i32(x:&i32,y:&i32,z:&i32,w:&i32)->Int32Type;
 }
 pub struct Common{
 }
