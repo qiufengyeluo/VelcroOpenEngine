@@ -263,15 +263,17 @@ impl Vector2 {
 
     pub unsafe fn set_length(mut self, length:&f32){
         let scale = length/self.get_length();
-        self._value = mul(self._value,splat(scale));
+        self._value = Vec2::mul(self._value.borrow(),Vec2::splat(scale.borrow()).borrow());
     }
 
     pub unsafe fn set_length_estimate(mut self,length:&f32){
-        let scale = length/self.get_length_estimate();
-        self._value = mul(self._value,splat(scale));
+        let scale = length / self.get_length_estimate();
+        self._value = Vec2::mul(self._value.borrow(),Vec2::splat(scale.borrow()).borrow());
     }
 
     pub unsafe fn get_distance_sq(mut self, v:&Vector2) ->f32{
+        return  (self - v).get_length_sq();
+        return ((*this) - v).GetLengthSq();
         let result = Vector2::new_float_type(sub(self._value,v._value).borrow());
         return result.get_length_sq();
     }
