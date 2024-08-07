@@ -34,12 +34,22 @@ impl Mul<f32> for &Vector2 {
     fn mul(self, rhs: f32) -> Self::Output {
         unsafe {
             Vector2 {
-                _value: mul(self._value, splat(rhs)),
+                _value: Vec2::mul(self._value.borrow(), Vec2::splat(rhs.borrow()).borrow()),
             }
         }
     }
 }
+impl Sub<Vector2> for &Vector2 {
+    type Output = Vector2;
 
+    fn sub(self, rhs: Vector2) -> Self::Output {
+        unsafe {
+            Vector2 {
+                _value: Vec2::sub(self._value.borrow(), rhs._value.borrow()),
+            }
+        }
+    }
+}
 impl Vector2 {
     pub unsafe fn new()->Vector2{
         Vector2{
@@ -272,10 +282,7 @@ impl Vector2 {
     }
 
     pub unsafe fn get_distance_sq(mut self, v:&Vector2) ->f32{
-        return  (self - v).get_length_sq();
-        return ((*this) - v).GetLengthSq();
-        let result = Vector2::new_float_type(sub(self._value,v._value).borrow());
-        return result.get_length_sq();
+        return  (*self - v).get_length_sq();
     }
 
     pub unsafe fn get_distance(mut self, v:&Vector2) ->f32{
