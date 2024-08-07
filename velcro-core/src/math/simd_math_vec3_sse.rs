@@ -1,7 +1,7 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
 
-use std::arch::x86_64::{_mm_set_ps1, _mm_shuffle_ps};
+use std::arch::x86_64::{_mm_movelh_ps, _mm_set_ps1, _mm_shuffle_ps, _mm_unpackhi_ps, _mm_unpacklo_ps};
 
 use crate::math::common_sse::{Common, Vec2Type, Vec3Type, VecThirdType, VecTwoType, VecType};
 use crate::math::simd_math_vec2_sse::Vec2;
@@ -794,26 +794,82 @@ impl Vec3Type for Vec3 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn mat3x3inverse(rows:*const FloatType,mut out :*const FloatType){
-        const FloatType row0YZX = _mm_shuffle_ps(rows[0], rows[0], _MM_SHUFFLE(0, 0, 2, 1));
-        const FloatType row0ZXY = _mm_shuffle_ps(rows[0], rows[0], _MM_SHUFFLE(0, 1, 0, 2));
-        const FloatType row1YZX = _mm_shuffle_ps(rows[1], rows[1], _MM_SHUFFLE(0, 0, 2, 1));
-        const FloatType row1ZXY = _mm_shuffle_ps(rows[1], rows[1], _MM_SHUFFLE(0, 1, 0, 2));
-        const FloatType row2YZX = _mm_shuffle_ps(rows[2], rows[2], _MM_SHUFFLE(0, 0, 2, 1));
-        const FloatType row2ZXY = _mm_shuffle_ps(rows[2], rows[2], _MM_SHUFFLE(0, 1, 0, 2));
+    unsafe fn mat3x3inverse(rows:*const FloatType,mut out :&*const FloatType){
 
-        FloatType cols[3] = { Sub(Mul(row1YZX, row2ZXY), Mul(row1ZXY, row2YZX))
-            , Sub(Mul(row2YZX, row0ZXY), Mul(row2ZXY, row0YZX))
-            , Sub(Mul(row0YZX, row1ZXY), Mul(row0ZXY, row1YZX)) };
+        let row0yzx =  _mm_shuffle_ps(rows[0], rows[0], _MM_SHUFFLE(0, 0, 2, 1));
+        let row0zxy = _mm_shuffle_ps(rows[0], rows[0], _MM_SHUFFLE(0, 1, 0, 2));
+        let row1yzx = _mm_shuffle_ps(rows[1], rows[1], _MM_SHUFFLE(0, 0, 2, 1));
+        let row1zxy = _mm_shuffle_ps(rows[1], rows[1], _MM_SHUFFLE(0, 1, 0, 2));
+        let row2yzx = _mm_shuffle_ps(rows[2], rows[2], _MM_SHUFFLE(0, 0, 2, 1));
+        let row2zxy = _mm_shuffle_ps(rows[2], rows[2], _MM_SHUFFLE(0, 1, 0, 2));
+        let cols:[FloatType;3] = [Vec3::sub(Vec3::mul(row1yzx.borrow(), row2zxy.borrow()).borrow(), Vec3::mul(row1zxy.borrow(), row2yzx.borrow()).borrow()),
+                                Vec3::sub(Vec3::mul(row2yzx.borrow(), row0zxy.borrow()).borrow(), Vec3::mul(row2zxy.borrow(), row0yzx.borrow()).borrow()),
+                                Vec3::sub(Vec3::mul(row0yzx.borrow(), row1zxy.borrow()).borrow(), Vec3::mul(row0zxy.borrow(), row1yzx.borrow()).borrow())];
 
-        const FloatType detXYZ = Mul(rows[0], cols[0]);
-        const FloatType detTmp = Add(detXYZ, _mm_shuffle_ps(detXYZ, detXYZ, _MM_SHUFFLE(0, 1, 0, 1)));
-        const FloatType det    = Add(detTmp, _mm_shuffle_ps(detXYZ, detXYZ, _MM_SHUFFLE(0, 0, 2, 2)));
+        let det_xyz =  Vec3::mul(rows[0], cols[0].borrow());
+        let det_tmp = Vec3::add(det_xyz.borrow(), _mm_shuffle_ps(det_xyz, det_xyz, _MM_SHUFFLE(0, 1, 0, 1)).borrow());
+        let mut det    = Vec3::add(det_tmp.borrow(), _mm_shuffle_ps(det_xyz, det_xyz, _MM_SHUFFLE(0, 0, 2, 2)).borrow());
+        Vec3::mat3x3transpose(cols.borrow(), cols.borrow());
 
-        Mat3x3Transpose(cols, cols);
+        *out[0] = Vec3::div(cols[0].borrow(), det.borrow_mut());
+        *out[1] = Vec3::div(cols[1].borrow(), det.borrow_mut());
+        *out[2] = Vec3::div(cols[2].borrow(), det.borrow_mut());
+    }
 
-        out[0] = Div(cols[0], det);
-        out[1] = Div(cols[1], det);
-        out[2] = Div(cols[2], det);
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+    unsafe fn mat3x3adjugate(rows:*const FloatType,mut out :&*const FloatType){
+        let row0yzx = _mm_shuffle_ps(rows[0], rows[0], _MM_SHUFFLE(0, 0, 2, 1));
+        let row0zxy = _mm_shuffle_ps(rows[0], rows[0], _MM_SHUFFLE(0, 1, 0, 2));
+        let row1yzx = _mm_shuffle_ps(rows[1], rows[1], _MM_SHUFFLE(0, 0, 2, 1));
+        let row1zxy = _mm_shuffle_ps(rows[1], rows[1], _MM_SHUFFLE(0, 1, 0, 2));
+        let row2yzx = _mm_shuffle_ps(rows[2], rows[2], _MM_SHUFFLE(0, 0, 2, 1));
+        let row2zxy = _mm_shuffle_ps(rows[2], rows[2], _MM_SHUFFLE(0, 1, 0, 2));
+        let cols:[FloatType;3] = [Vec3::sub(Vec3::mul(row1yzx.borrow(), row2zxy.borrow()).borrow(), Vec3::mul(row1zxy.borrow(), row2yzx.borrow()).borrow()),
+            Vec3::sub(Vec3::mul(row2yzx.borrow(), row0zxy.borrow()).borrow(), Vec3::mul(row2zxy.borrow(), row0yzx.borrow()).borrow()),
+            Vec3::sub(Vec3::mul(row0yzx.borrow(), row1zxy.borrow()).borrow(), Vec3::mul(row0zxy.borrow(), row1yzx.borrow()).borrow())];
+
+
+        Vec3::mat3x3transpose(cols.borrow(), out);
+    }
+
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+    unsafe fn mat3x3transpose(rows:*const FloatType,mut out :&*const FloatType){
+        let tmp0 = _mm_unpacklo_ps(rows[0], rows[1]);
+        let tmp1 = _mm_unpackhi_ps(rows[0], rows[1]);
+        *out[0] = _mm_movelh_ps (tmp0, rows[2]);
+        *out[1] = _mm_shuffle_ps(tmp0, rows[2], _MM_SHUFFLE(3, 1, 3, 2));
+        *out[2] = _mm_shuffle_ps(tmp1, rows[2], _MM_SHUFFLE(3, 2, 1, 0));
+    }
+
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+    unsafe fn mat3x3multiply(rows_a:*const FloatType, rows_b:*const FloatType, mut out:&*const FloatType){
+        Common::mat3x3multiply(rows_a, rows_b, out)
+    }
+
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+    unsafe fn mat3x3transpose_multiply(rows_a:*const FloatType, rows_b:*const FloatType, mut out:&*const FloatType){
+        Common::mat3x3transpose_multiply(rows_a, rows_b, out)
+    }
+
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+    unsafe fn mat3x3transform_vector(rows:*const FloatType,vector:&FloatArgType)->FloatType{
+        return  Common::mat3x3transform_vector(rows, vector);
+    }
+
+    #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
+    #[inline]
+    #[allow(dead_code)]
+    unsafe fn mat3x3transpose_transform_vector(rows:*const FloatType,vector:&FloatArgType)->FloatType{
+        return  Common::mat3x3transpose_transform_vector(rows, vector);
     }
 }

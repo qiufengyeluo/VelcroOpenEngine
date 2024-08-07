@@ -12,9 +12,12 @@ use vsimd::neon::*;
 use vsimd::sse::*;
 
 use crate::math::*;
+use crate::math::common_sse::{Vec2Type, VecTwoType, VecType};
 use crate::math::constants::*;
 use crate::math::math_utils::*;
 use crate::math::simd_math::*;
+use crate::math::simd_math_vec1_sse::Vec1;
+use crate::math::simd_math_vec2_sse::Vec2;
 use crate::math::vector::*;
 use crate::math::vector3::Vector3;
 use crate::math::vector4::Vector4;
@@ -105,66 +108,65 @@ impl Vector2 {
     }
 
     pub unsafe fn create_select_cmp_equal(cmp1:&Vector2,cmp2:&Vector2,va:&Vector2,vb:&Vector2)->Vector2{
-        let mask = cmp_eq(cmp1._value,cmp2._value);
-        let result = Vector2::new_float_type(select(va._value,vb._value,mask).borrow());
+        let mask = Vec2::cmp_eq(cmp1._value.borrow(),cmp2._value.borrow());
+        let result = Vector2::new_float_type(Vec2::select(va._value.borrow(),vb._value.borrow(),mask.borrow()).borrow());
         result
     }
 
     pub unsafe fn create_select_cmp_greater_equal(cmp1:&Vector2,cmp2:&Vector2,va:&Vector2,vb:&Vector2)->Vector2{
-        let mask = cmp_gt_eq(cmp1._value,cmp2._value);
-        let result = Vector2::new_float_type(select(va._value,vb._value,mask).borrow());
+        let mask = Vec2::cmp_gt_eq(cmp1._value.borrow(),cmp2._value.borrow());
+        let result = Vector2::new_float_type(Vec2::select(va._value.borrow(),vb._value.borrow(),mask.borrow()).borrow());
         result
     }
 
     pub unsafe fn create_select_cmp_greater(cmp1:&Vector2, cmp2:&Vector2, va:&Vector2, vb:&Vector2) ->Vector2{
-        let mask = cmp_gt(cmp1._value,cmp2._value);
-        let result = Vector2::new_float_type(select(va._value,vb._value,mask).borrow());
+        let mask = Vec2::cmp_gt(cmp1._value.borrow(),cmp2._value.borrow());
+        let result = Vector2::new_float_type(Vec2::select(va._value.borrow(),vb._value.borrow(),mask.borrow()).borrow());
         result
     }
 
     pub unsafe fn store_to_float2(self,mut value : *const f32){
-        let mut result = value as *[f32;2];
-        let values:*const [f32;2] = (*self._value) as *const [f32;2];
-        *result[0] = values[0];
-        *result[1] = values[1];
+        let values = *self._value as *const f32;
+        *value[0] = *values[0];
+        *value[1] = *values[1];
     }
 
     pub fn get_x(self)->f32{
-        let values:*const [f32;2] = (*self._value) as *const [f32;2];
+        let values = *self._value as *const f32;
         *values[0]
     }
 
     pub fn get_y(self)->f32{
-        let values:*const [f32;2] = (*self._value) as *const [f32;2];
+        let values = *self._value as *const f32;
         *values[1]
     }
     pub fn set_x(mut self,x:&f32){
-        let mut values:*const [f32;2] = (*self._value) as *const [f32;2];
+        let values = *self._value as *const f32;
         *values[0] = x
     }
 
     pub fn set_y(mut self,y :&f32){
-        let mut values:*const [f32;2] = (*self._value) as *const [f32;2];
+        let values = *self._value as *const f32;
         *values[1] = y
     }
 
     pub fn get_element(self, index :&i32) ->f32{
-        let values:*const [f32;2] = (*self._value) as *const [f32;2];
+        let values = *self._value as *const f32;
         values[index]
     }
 
 
     pub fn set_element(mut self,index:&i32,value:&f32){
-        let mut values:*const [f32;2] = (*self._value) as *const [f32;2];
+        let values = *self._value as *const f32;
         *values[index] = value
     }
 
     pub unsafe  fn set_splat_x(mut self,x:&f32){
-        self._value = splat(x.to_owned());
+        self._value = Vec2::splat(x);
     }
 
     pub unsafe fn set_load_immediate(mut self,x:&f32,y:&f32){
-        self._value = load_immediate(x.to_owned(),y.to_owned(),0.0,0.0);
+        self._value = Vec2::load_immediate(x,y);
     }
 
     pub unsafe fn get_length_sq(self)->f32{
@@ -172,83 +174,87 @@ impl Vector2 {
     }
 
     pub  unsafe fn get_length(self) ->f32{
-        return  select_first(sqrt(vec2_dot_to_float_type(self._value.borrow(),self._value.borrow())));
+        return Vec1::select_index0(Vec1::sqrt(Vec2::dot(self._value.borrow(),self._value.borrow()).borrow()).borrow());
     }
 
     pub unsafe fn get_length_estimate(self) ->f32{
-        return select_first(sqrt_estimate(vec2_dot_to_float_type(self._value.borrow(),self._value.borrow())));
+        return Vec1::select_index0(Vec1::sqrt_estimate(Vec2::dot(self._value.borrow(),self._value.borrow()).borrow()).borrow());
     }
 
     pub unsafe fn get_length_reciprocal(self) ->f32{
-        return select_first(sqrt_inv(vec2_dot_to_float_type(self._value.borrow(),self._value.borrow())));
+        return Vec1::select_index0(Vec1::sqrt_inv(Vec2::dot(self._value.borrow(),self._value.borrow()).borrow()).borrow());
     }
 
     pub unsafe fn get_length_reciprocal_estimate(self) ->f32{
-        return select_first(sqrt_inv_estimate(vec2_dot_to_float_type(self._value.borrow(),self._value.borrow())));
+        return Vec1::select_index0(Vec1::sqrt_inv_estimate(Vec2::dot(self._value.borrow(),self._value.borrow()).borrow()).borrow());
     }
 
     pub unsafe fn get_normalized(self) ->Vector2{
-        return Vector2::new_float_type(normalize(self._value).borrow());
+        return Vector2::new_float_type(Vec2::normalize(self._value.borrow()).borrow());
     }
 
     pub unsafe fn get_normalized_estimate(self) ->Vector2{
-        return  Vector2::new_float_type(normalize_estimate(self._value).borrow());
+        return  Vector2::new_float_type(Vec2::normalize_estimate(self._value.borrow()).borrow());
     }
 
     pub unsafe fn normalize(mut self){
-        self._value = normalize(self._value);
+        self._value = Vec2::normalize(self._value.borrow());
     }
 
     pub unsafe fn normalize_estimate(mut self){
-        self._value = normalize_estimate(self._value);
+        self._value = Vec2::normalize_estimate(self._value.borrow());
     }
 
     pub unsafe fn normalize_with_length(mut self)->f32{
         let length = self.get_length();
-        self.mul_assign((1.0/length).borrow());
+        self  *= 1.0/length;
         return length
     }
 
     pub unsafe fn normalize_with_length_estimate(mut self) ->f32{
         let length = self.get_length_estimate();
-        self.mul_assign((1.0/length).borrow());
+        self  *= 1.0/length;
         return length
     }
 
     pub unsafe fn get_normalized_safe(self, tolerance:&f32) ->Vector2{
-        return Vector2::new_float_type(normalize_safe(self._value,tolerance.to_owned()).borrow());
+        return Vector2::new_float_type(Vec2::normalize_safe(self._value.borrow(),tolerance).borrow());
     }
 
     pub  unsafe fn get_normalized_safe_estimate(self, tolerance:&f32) ->Vector2{
-        return  Vector2::new_float_type(normalize_safe_estimate(self._value,tolerance.to_owned()).borrow())
+        return  Vector2::new_float_type(Vec2::normalize_safe_estimate(self._value.borrow(),tolerance).borrow())
     }
 
     pub unsafe fn normalize_safe(mut self, tolerance:&f32){
-        self._value = normalize_safe(self._value,tolerance.to_owned());
+        self._value = Vec2::normalize_safe(self._value.borrow(),tolerance);
     }
 
     pub unsafe fn normalize_safe_estimate(mut self, tolerance:&f32){
-        self._value = normalize_safe_estimate(self._value,tolerance.to_owned());
+        self._value = Vec2::normalize_safe_estimate(self._value.borrow(),tolerance);
     }
 
     pub unsafe fn normalize_safe_with_length(mut self, tolerance:&f32) ->f32{
-        let length = sqrt(dot_to_f32_type(self._value,self._value));
-        if select_first(length) < tolerance.to_owned(){
-            self._value = zero_float();
+        let length = Vec1::sqrt(Vec2::dot(self._value.borrow(),self._value.borrow()).borrow());
+        if Vec1::select_index0(length.borrow()) < tolerance.to_owned(){
+            self._value = Vec2::zero_float();
         }else {
-            self._value = div(self._value,splat_first(from_vec_first(length)));
+            let mut val = Vec2::splat_index0(Vec2::from_vec1(length.borrow()).borrow());
+            self._value = Vec2::div(self._value.borrow(),val.borrow_mut());
         }
-        return select_first(length);
+        return Vec1::select_index0(length.borrow());
+
     }
 
     pub unsafe fn normalize_safe_with_length_estimate(mut self, tolerance:&f32) ->f32{
-        let length = sqrt_estimate(dot_to_f32_type(self._value,self._value));
-        if select_first(length) < tolerance.to_owned(){
-            self._value = zero_float();
+        let length = Vec1::sqrt_estimate(Vec2::dot(self._value.borrow(),self._value.borrow()).borrow());
+        if Vec1::select_index0(length.borrow()) < tolerance.to_owned(){
+            self._value = Vec2::zero_float();
         }else {
-            self._value = div(self._value,splat_first(from_vec_first(length)));
+            let mut val = Vec2::splat_index0(Vec2::from_vec1(length.borrow()).borrow());
+            self._value = Vec2::div(self._value.borrow(),val.borrow_mut());
         }
-        return select_first(length);
+        return Vec1::select_index0(length.borrow());
+
     }
 
     pub unsafe fn is_normalized(self, tolerance:&f32) ->bool{
@@ -563,7 +569,7 @@ impl MulAssign<Vector2> for Vector2 {
 
 impl MulAssign<f32> for Vector2 {
     fn mul_assign(&mut self, rhs: f32) {
-        unsafe { self = Vector2::new_float_type(mul(self.get_simd_value(), splat(rhs)).borrow()).to_owned().borrow_mut(); }
+        unsafe { self._value = Vec2::mul(self.get_simd_value().borrow(), Vec2::splat(rhs.borrow()).borrow()); }
     }
 }
 
