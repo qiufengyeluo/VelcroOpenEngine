@@ -9,7 +9,7 @@ use vsimd::neon::*;
 use vsimd::sse::{FloatArgType, FloatType};
 
 use crate::math::*;
-use crate::math::common_sse::{Vec4Type, VecThirdType, VecType};
+use crate::math::common_sse::{Vec4Type, VecFourthType, VecThirdType, VecType};
 use crate::math::simd_math_vec4_sse::Vec4;
 use crate::math::vector2::Vector2;
 use crate::math::vector3::Vector3;
@@ -88,7 +88,7 @@ impl Vector4 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn new_vec3(source:&Vector3)->Vector4{
-        let result =  Vector4{ _value:replace_third_f32(source.get_simd_value(),0.0)};
+        let result =  Vector4{ _value:Vec4::from_vec3(source.get_simd_value().borrow())};
         let mut tmp = *result._value as [f32;4];
         *tmp[3] = 1.0;
         result
@@ -97,7 +97,7 @@ impl Vector4 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn new_vec3_w(source:&Vector3,w:&f32)->Vector4{
-        let result =  Vector4{ _value:replace_third_f32(source.get_simd_value(),0.0)};
+        let result =  Vector4{ _value:Vec4::from_vec3(source.get_simd_value().borrow())};
         let mut tmp = *result._value as [f32;4];
         *tmp[3] = w;
         result
@@ -108,7 +108,7 @@ impl Vector4 {
     pub fn create_zero()->Vector4{
         unsafe {
             Vector4 {
-                _value: zero_float(),
+                _value: Vec4::zero_float(),
             }
         }
     }
@@ -170,21 +170,21 @@ impl Vector4 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn create_select_cmp_equal(cmp1:&Vector4,cmp2:&Vector4,va:&Vector4,vb:&Vector4)->Vector4{
-        let mask = cmp_eq(cmp1._value,cmp2._value);
+        let mask = Vec4::cmp_eq(cmp1._value.borrow(),cmp2._value.borrow());
         return Vector4::new_float_type(select(va._value,vb._value,mask).borrow());
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn create_select_cmp_greater_equal(cmp1:&Vector4, cmp2:&Vector4, va:&Vector4, vb:&Vector4) ->Vector4{
-        let mask = cmp_gt_eq(cmp1._value,cmp2._value);
+        let mask = Vec4::cmp_gt_eq(cmp1._value,cmp2._value);
         return Vector4::new_float_type(select(va._value,vb._value,mask).borrow());
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn create_select_cmp_greater(cmp1:&Vector4, cmp2:&Vector4, va:&Vector4, vb:&Vector4) ->Vector4{
-        let mask = cmp_gt(cmp1._value,cmp2._value);
+        let mask = Vec4::cmp_gt(cmp1._value,cmp2._value);
         return Vector4::new_float_type(select(va._value,vb._value,mask).borrow());
     }
 
