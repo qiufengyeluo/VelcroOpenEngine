@@ -6,9 +6,11 @@
 use vsimd::neon::*;
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
 #[allow(dead_code)]
-use vsimd::sse::*;
+use vsimd::sse::{FloatArgType, FloatType};
 
 use crate::math::*;
+use crate::math::common_sse::{Vec4Type, VecThirdType, VecType};
+use crate::math::simd_math_vec4_sse::Vec4;
 use crate::math::vector2::Vector2;
 use crate::math::vector3::Vector3;
 
@@ -24,7 +26,7 @@ impl Vector4 {
     pub fn new()->Vector4{
         unsafe {
             Vector4 {
-                _value: zero_float(),
+                _value:Vec4::zero_float(),
             }
         }
     }
@@ -33,7 +35,7 @@ impl Vector4 {
     #[allow(dead_code)]
     pub unsafe fn new_x(x:&f32)->Vector4{
         Vector4{
-            _value:splat(x.to_owned()),
+            _value:Vec4::splat(x),
         }
     }
 
@@ -41,7 +43,7 @@ impl Vector4 {
     #[allow(dead_code)]
     pub unsafe fn new_x_y_z_w(x:&f32,y:&f32,z:&f32,w:&f32)->Vector4{
         Vector4{
-            _value:load_immediate(x.to_owned(),y.to_owned(),z.to_owned(),w.to_owned()),
+            _value:Vec4::load_immediate(x,y,z,w),
         }
     }
 
@@ -56,8 +58,8 @@ impl Vector4 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn new_vec2(source:&Vector2)->Vector4{
-        let result =  Vector4{ _value:replace_third_f32(replace_second_f32(source.get_simd_value(),0.0),0.0)};
-        let mut tmp = *result._value as [f32;4];
+        let result =  Vector4{ _value:Vec4::from_vec2(source.get_simd_value().borrow())};
+        let mut tmp = *result._value as *const f32;
         *tmp[2] = 0.0;
         *tmp[3] = 1.0;
         result
@@ -66,8 +68,8 @@ impl Vector4 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn new_vec2_z(source:&Vector2,z:&f32)->Vector4{
-        let result =  Vector4{ _value:replace_third_f32(replace_second_f32(source.get_simd_value(),0.0),0.0)};
-        let mut tmp = *result._value as [f32;4];
+        let result =  Vector4{ _value:Vec4::from_vec2(source.get_simd_value().borrow())};
+        let mut tmp = *result._value as *const f32;
         *tmp[2] = z;
         *tmp[3] = 1.0;
         result
@@ -76,8 +78,8 @@ impl Vector4 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn new_vec2_z_w(source:&Vector2,z:&f32,w:&f32)->Vector4{
-        let result =  Vector4{ _value:replace_third_f32(replace_second_f32(source.get_simd_value(),0.0),0.0)};
-        let mut tmp = *result._value as [f32;4];
+        let result =  Vector4{ _value:Vec4::from_vec2(source.get_simd_value().borrow())};
+        let mut tmp = *result._value as *const f32;
         *tmp[2] = z;
         *tmp[3] = w;
         result

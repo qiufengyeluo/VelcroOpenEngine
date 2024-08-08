@@ -2,6 +2,7 @@
 #![allow(clippy::many_single_char_names)]
 
 use core::f64;
+
 use crate::math::constants::PI;
 
 pub fn get_clamp<T>(value :T, min:T, max:T ) ->T
@@ -14,6 +15,21 @@ pub fn get_clamp<T>(value :T, min:T, max:T ) ->T
         max
     } else {
         value
+    }
+}
+pub fn max<T>(left:&T,right:&T)->T{
+    return if left > right{
+        left
+    }else {
+        right
+    }
+}
+
+pub fn min<T>(left:&T,right:&T)->T{
+    return  if left < right{
+        left
+    }else {
+        right
     }
 }
 
