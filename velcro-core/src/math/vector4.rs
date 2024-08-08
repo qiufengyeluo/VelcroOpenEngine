@@ -9,7 +9,8 @@ use vsimd::neon::*;
 use vsimd::sse::{FloatArgType, FloatType};
 
 use crate::math::*;
-use crate::math::common_sse::{Vec4Type, VecFourthType, VecThirdType, VecType};
+use crate::math::common_sse::{Vec4Type, VecFourthType, VecThirdType, VecTwoType, VecType};
+use crate::math::simd_math_vec1_sse::Vec1;
 use crate::math::simd_math_vec4_sse::Vec4;
 use crate::math::vector2::Vector2;
 use crate::math::vector3::Vector3;
@@ -171,89 +172,89 @@ impl Vector4 {
     #[allow(dead_code)]
     pub unsafe fn create_select_cmp_equal(cmp1:&Vector4,cmp2:&Vector4,va:&Vector4,vb:&Vector4)->Vector4{
         let mask = Vec4::cmp_eq(cmp1._value.borrow(),cmp2._value.borrow());
-        return Vector4::new_float_type(select(va._value,vb._value,mask).borrow());
+        return Vector4::new_float_type(Vec4::select(va._value.borrow(),vb._value.borrow(),mask.borrow()).borrow());
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn create_select_cmp_greater_equal(cmp1:&Vector4, cmp2:&Vector4, va:&Vector4, vb:&Vector4) ->Vector4{
-        let mask = Vec4::cmp_gt_eq(cmp1._value,cmp2._value);
-        return Vector4::new_float_type(select(va._value,vb._value,mask).borrow());
+        let mask = Vec4::cmp_gt_eq(cmp1._value.borrow(),cmp2._value.borrow());
+        return Vector4::new_float_type(Vec4::select(va._value.borrow(),vb._value.borrow(),mask.borrow()).borrow());
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn create_select_cmp_greater(cmp1:&Vector4, cmp2:&Vector4, va:&Vector4, vb:&Vector4) ->Vector4{
-        let mask = Vec4::cmp_gt(cmp1._value,cmp2._value);
-        return Vector4::new_float_type(select(va._value,vb._value,mask).borrow());
+        let mask = Vec4::cmp_gt(cmp1._value.borrow(),cmp2._value.borrow());
+        return Vector4::new_float_type(Vec4::select(va._value.borrow(),vb._value.borrow(),mask).borrow());
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn store_to_float_4(self, values:*mut f32){
-        store_unaligned(values,self._value);
+        Vec4::store_unaligned(values,self._value.borrow());
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn get_x(self)->f32{
-        let values:*const [f32;4] = (*self._value) as *const [f32;4];
+        let values = *self._value as *const f32;
         *values[0]
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn get_y(self)->f32{
-        let values:*const [f32;4] = (*self._value) as *const [f32;4];
+        let values = *self._value as *const f32;
         *values[1]
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn get_z(self)->f32{
-        let values:*const [f32;4] = (*self._value) as *const [f32;4];
+        let values = *self._value as *const f32;
         *values[2]
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn get_w(self)->f32{
-        let values:*const [f32;4] = (*self._value) as *const [f32;4];
+        let values = *self._value as *const f32;
         *values[3]
     }
 
     #[inline]
     #[allow(dead_code)]
     pub fn get_element(self,index:i32)->f32{
-        let values:*const [f32;4] = (*self._value) as *const [f32;4];
+        let values = *self._value as *const f32;
         *values[index]
     }
 
     #[inline]
     #[allow(dead_code)]
     pub fn set_x(mut self, x :f32){
-        let mut values:*const [f32;4] = (*self._value) as *const [f32;4];
+        let values = *self._value as *const f32;
         *values[0] = x
     }
 
     #[inline]
     #[allow(dead_code)]
     pub fn set_y(mut self, y:f32){
-        let mut values:*const [f32;4] = (*self._value) as *const [f32;4];
+        let values = *self._value as *const f32;
         *values[1] = y
     }
 
     #[inline]
     #[allow(dead_code)]
     pub fn set_z(mut self, z:f32){
-        let mut values:*const [f32;4] = (*self._value) as *const [f32;4];
+        let values = *self._value as *const f32;
         *values[2] = z
     }
 
     #[inline]
     #[allow(dead_code)]
     pub fn set_w(mut self, w:f32){
-        let mut values:*const [f32;4] = (*self._value) as *const [f32;4];
+        let values = *self._value as *const f32;
         *values[3] = w
     }
 
@@ -296,7 +297,7 @@ impl Vector4 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn set_element(mut self,index:&i32,v:&f32){
-        let mut values:*const [f32;4] = (*self._value) as *const [f32;4];
+        let values = *self._value as *const f32;
         *values[index] = v
     }
 
@@ -305,43 +306,46 @@ impl Vector4 {
     pub unsafe fn get_as_vector3(self)->Vector3{
         return Vector3::new_float_type(self._value.borrow());
     }
-AZ_MATH_INLINE float Vector4::GetLengthSq() const
-{
-return Dot(*this);
-}
+
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn get_length_sq(self)->f32{
-        return self.dot_f32(self)
+        return self.dot_vec4(*self)
     }
-AZ_MATH_INLINE float Vector4::GetLength() const
-{
-const Simd::Vec1::FloatType lengthSq = Simd::Vec4::Dot(m_value, m_value);
-return Simd::Vec1::SelectIndex0(Simd::Vec1::Sqrt(lengthSq));
-}
 
-AZ_MATH_INLINE float Vector4::GetLengthEstimate() const
-{
-const Simd::Vec1::FloatType lengthSq = Simd::Vec4::Dot(m_value, m_value);
-return Simd::Vec1::SelectIndex0(Simd::Vec1::SqrtEstimate(lengthSq));
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_length(self)->f32{
+        let length_sq = Vec4::dot(self._value.borrow(), self._value.borrow());
+        return Vec1::select_index0(Vec1::sqrt(length_sq.borrow()).borrow());
+    }
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_length_estimate(self)->f32{
+        let length_sq = Vec4::dot(self._value.borrow(),self._value.borrow());
+        return Vec1::select_index0(Vec1::sqrt_estimate(length_sq.borrow()).borrow());
+    }
 
-AZ_MATH_INLINE float Vector4::GetLengthReciprocal() const
-{
-const Simd::Vec1::FloatType lengthSq = Simd::Vec4::Dot(m_value, m_value);
-return Simd::Vec1::SelectIndex0(Simd::Vec1::SqrtInv(lengthSq));
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_length_reciprocal(self) ->f32{
+        let length_sq = Vec4::dot(self._value.borrow(), self._value.borrow());
+        return Vec1::select_index0(Vec1::sqrt_inv(length_sq.borrow()).borrow());
+    }
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  get_length_reciprocal_estimate(self) ->f32{
+        let length_sq = Vec4::dot(self._value.borrow(), self._value.borrow());
+        return Vec1::select_index0(Vec1::sqrt_inv_estimate(length_sq.borrow()).borrow());
+    }
 
-AZ_MATH_INLINE float Vector4::GetLengthReciprocalEstimate() const
-{
-const Simd::Vec1::FloatType lengthSq = Simd::Vec4::Dot(m_value, m_value);
-return Simd::Vec1::SelectIndex0(Simd::Vec1::SqrtInvEstimate(lengthSq));
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  get_normalized(self) ->Vector4{
+        let result = Vector4::new_float_type(Vec4::normalize(self._value.borrow()).borrow());
+        result
+    }
 
-AZ_MATH_INLINE Vector4 Vector4::GetNormalized() const
-{
-return Vector4(Simd::Vec4::Normalize(m_value));
-}
 
 AZ_MATH_INLINE Vector4 Vector4::GetNormalizedEstimate() const
 {
