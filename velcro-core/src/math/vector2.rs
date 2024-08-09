@@ -414,7 +414,7 @@ impl Vector2 {
     }
 
     pub unsafe fn angle(self,v:&Vector2) ->f32{
-        let cos = self.dot_vec2(v) * simd_inv_sqrt(self.get_length_sq() * v.GetLengthSq());
+        let cos = self.dot2(v) * simd_inv_sqrt(self.get_length_sq() * v.GetLengthSq());
         let res = simd_acos(get_clamp(cos.borrow(),-1.0.borrow(),1.0.borrow()).borrow());
         return res;
     }
@@ -448,7 +448,7 @@ impl Vector2 {
     pub unsafe fn get_reciprocal_estimate(self) ->Vector2{
         return Vector2::new_float_type(Vec2::reciprocal_estimate(self._value.borrow()).borrow());
     }
-    pub unsafe fn dot_vec2(self,rhs:&Vector2)->f32{
+    pub unsafe fn dot2(self,rhs:&Vector2)->f32{
         return Vec1::select_index0(Vec2::dot(self._value.borrow(),rhs._value.borrow()).borrow());
     }
 
@@ -461,18 +461,18 @@ impl Vector2 {
     }
 
     pub unsafe fn project(mut self, rhs:&Vector2){
-        self._value = (rhs * (self.dot_vec2(rhs)/rhs.dot_vec2(rhs)))._value;
+        self._value = (rhs * (self.dot2(rhs)/rhs.dot2(rhs)))._value;
     }
 
     pub unsafe fn project_on_normal(mut self, normal:&Vector2){
-        self._value = (normal * self.dot_vec2(normal))._value;
+        self._value = (normal * self.dot2(normal))._value;
     }
 
     pub unsafe fn get_projected(self, rhs:&Vector2) ->Vector2{
-        return rhs*(self.dot_vec2(rhs)/rhs.dot_vec2(rhs));
+        return rhs*(self.dot2(rhs)/rhs.dot2(rhs));
     }
     pub unsafe fn get_projected_on_normal(self, normal:&Vector2) ->Vector2{
-        return normal *self.dot_vec2(normal);
+        return normal *self.dot2(normal);
     }
 
     pub unsafe fn is_finite(self) ->bool{

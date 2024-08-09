@@ -308,13 +308,13 @@ impl Vector3 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  normalize(mut self){
-        self = self.get_normalized();
+        self._value = self.get_normalized()._value;
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  normalize_estimate(mut self){
-        self = self.get_normalized_estimate();
+        self._value = self.get_normalized_estimate()._value;
     }
 
     #[inline]
@@ -337,35 +337,35 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  get_normalized_safe( self,tolerance:f32)->Vector3{
+    pub unsafe fn  get_normalized_safe( self,tolerance:&f32)->Vector3{
         let result = Vector3::new_float_type(Vec3::normalize_safe(self._value.borrow(),tolerance.borrow()).borrow());
         result
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  get_normalized_safe_estimate(self,tolerance:f32)->Vector3{
+    pub unsafe fn  get_normalized_safe_estimate(self,tolerance:&f32)->Vector3{
         let result = Vector3::new_float_type(Vec3::normalize_safe_estimate(self._value.borrow(),tolerance.borrow()).borrow());
         result
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  normalize_safe(mut self, tolerance:f32){
+    pub unsafe fn  normalize_safe(mut self, tolerance:&f32){
         self._value = Vec3::normalize_safe(self._value.borrow(),tolerance.borrow())
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  normalize_safe_estimate(mut self, tolerance:f32){
+    pub unsafe fn  normalize_safe_estimate(mut self, tolerance:&f32){
         self._value = Vec3::normalize_safe_estimate(self._value.borrow(),tolerance.borrow());
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  normalize_safe_with_length(mut self, tolerance:f32)->f32{
+    pub unsafe fn  normalize_safe_with_length(mut self, tolerance:&f32)->f32{
         let length = Vec1::sqrt( Vec3::dot(self._value.borrow(),self._value.borrow()).borrow());
-        if Vec1::select_index0(length.borrow()) < tolerance{
+        if Vec1::select_index0(length.borrow()) < tolerance.to_owned(){
             self._value = Vec3::zero_float();
         }else {
             self._value = Vec3::div(self._value.borrow(),Vec3::splat_index0(Vec3::from_vec1(length.borrow()).borrow()).borrow_mut());
@@ -376,9 +376,9 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  normalize_safe_with_length_estimate(mut self, tolerance:f32) ->f32{
+    pub unsafe fn  normalize_safe_with_length_estimate(mut self, tolerance:&f32) ->f32{
         let length = Vec1::sqrt_estimate(Vec3::dot(self._value.borrow(),self._value.borrow()).borrow());
-        if Vec1::select_index0(length.borrow()) < tolerance{
+        if Vec1::select_index0(length.borrow()) < tolerance.to_owned(){
             self._value = Vec3::zero_float();
         }else {
             self._value = Vec3::div(self._value.borrow(),Vec3::splat_index0(Vec3::from_vec1(length.borrow()).borrow()).borrow_mut());
@@ -389,20 +389,20 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  is_normalized(self,tolerance:f32)->bool{
-        return (simd_abs((self.get_length_sq() - 1.0).borrow()) <= tolerance);
+    pub unsafe fn  is_normalized(self,tolerance:&f32)->bool{
+        return (simd_abs((self.get_length_sq() - 1.0).borrow()) <= tolerance.to_owned());
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  set_length(mut self, length:f32){
+    pub unsafe fn  set_length(mut self, length:&f32){
         let scale =   self.get_length_reciprocal() * length;
         self *= scale ;
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  set_length_estimate(mut self, length:f32){
+    pub unsafe fn  set_length_estimate(mut self, length:&f32){
         let scale = length* self.get_length_reciprocal_estimate();
         self *= scale;
     }
@@ -448,12 +448,12 @@ impl Vector3 {
     #[allow(dead_code)]
     pub unsafe fn  nlerp(self, dest :&Vector3,t:&f32)->Vector3{
         let result = self.lerp(dest.borrow(),t);
-        return  result.get_normalized_safe(TOLERANCE);
+        return  result.get_normalized_safe(TOLERANCE.borrow());
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  dot_vec3(self,rhs:&Vector3)->f32{
+    pub unsafe fn  dot3(self,rhs:&Vector3)->f32{
         return Vec1::select_index0(Vec3::dot(self.get_simd_value().borrow(),rhs.get_simd_value().borrow()).borrow());
     }
 
@@ -639,7 +639,7 @@ impl Vector3 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  angle(self, v:&Vector3)->f32{
-        let cos =self.dot_vec3(v.borrow())*simd_inv_sqrt((self.get_length_sq()*v.get_length_sq()).borrow());
+        let cos =self.dot3(v.borrow())*simd_inv_sqrt((self.get_length_sq()*v.get_length_sq()).borrow());
         let res = simd_acos(get_clamp(cos.borrow(), (-1.0) .borrow(), 1.0.borrow()));
         res
     }
@@ -735,22 +735,22 @@ impl Vector3 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  project(&mut self, rhs: &mut Vector3){
-        self._value = (rhs * (self.dot_vec3(rhs) / rhs.dot_vec3(rhs)))._value;
+        self._value = (rhs * (self.dot3(rhs) / rhs.dot3(rhs)))._value;
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  project_on_normal(mut self,mut normal :&Vector3){
-        self._value = (normal * self.dot_vec3(normal))._value;
+        self._value = (normal * self.dot3(normal))._value;
     }
     pub  unsafe fn get_projected(self,mut rhs:&Vector3)->Vector3{
-        return rhs * (self.dot_vec3(rhs) / rhs.dot_vec3(rhs));
+        return rhs * (self.dot3(rhs) / rhs.dot3(rhs));
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_projected_on_normal(self,normal:&Vector3)->Vector3{
-        return normal * self.dot_vec3(normal);
+        return normal * self.dot3(normal);
     }
 
     #[inline]

@@ -1,6 +1,8 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
 
+use std::ops::MulAssign;
+
 #[cfg(target_arch = "arm")]
 #[allow(dead_code)]
 use vsimd::neon::*;
@@ -10,7 +12,11 @@ use vsimd::sse::{FloatArgType, FloatType};
 
 use crate::math::*;
 use crate::math::common_sse::{Vec4Type, VecFourthType, VecThirdType, VecTwoType, VecType};
+use crate::math::constants::TOLERANCE;
+use crate::math::simd_math::simd_abs;
 use crate::math::simd_math_vec1_sse::Vec1;
+use crate::math::simd_math_vec2_sse::Vec2;
+use crate::math::simd_math_vec3_sse::Vec3;
 use crate::math::simd_math_vec4_sse::Vec4;
 use crate::math::vector2::Vector2;
 use crate::math::vector3::Vector3;
@@ -21,6 +27,19 @@ pub struct Vector4 {
     _value: FloatType,
 }
 
+impl MulAssign<f32> for Vector4 {
+    fn mul_assign(&mut self, rhs: &f32) {
+        unsafe { self = Vector4::new_float_type(Vec4::mul(self.get_simd_value().borrow(), Vec4::splat(rhs).borrow()).borrow()).to_owned().borrow_mut(); }
+    }
+}
+impl PartialEq<Self> for Vector4 {
+    fn eq(&self, other: &Self) -> bool {
+        unsafe { return Vec4::cmp_all_eq(self._value.borrow(), other._value.borrow()); }
+    }
+    fn ne(&self, other: &Self) -> bool {
+        unsafe { return !Vec4::cmp_all_eq(self._value.borrow(), other._value.borrow()); }
+    }
+}
 impl Vector4 {
     #[inline]
     #[allow(dead_code)]
@@ -186,7 +205,7 @@ impl Vector4 {
     #[allow(dead_code)]
     pub unsafe fn create_select_cmp_greater(cmp1:&Vector4, cmp2:&Vector4, va:&Vector4, vb:&Vector4) ->Vector4{
         let mask = Vec4::cmp_gt(cmp1._value.borrow(),cmp2._value.borrow());
-        return Vector4::new_float_type(Vec4::select(va._value.borrow(),vb._value.borrow(),mask).borrow());
+        return Vector4::new_float_type(Vec4::select(va._value.borrow(),vb._value.borrow(),mask.borrow()).borrow());
     }
 
     #[inline]
@@ -261,19 +280,19 @@ impl Vector4 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn set_f32(mut self,x:&f32){
-        self._value = splat(x.to_owned());
+        self._value = Vec4::splat(x);
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn set_x_y_z_w(mut self,x:&f32,y:&f32,z:&f32,w:&f32){
-        self._value = load_immediate(x.to_owned(),y.to_owned(),z.to_owned(),w.to_owned());
+        self._value = Vec4::load_immediate(x,y,z,w);
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn set(mut self, values:*const f32){
-        self._value = load_aligned(values);
+        self._value = Vec4::load_aligned(values);
     }
 
     #[inline]
@@ -346,240 +365,254 @@ impl Vector4 {
         result
     }
 
-
-AZ_MATH_INLINE Vector4 Vector4::GetNormalizedEstimate() const
-{
-return Vector4(Simd::Vec4::NormalizeEstimate(m_value));
-}
-
-AZ_MATH_INLINE void Vector4::Normalize()
-{
-*this = GetNormalized();
-}
-
-AZ_MATH_INLINE void Vector4::NormalizeEstimate()
-{
-*this = GetNormalizedEstimate();
-}
-
-AZ_MATH_INLINE Vector4 Vector4::GetNormalizedSafe(float tolerance) const
-{
-return Vector4(Simd::Vec4::NormalizeSafe(m_value, tolerance));
-}
-
-AZ_MATH_INLINE Vector4 Vector4::GetNormalizedSafeEstimate(float tolerance) const
-{
-return Vector4(Simd::Vec4::NormalizeSafeEstimate(m_value, tolerance));
-}
-
-AZ_MATH_INLINE void Vector4::NormalizeSafe(float tolerance)
-{
-*this = GetNormalizedSafe(tolerance);
-}
-
-AZ_MATH_INLINE void Vector4::NormalizeSafeEstimate(float tolerance)
-{
-*this = GetNormalizedSafeEstimate(tolerance);
-}
-
-AZ_MATH_INLINE float Vector4::NormalizeWithLength()
-{
-const float length = Simd::Vec1::SelectIndex0(
-Simd::Vec1::Sqrt(Simd::Vec4::Dot(m_value, m_value)));
-m_value = Simd::Vec4::Div(m_value, Simd::Vec4::Splat(length));
-return length;
-}
-
-AZ_MATH_INLINE float Vector4::NormalizeWithLengthEstimate()
-{
-const float length = Simd::Vec1::SelectIndex0(
-Simd::Vec1::SqrtEstimate(Simd::Vec4::Dot(m_value, m_value)));
-m_value = Simd::Vec4::Div(m_value, Simd::Vec4::Splat(length));
-return length;
-}
-
-AZ_MATH_INLINE float Vector4::NormalizeSafeWithLength(float tolerance)
-{
-const Simd::Vec1::FloatType length = Simd::Vec1::Sqrt(Simd::Vec4::Dot(m_value, m_value));
-m_value = (Simd::Vec1::SelectIndex0(length) < tolerance) ? Simd::Vec4::ZeroFloat() : Simd::Vec4::Div(m_value, Simd::Vec4::SplatIndex0(Simd::Vec4::FromVec1(length)));
-return Simd::Vec1::SelectIndex0(length);
-}
-
-AZ_MATH_INLINE float Vector4::NormalizeSafeWithLengthEstimate(float tolerance)
-{
-const Simd::Vec1::FloatType length = Simd::Vec1::SqrtEstimate(Simd::Vec4::Dot(m_value, m_value));
-m_value = (Simd::Vec1::SelectIndex0(length) < tolerance) ? Simd::Vec4::ZeroFloat() : Simd::Vec4::Div(m_value, Simd::Vec4::SplatIndex0(Simd::Vec4::FromVec1(length)));
-return Simd::Vec1::SelectIndex0(length);
-}
-
-AZ_MATH_INLINE bool Vector4::IsNormalized(float tolerance) const
-{
-return (Abs(GetLengthSq() - 1.0f) <= tolerance);
-}
-
-AZ_MATH_INLINE void Vector4::SetLength(float length)
-{
-float scale(length * GetLengthReciprocal());
-(*this) *= scale;
-}
-
-AZ_MATH_INLINE void Vector4::SetLengthEstimate(float length)
-{
-float scale(length * GetLengthReciprocalEstimate());
-(*this) *= scale;
-}
-
-AZ_MATH_INLINE float Vector4::GetDistanceSq(const Vector4& v) const
-{
-return ((*this) - v).GetLengthSq();
-}
-
-AZ_MATH_INLINE float Vector4::GetDistance(const Vector4& v) const
-{
-return ((*this) - v).GetLength();
-}
-
-AZ_MATH_INLINE float Vector4::GetDistanceEstimate(const Vector4& v) const
-{
-return ((*this) - v).GetLengthEstimate();
-}
-
-AZ_MATH_INLINE bool Vector4::IsClose(const Vector4& v, float tolerance) const
-{
-Vector4 dist = (v - (*this)).GetAbs();
-return dist.IsLessEqualThan(Vector4(tolerance));
-}
-
-AZ_MATH_INLINE bool Vector4::IsZero(float tolerance) const
-{
-Vector4 dist = GetAbs();
-return dist.IsLessEqualThan(Vector4(tolerance));
-}
-
-AZ_MATH_INLINE bool Vector4::operator==(const Vector4& rhs) const
-{
-return Simd::Vec4::CmpAllEq(m_value, rhs.m_value);
-}
-
-AZ_MATH_INLINE bool Vector4::operator!=(const Vector4& rhs) const
-{
-return !Simd::Vec4::CmpAllEq(m_value, rhs.m_value);
-}
-
-AZ_MATH_INLINE bool Vector4::IsLessThan(const Vector4& rhs) const
-{
-return Simd::Vec4::CmpAllLt(m_value, rhs.m_value);
-}
-
-AZ_MATH_INLINE bool Vector4::IsLessEqualThan(const Vector4& rhs) const
-{
-return Simd::Vec4::CmpAllLtEq(m_value, rhs.m_value);
-}
-
-AZ_MATH_INLINE bool Vector4::IsGreaterThan(const Vector4& rhs) const
-{
-return Simd::Vec4::CmpAllGt(m_value, rhs.m_value);
-}
-
-AZ_MATH_INLINE bool Vector4::IsGreaterEqualThan(const Vector4& rhs) const
-{
-return Simd::Vec4::CmpAllGtEq(m_value, rhs.m_value);
-}
-
-AZ_MATH_INLINE Vector4 Vector4::GetFloor() const
-{
-return Vector4(Simd::Vec4::Floor(m_value));
-}
-
-AZ_MATH_INLINE Vector4 Vector4::GetCeil() const
-{
-return Vector4(Simd::Vec4::Ceil(m_value));
-}
-
-AZ_MATH_INLINE Vector4 Vector4::GetRound() const
-{
-return Vector4(Simd::Vec4::Round(m_value));
-}
-
-AZ_MATH_INLINE Vector4 Vector4::GetMin(const Vector4& v) const
-{
-#if AZ_TRAIT_USE_PLATFORM_SIMD_SCALAR
-return Vector4(AZ::GetMin(m_x, v.m_x), AZ::GetMin(m_y, v.m_y), AZ::GetMin(m_z, v.m_z), AZ::GetMin(m_w, v.m_w));
-#else
-return Vector4(Simd::Vec4::Min(m_value, v.m_value));
-#endif
-}
-
-AZ_MATH_INLINE Vector4 Vector4::GetMax(const Vector4& v) const
-{
-#if AZ_TRAIT_USE_PLATFORM_SIMD_SCALAR
-return Vector4(AZ::GetMax(m_x, v.m_x), AZ::GetMax(m_y, v.m_y), AZ::GetMax(m_z, v.m_z), AZ::GetMax(m_w, v.m_w));
-#else
-return Vector4(Simd::Vec4::Max(m_value, v.m_value));
-#endif
-}
-
-AZ_MATH_INLINE Vector4 Vector4::GetClamp(const Vector4& min, const Vector4& max) const
-{
-return GetMin(max).GetMax(min);
-}
-
-AZ_MATH_INLINE Vector4 Vector4::Lerp(const Vector4& dest, float t) const
-{
-return Vector4(Simd::Vec4::Madd(Simd::Vec4::Sub(dest.m_value, m_value), Simd::Vec4::Splat(t), m_value));
-}
-
-AZ_MATH_INLINE Vector4 Vector4::Slerp(const Vector4& dest, float t) const
-{
-// Dot product - the cosine of the angle between 2 vectors and clamp it to be in the range of Acos()
-const Simd::Vec1::FloatType dot = Simd::Vec1::Clamp(Simd::Vec4::Dot(m_value, dest.m_value), Simd::Vec1::Splat(-1.0f), Simd::Vec1::Splat(1.0f));
-// Acos(dot) returns the angle between start and end, and multiplying that by proportion returns the angle between start and the final result
-const Simd::Vec1::FloatType theta = Simd::Vec1::Mul(Simd::Vec1::Acos(dot), Simd::Vec1::Splat(t));
-const Simd::Vec4::FloatType relativeVec = Simd::Vec4::Sub(dest.GetSimdValue(), Simd::Vec4::Mul(GetSimdValue(), Simd::Vec4::FromVec1(dot)));
-const Simd::Vec4::FloatType relVecNorm = Simd::Vec4::NormalizeSafe(relativeVec, Constants::Tolerance);
-const Simd::Vec4::FloatType sinCos = Simd::Vec4::FromVec2(Simd::Vec2::SinCos(theta));
-const Simd::Vec4::FloatType relVecSinTheta = Simd::Vec4::Mul(relVecNorm, Simd::Vec4::SplatIndex0(sinCos));
-return Vector4(Simd::Vec4::Madd(GetSimdValue(), Simd::Vec4::SplatIndex1(sinCos), relVecSinTheta));
-}
-
-AZ_MATH_INLINE Vector4 Vector4::Nlerp(const Vector4& dest, float t) const
-{
-return Lerp(dest, t).GetNormalizedSafe(Constants::Tolerance);
-}
-
-AZ_MATH_INLINE float Vector4::Dot(const Vector4& rhs) const
-{
-#if AZ_TRAIT_USE_PLATFORM_SIMD_SCALAR
-return (m_x * rhs.m_x + m_y * rhs.m_y + m_z * rhs.m_z + m_w * rhs.m_w);
-#else
-return Simd::Vec1::SelectIndex0(Simd::Vec4::Dot(m_value, rhs.m_value));
-#endif
-}
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn dot_f32(self,rhs:&Vector4)->f32{
-        return select_first()
+    pub unsafe fn  get_normalized_estimate(self)->Vector4{
+        let result = Vector4::new_float_type( Vec4::normalize_estimate(self._value.borrow()).borrow());
+        result
     }
-AZ_MATH_INLINE float Vector4::Dot3(const Vector3& rhs) const
-{
-#if AZ_TRAIT_USE_PLATFORM_SIMD_SCALAR
-return (m_x * rhs.GetX() + m_y * rhs.GetY() + m_z * rhs.GetZ());
-#else
-return Simd::Vec1::SelectIndex0(Simd::Vec3::Dot(Simd::Vec4::ToVec3(m_value), rhs.GetSimdValue()));
-#endif
-}
 
-AZ_MATH_INLINE void Vector4::Homogenize()
-{
-const Simd::Vec4::FloatType divisor = Simd::Vec4::SplatIndex3(m_value);
-m_value = Simd::Vec4::Div(m_value, divisor);
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  normalize(mut self){
+        self._value = self.get_normalized()._value;
+    }
 
-AZ_MATH_INLINE Vector3 Vector4::GetHomogenized() const
-{
-const Simd::Vec3::FloatType divisor = Simd::Vec4::ToVec3(Simd::Vec4::SplatIndex3(m_value));
-return Vector3(Simd::Vec3::Div(Simd::Vec4::ToVec3(m_value), divisor));
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  normalize_estimate(mut self){
+        self._value = self.get_normalized_estimate()._value;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_normalized_safe(self, tolerance:&f32)->Vector4{
+        return  Vector4::new_float_type(Vec4::normalize_safe(self._value.borrow(),tolerance).borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_normalized_safe_estimate(self, tolerance:&f32)->Vector4{
+        return Vector4::new_float_type(Vec4::normalize_safe_estimate(self._value.borrow(),tolerance).borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  normalize_safe(mut self, tolerance:&f32){
+        self._value = self.get_normalized_safe(tolerance)._value
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn normalize_safe_estimate(mut self, tolerance:&f32){
+        self._value = self.get_normalized_safe_estimate(tolerance)._value
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn normalize_with_length(mut self)->f32{
+        let length = Vec1::select_index0(
+            Vec1::sqrt(Vec4::dot(self._value.borrow(), self._value.borrow()).borrow()).borrow());
+        self._value = Vec4::div(self._value.borrow(), Vec4::splat(length.borrow()).borrow_mut());
+        return length;
+    }
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn normalize_with_length_estimate(mut self) ->f32{
+        let length = Vec1::select_index0(
+            Vec1::sqrt_estimate(Vec4::dot(self._value.borrow(), self._value.borrow()).borrow()).borrow());
+        self._value = Vec4::div(self._value.borrow(), Vec4::splat(length.borrow()).borrow_mut());
+        return length;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn normalize_safe_with_length(mut self,tolerance:&f32)->f32{
+        let length = Vec1::sqrt( Vec4::dot(self._value.borrow(),self._value.borrow()).borrow());
+        if Vec1::select_index0(length.borrow()) < tolerance.to_owned(){
+            self._value = Vec4::zero_float();
+        }else {
+            self._value = Vec4::div(self._value.borrow(),Vec4::splat_index0(Vec4::from_vec1(length.borrow()).borrow()).borrow_mut());
+        }
+        let result = Vec1::select_index0(length.borrow());
+        result
+    }
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn normalize_safe_with_length_estimate(mut self,tolerance:&f32) ->f32{
+        let length = Vec1::sqrt_estimate(Vec4::dot(self._value.borrow(),self._value.borrow()).borrow());
+        if Vec1::select_index0(length.borrow()) < tolerance.to_owned(){
+            self._value = Vec4::zero_float();
+        }else {
+            self._value = Vec4::div(self._value.borrow(),Vec4::splat_index0(Vec4::from_vec1(length.borrow()).borrow()).borrow_mut());
+        }
+        let result = Vec1::select_index0(length.borrow());
+        result
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn is_normalized(self,tolerance:&f32)->bool{
+        return (simd_abs((self.get_length_sq() - 1.0).borrow()) <= tolerance.to_owned());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_length(mut self, length:&f32){
+        let scale =   self.get_length_reciprocal() * length;
+        self *= scale ;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_length_estimate(mut self, length:&f32){
+        let scale = length* self.get_length_reciprocal_estimate();
+        self *= scale;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_distance_sq(mut self, v :&Vector4)->f32{
+        return (*self - v).get_length_sq();
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_distance(mut self, v :&Vector4)->f32{
+        return (*self - v).get_length();
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_distance_estimate(mut self, v :&Vector4)->f32{
+        return (*self - v).get_length_estimate();
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn is_close(&self, v:&Vector4, tolerance :&f32)->bool{
+        let dist:Vector4 = (v - (*self)).get_abs();
+        return dist.is_less_equal_than(Vector4::new_x(tolerance));
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn is_zero(self, tolerance:&f32)->bool{
+        let dist = self.get_abs();
+        return  dist.is_less_equal_than(Vector4::new_x(tolerance).borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn is_less_than(self, rhs :&Vector4)->bool{
+        return Vec4::cmp_all_lt(self.get_simd_value().borrow(),rhs.get_simd_value().borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn is_less_equal_than(self, rhs:&Vector4) ->bool{
+        return Vec4::cmp_all_lt_eq(self._value.borrow(), rhs._value.borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn is_greater_than(self,rhs:&Vector4)->bool{
+        return  Vec4::cmp_all_gt(self.get_simd_value().borrow(),rhs.get_simd_value().borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  is_greater_equal_than(self,rhs:&Vector4)->bool{
+        return  Vec4::cmp_all_gt_eq(self.get_simd_value().borrow(),rhs.get_simd_value().borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  get_floor(self)->Vector4{
+        return Vector4::new_float_type(Vec4::floor(self.get_simd_value().borrow()).borrow()) ;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  get_ceil(self)->Vector4{
+        return Vector4::new_float_type(Vec4::ceil(self.get_simd_value().borrow()).borrow()) ;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  get_round(self)->Vector4{
+        return  Vector4::new_float_type(Vec4::round(self.get_simd_value().borrow()).borrow()) ;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  get_min(self,v :&Vector4)->Vector4{
+        return  Vector4::new_float_type(Vec4::min(self.get_simd_value().borrow(),v.get_simd_value().borrow()).borrow()) ;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  get_max(self,v :&Vector4)->Vector4{
+        return  Vector4::new_float_type(Vec4::max(self.get_simd_value().borrow(),v.get_simd_value().borrow()).borrow()) ;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  get_clamp(self, min:&Vector4,max:&Vector4)->Vector4{
+        return self.get_min(max).get_max(min);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  lerp(self,dest :&Vector4,t :&f32)->Vector4{
+        return Vector4::new_float_type(Vec4::madd(Vec4::sub(dest._value.borrow(),self._value.borrow()).borrow(),Vec4::splat(t).borrow(),self._value.borrow()).borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  slerp(self,dest :&Vector4,t :&f32)->Vector4{
+        let dot_val = Vec1::clamp(Vec4::dot(self._value.borrow(),dest._value.borrow()).borrow(),Vec1::splat((-1.0).borrow()).borrow(),Vec1::splat(1.0.borrow()).borrow());
+        let theta = Vec1::mul(Vec1::acos(dot_val.borrow()).borrow(),Vec1::splat(t).borrow());
+        let relative_vec = Vec4::sub(dest.get_simd_value().borrow(), Vec4::mul(self.get_simd_value().borrow(), Vec4::from_vec1(dot_val.borrow()).borrow()).borrow());
+        let rel_vec_norm = Vec4::normalize_safe(relative_vec.borrow(), TOLERANCE.borrow());
+        let sin_cos = Vec4::from_vec2(Vec2::sin_cos_to_float_type(theta.borrow()).borrow());
+        let rel_vec_sin_theta = Vec4::mul(rel_vec_norm.borrow(), Vec4::splat_index0(sin_cos.borrow()).borrow());
+        let result = Vector3::new_float_type(Vec4::madd(self.get_simd_value().borrow(), Vec3::splat_index1(sin_cos.borrow()).borrow(),rel_vec_sin_theta.borrow()).borrow());
+        result
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  nlerp(self, dest :&Vector4,t:&f32)->Vector4{
+        return  self.lerp(dest.borrow(),t).get_normalized_safe(TOLERANCE.borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  dot4(self,rhs:&Vector4)->f32{
+        return Vec1::select_index0(Vec4::dot(self.get_simd_value().borrow(),rhs.get_simd_value().borrow()).borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn dot3(self,rhs:&Vector4)->f32{
+        return Vec1::select_index0(Vec3::dot(Vec4::value_to_vec3(self._value.borrow()).borrow(),rhs.get_simd_value().borrow()).borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn homogenize(mut self){
+        let divisor = Vec4::splat_index3(self._value.borrow());
+        self._value = Vec4::div(self._value.borrow(),divisor.borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_homogenized(self)->Vector3{
+        let mut divisor = Vec4::value_to_vec3(Vec4::splat_index3(self._value.borrow()).borrow());
+        return Vector3::new_float_type(Vec3::div(Vec4::value_to_vec3(self._value.borrow()).borrow(),divisor.borrow_mut()).borrow())
+    }
+
 
 AZ_MATH_INLINE Vector4 Vector4::operator-() const
 {
