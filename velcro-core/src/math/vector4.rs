@@ -1,7 +1,7 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
 
-use std::ops::MulAssign;
+use std::ops::{Mul, MulAssign, SubAssign};
 
 #[cfg(target_arch = "arm")]
 #[allow(dead_code)]
@@ -11,9 +11,10 @@ use vsimd::neon::*;
 use vsimd::sse::{FloatArgType, FloatType};
 
 use crate::math::*;
-use crate::math::common_sse::{Vec4Type, VecFourthType, VecThirdType, VecTwoType, VecType};
-use crate::math::constants::TOLERANCE;
-use crate::math::simd_math::simd_abs;
+use crate::math::common_sse::{Vec2Type, Vec4Type, VecFourthType, VecThirdType, VecTwoType, VecType};
+use crate::math::constants::{FLOAT_EPSILON, TOLERANCE};
+use crate::math::math_utils::{get_clamp, is_finite_float, rad_to_deg};
+use crate::math::simd_math::{simd_abs, simd_acos, simd_inv_sqrt};
 use crate::math::simd_math_vec1_sse::Vec1;
 use crate::math::simd_math_vec2_sse::Vec2;
 use crate::math::simd_math_vec3_sse::Vec3;
@@ -40,6 +41,35 @@ impl PartialEq<Self> for Vector4 {
         unsafe { return !Vec4::cmp_all_eq(self._value.borrow(), other._value.borrow()); }
     }
 }
+
+impl MulAssign<FloatType> for Vector4 {
+    fn mul_assign(&mut self, rhs: FloatType) {
+        unsafe { self._value = Vec4::mul(self._value.borrow(), rhs.borrow()) }
+    }
+}
+
+impl SubAssign<&Vector4> for &mut Vector4 {
+    fn sub_assign(&mut self, rhs: &Vector4) {
+        unsafe { self._value = Vec3::sub(self._value.borrow(), rhs._value.borrow()) }
+    }
+}
+
+impl Mul<f32> for &mut Vector4 {
+    type Output = Vector4;
+
+    fn mul(self, multiplier: f32) -> Self::Output {
+        unsafe { return Vector4::new_float_type(Vec3::mul(self._value.borrow(), Vec3::splat(multiplier.borrow()).borrow()).borrow()) }
+    }
+}
+
+impl Mul<f32> for &Vector4 {
+    type Output = Vector4;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        unsafe { return Vector4::new_float_type(Vec3::mul(self._value.borrow(), Vec3::splat(rhs.borrow()).borrow()).borrow()) }
+    }
+}
+
 impl Vector4 {
     #[inline]
     #[allow(dead_code)]
@@ -329,7 +359,7 @@ impl Vector4 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn get_length_sq(self)->f32{
-        return self.dot_vec4(*self)
+        return self.dot4(*self)
     }
 
     #[inline]
@@ -504,6 +534,13 @@ impl Vector4 {
 
     #[inline]
     #[allow(dead_code)]
+    pub unsafe fn  is_zero_with_default(self)->bool{
+        let dist = self.get_abs();
+        return  dist.is_less_equal_than(Vector3::new_x(FLOAT_EPSILON.borrow()).borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
     pub unsafe fn is_less_than(self, rhs :&Vector4)->bool{
         return Vec4::cmp_all_lt(self.get_simd_value().borrow(),rhs.get_simd_value().borrow());
     }
@@ -577,7 +614,7 @@ impl Vector4 {
         let rel_vec_norm = Vec4::normalize_safe(relative_vec.borrow(), TOLERANCE.borrow());
         let sin_cos = Vec4::from_vec2(Vec2::sin_cos_to_float_type(theta.borrow()).borrow());
         let rel_vec_sin_theta = Vec4::mul(rel_vec_norm.borrow(), Vec4::splat_index0(sin_cos.borrow()).borrow());
-        let result = Vector3::new_float_type(Vec4::madd(self.get_simd_value().borrow(), Vec3::splat_index1(sin_cos.borrow()).borrow(),rel_vec_sin_theta.borrow()).borrow());
+        let result = Vector4::new_float_type(Vec4::madd(self.get_simd_value().borrow(), Vec3::splat_index1(sin_cos.borrow()).borrow(),rel_vec_sin_theta.borrow()).borrow());
         result
     }
 
@@ -613,175 +650,122 @@ impl Vector4 {
         return Vector3::new_float_type(Vec3::div(Vec4::value_to_vec3(self._value.borrow()).borrow(),divisor.borrow_mut()).borrow())
     }
 
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_sin(self)->Vector4{
+        return  Vector4::new_float_type(Vec4::sin(self._value.borrow()).borrow())
+    }
 
-AZ_MATH_INLINE Vector4 Vector4::operator-() const
-{
-return Vector4(Simd::Vec4::Sub(Simd::Vec4::ZeroFloat(), m_value));
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_cos(self)->Vector4{
+        return Vector4::new_float_type(Vec4::cos(self._value.borrow()).borrow())
+    }
 
-AZ_MATH_INLINE Vector4 Vector4::operator+(const Vector4& rhs) const
-{
-return Vector4(Simd::Vec4::Add(m_value, rhs.m_value));
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_sin_cos(self,mut sin: &Vector4,mut cos :&Vector4){
+        let mut sin_values:FloatType;
+        let mut cos_values:FloatType;
+        Vec4::sin_cos(self._value.borrow(), sin_values.borrow_mut(), cos_values.borrow_mut());
+        sin = &mut Vector4::new_float_type(sin_values.borrow());
+        cos = &mut Vector4::new_float_type(cos_values.borrow());
+    }
 
-AZ_MATH_INLINE Vector4 Vector4::operator-(const Vector4& rhs) const
-{
-return Vector4(Simd::Vec4::Sub(m_value, rhs.m_value));
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_acos(self)->Vector4{
+        return Vector4::new_float_type(Vec4::acos(self._value.borrow()).borrow());
+    }
 
-AZ_MATH_INLINE Vector4 Vector4::operator*(const Vector4& rhs) const
-{
-return Vector4(Simd::Vec4::Mul(m_value, rhs.m_value));
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_atan(self)->Vector4{
+        return Vector4::new_float_type(Vec4::atan(self._value.borrow()).borrow());
+    }
 
-AZ_MATH_INLINE Vector4 Vector4::operator/(const Vector4& rhs) const
-{
-return Vector4(Simd::Vec4::Div(m_value, rhs.m_value));
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_exp_estimate(self) ->Vector4{
+        return Vector4::new_float_type(Vec4::exp_estimate(self._value.borrow()).borrow());
+    }
 
-AZ_MATH_INLINE Vector4 Vector4::operator*(float multiplier) const
-{
-return Vector4(Simd::Vec4::Mul(m_value, Simd::Vec4::Splat(multiplier)));
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_angle_mod(self) ->Vector4{
+        return Vector4::new_float_type(Vec4::angle_mod(self._value.borrow()).borrow());
+    }
 
-AZ_MATH_INLINE Vector4 Vector4::operator/(float divisor) const
-{
-return Vector4(Simd::Vec4::Div(m_value, Simd::Vec4::Splat(divisor)));
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  angle(self, v:&Vector4)->f32{
+        let cos =self.dot4(v.borrow())*simd_inv_sqrt((self.get_length_sq()*v.get_length_sq()).borrow());
+        let res = simd_acos(get_clamp(cos.borrow(), (-1.0) .borrow(), 1.0.borrow()));
+        res
+    }
 
-AZ_MATH_INLINE Vector4& Vector4::operator+=(const Vector4& rhs)
-{
-*this = (*this) + rhs;
-return *this;
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  angle_deg(self,v:&Vector4)->f32{
+        return rad_to_deg(self.angle(v).borrow())
+    }
 
-AZ_MATH_INLINE Vector4& Vector4::operator-=(const Vector4& rhs)
-{
-*this = (*this) - rhs;
-return *this;
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  angle_safe(self, v:&Vector4)->f32{
+        return   if !self.is_zero_with_default()&&!v.is_zero_with_default(){
+            let result = self.angle(v.borrow());
+            result
+        }else {
+            0.0
+        }
+    }
 
-AZ_MATH_INLINE Vector4& Vector4::operator*=(const Vector4& rhs)
-{
-*this = (*this) * rhs;
-return *this;
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  angle_safe_deg(self,v:&Vector4)->f32{
+        return if !self.is_zero_with_default() && !v.is_zero_with_default() {
+            let result = self.angle_deg(v);
+            result
+        }else{
+            0.0
+        }
+    }
 
-AZ_MATH_INLINE Vector4& Vector4::operator/=(const Vector4& rhs)
-{
-*this = (*this) / rhs;
-return *this;
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  get_abs(self)->Vector4{
+        return  Vector4::new_float_type(Vec4::abs(self.get_simd_value().borrow()).borrow());
+    }
 
-AZ_MATH_INLINE Vector4& Vector4::operator*=(float multiplier)
-{
-*this = (*this) * multiplier;
-return *this;
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  get_reciprocal(self)->Vector4{
+        return  Vector4::new_float_type(Vec4::reciprocal(self.get_simd_value().borrow()).borrow());
+    }
 
-AZ_MATH_INLINE Vector4& Vector4::operator/=(float divisor)
-{
-*this = (*this) / divisor;
-return *this;
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  get_reciprocal_estimate(self)->Vector4{
+        return Vector4::new_float_type(Vec4::reciprocal_estimate(self.get_simd_value().borrow()).borrow());
+    }
 
-AZ_MATH_INLINE Vector4 Vector4::GetSin() const
-{
-return Vector4(Simd::Vec4::Sin(m_value));
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  is_finite(self)->bool{
+        return is_finite_float(self.get_x().borrow())&&is_finite_float(self.get_y().borrow())&&is_finite_float(self.get_z().borrow());
+    }
 
-AZ_MATH_INLINE Vector4 Vector4::GetCos() const
-{
-return Vector4(Simd::Vec4::Cos(m_value));
-}
-
-AZ_MATH_INLINE void Vector4::GetSinCos(Vector4& sin, Vector4& cos) const
-{
-Simd::Vec4::FloatType sinValues, cosValues;
-Simd::Vec4::SinCos(m_value, sinValues, cosValues);
-sin = Vector4(sinValues);
-cos = Vector4(cosValues);
-}
-
-AZ_MATH_INLINE Vector4 Vector4::GetAcos() const
-{
-return Vector4(Simd::Vec4::Acos(m_value));
-}
-
-AZ_MATH_INLINE Vector4 Vector4::GetAtan() const
-{
-return Vector4(Simd::Vec4::Atan(m_value));
-}
-
-AZ_MATH_INLINE Vector4 Vector4::GetExpEstimate() const
-{
-return Vector4(Simd::Vec4::ExpEstimate(m_value));
-}
-
-AZ_MATH_INLINE Vector4 Vector4::GetAngleMod() const
-{
-return Vector4(Simd::Vec4::AngleMod(m_value));
-}
-
-AZ_MATH_INLINE float Vector4::Angle(const Vector4& v) const
-{
-const float cos = Dot(v) * InvSqrt(GetLengthSq() * v.GetLengthSq());
-// secure against any float precision error, cosine must be between [-1, 1]
-const float res = Acos(AZ::GetClamp(cos, -1.0f, 1.0f));
-AZ_MATH_ASSERT(std::isfinite(res) && (res >= 0.0f) && (res <= Constants::Pi), "Calculated an invalid angle");
-return res;
-}
-
-AZ_MATH_INLINE float Vector4::AngleDeg(const Vector4& v) const
-{
-return RadToDeg(Angle(v));
-}
-
-AZ_MATH_INLINE float Vector4::AngleSafe(const Vector4& v) const
-{
-return (!IsZero() && !v.IsZero()) ? Angle(v) : 0.0f;
-}
-
-AZ_MATH_INLINE float Vector4::AngleSafeDeg(const Vector4& v) const
-{
-return (!IsZero() && !v.IsZero()) ? AngleDeg(v) : 0.0f;
-}
-
-AZ_MATH_INLINE Vector4 Vector4::GetAbs() const
-{
-return Vector4(Simd::Vec4::Abs(m_value));
-}
-
-AZ_MATH_INLINE Vector4 Vector4::GetReciprocal() const
-{
-return Vector4(Simd::Vec4::Reciprocal(m_value));
-}
-
-AZ_MATH_INLINE Vector4 Vector4::GetReciprocalEstimate() const
-{
-return Vector4(Simd::Vec4::ReciprocalEstimate(m_value));
-}
-
-AZ_MATH_INLINE bool Vector4::IsFinite() const
-{
-return IsFiniteFloat(GetX()) && IsFiniteFloat(GetY()) && IsFiniteFloat(GetZ()) && IsFiniteFloat(GetW());
-}
-
-AZ_MATH_INLINE Simd::Vec4::FloatType Vector4::GetSimdValue() const
-{
-return m_value;
-}
-
-AZ_MATH_INLINE void Vector4::SetSimdValue(Simd::Vec4::FloatArgType value)
-{
-m_value = value;
-}
-
-AZ_MATH_INLINE Vector4 operator*(float multiplier, const Vector4& rhs)
-{
-return rhs * multiplier;
-}
-    pub fn get_simd_value(self)->FloatType{
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  get_simd_value(&self)->FloatType{
         self._value
     }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn  set_simd_value(mut self, value :FloatArgType ){
+        self._value = value;
+    }
+
 }
