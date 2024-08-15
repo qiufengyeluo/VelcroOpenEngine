@@ -21,6 +21,7 @@ mod simd_math_vec3_neon;
 mod simd_math_vec4_neon;
 mod simd_math_vec4_sse;
 mod common_sse;
+mod vectorn;
 
 #[cfg(test)]
 mod tests {

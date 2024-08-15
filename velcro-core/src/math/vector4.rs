@@ -23,7 +23,7 @@ use crate::math::vector2::Vector2;
 use crate::math::vector3::Vector3;
 
 // PartialEq 是否相等
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy,Clone)]
 pub struct Vector4 {
     _value: FloatType,
 }
@@ -536,7 +536,7 @@ impl Vector4 {
     #[allow(dead_code)]
     pub unsafe fn  is_zero_with_default(self)->bool{
         let dist = self.get_abs();
-        return  dist.is_less_equal_than(Vector3::new_x(FLOAT_EPSILON.borrow()).borrow());
+        return  dist.is_less_equal_than(Vector4::new_x(FLOAT_EPSILON.borrow()).borrow());
     }
 
     #[inline]
@@ -764,8 +764,8 @@ impl Vector4 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  set_simd_value(mut self, value :FloatArgType ){
-        self._value = value;
+    pub unsafe fn  set_simd_value(mut self, value :&FloatArgType ){
+        self._value = value.to_owned();
     }
 
 }
