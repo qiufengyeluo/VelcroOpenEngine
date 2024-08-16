@@ -138,6 +138,18 @@ impl Quaternion {
     static Quaternion CreateFromEulerDegreesXYZ(const Vector3& eulerDegrees);
     static Quaternion CreateFromEulerDegreesYXZ(const Vector3& eulerDegrees);
     static Quaternion CreateFromEulerDegreesZYX(const Vector3& eulerDegrees);
+    static Quaternion CreateFromMatrix3x3(const class Matrix3x3& m);
+
+    //! Creates a quaternion using the left 3x3 part of a Matrix3x4.
+    //! \note If the matrix has a scale other than (1, 1, 1) be sure to extract the scale first
+    //! with AZ::Matrix3x4::ExtractScale or ::ExtractScaleExact.
+    static Quaternion CreateFromMatrix3x4(const class Matrix3x4& m);
+
+    //! Creates a quaternion using the rotation part of a Matrix4x4
+    static Quaternion CreateFromMatrix4x4(const class Matrix4x4& m);
+
+    //! Creates a quaternion from a set of basis vectors
+    static Quaternion CreateFromBasis(const Vector3& basisX, const Vector3& basisY, const Vector3& basisZ);
     AZ_MATH_INLINE Quaternion Quaternion::CreateFromAxisAngle(const Vector3& axis, float angle)
     {
     const float halfAngle = 0.5f * angle;
