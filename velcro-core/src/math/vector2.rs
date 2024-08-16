@@ -180,7 +180,7 @@ impl Vector2 {
     }
 
     pub unsafe fn get_length_sq(self)->f32{
-        return self.dot_vec2(self.borrow());
+        return self.dot2(self.borrow());
     }
 
     pub  unsafe fn get_length(self) ->f32{

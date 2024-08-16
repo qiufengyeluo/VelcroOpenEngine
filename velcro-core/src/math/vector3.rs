@@ -32,7 +32,11 @@ impl MulAssign<FloatType> for Vector3 {
         unsafe { self._value = Vec3::mul(self._value.borrow(), rhs.borrow()) }
     }
 }
-
+impl MulAssign<&Vector3> for Vector3 {
+    fn mul_assign(&mut self, rhs: &Vector3) {
+        unsafe { self._value = Vec3::mul(self._value.borrow(), rhs._value.borrow())}
+    }
+}
 impl SubAssign<&Vector3> for &mut Vector3 {
     fn sub_assign(&mut self, rhs: &Vector3) {
         unsafe { self._value = Vec3::sub(self._value.borrow(), rhs._value.borrow()) }
@@ -810,7 +814,13 @@ impl Mul for Vector3 {
     }
 
 }
+impl Mul<f32> for Vector3 {
+    type Output = Vector3;
 
+    fn mul(self, rhs: f32) -> Self::Output {
+        unsafe { return Vector3::new_float_type(Vec3::mul(self.get_simd_value().borrow(), Vec3::splat(rhs.borrow()).borrow()).borrow()) }
+    }
+}
 impl Div for Vector3 {
     type Output = Vector3;
 
