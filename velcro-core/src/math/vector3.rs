@@ -59,7 +59,13 @@ impl Mul<f32> for &Vector3 {
         unsafe { return Vector3::new_float_type(Vec3::mul(self._value.borrow(), Vec3::splat(rhs.borrow()).borrow()).borrow()) }
     }
 }
+impl Div<f32> for &Vector3 {
+    type Output = Vector3;
 
+    fn div(self, rhs: f32) -> Self::Output {
+        unsafe { return Vector3::new_float_type(Vec3::div(self._value.borrow(), Vec3::splat(rhs.borrow()).borrow_mut()).borrow()) }
+    }
+}
 impl Vector3 {
     #[inline]
     #[allow(dead_code)]
@@ -772,13 +778,13 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  vector3rad_to_deg(mut self,radians:&Vector3)->Vector3{
+    pub unsafe fn  vector3rad_to_deg(radians:&Vector3)->Vector3{
         return Vector3::new_float_type(Vec3::mul(radians.get_simd_value().borrow(),Vec3::splat((180.0/PI).borrow()).borrow()).borrow());
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  vector3deg_to_rad(self,degrees:&Vector3)->Vector3{
+    pub unsafe fn  vector3deg_to_rad(degrees:&Vector3)->Vector3{
         return  Vector3::new_float_type(Vec3::mul(degrees.get_simd_value().borrow(),Vec3::splat((PI/180.0).borrow()).borrow()).borrow());
     }
 }

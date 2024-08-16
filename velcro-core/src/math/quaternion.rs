@@ -1,7 +1,13 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
 
-use crate::math::common_sse::{Vec4Type, VecFourthType, VecType};
+use std::ops::{Div, Mul};
+
+use crate::math::common_sse::{Vec4Type, VecFourthType, VecThirdType, VecTwoType, VecType};
+use crate::math::constants::{FLOAT_EPSILON, G_NEGATE_XYZMASK};
+use crate::math::simd_math::{simd_inv_sqrt, simd_sin_cos};
+use crate::math::simd_math_vec1_sse::Vec1;
+use crate::math::simd_math_vec3_sse::Vec3;
 use crate::math::simd_math_vec4_sse::Vec4;
 use crate::math::vector3::Vector3;
 use crate::math::vector4::Vector4;
@@ -11,8 +17,44 @@ use crate::math::vsimd::{FloatArgType, FloatType};
 pub struct Quaternion {
    _value:FloatType,
 }
+
+impl Mul<f32> for Quaternion {
+    type Output = Quaternion;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        unsafe {
+            return Quaternion {
+                _value: Vec3::mul(self._value.borrow(),Vec3::splat(rhs.borrow()).borrow())
+            }
+        }
+    }
+}
+
+impl Mul<&f32> for &Quaternion {
+    type Output = Quaternion;
+
+    fn mul(self, rhs: &f32) -> Self::Output {
+        unsafe { return Quaternion::new_float_type(Vec4::mul(self._value.borrow(),Vec4::splat(rhs).borrow()).borrow()) }
+    }
+}
+
+impl Div<f32> for Quaternion {
+    type Output = Quaternion;
+
+    fn div(self, rhs: &f32) -> Self::Output {
+        unsafe { return Quaternion::new_float_type(Vec4::div(self._value.borrow(),Vec4::splat(rhs).borrow()).borrow()) }
+    }
+}
+
 impl Quaternion {
 
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn new() ->Quaternion{
+        Quaternion{
+            _value:Vec3::zero_float()
+        }
+    }
     #[inline]
     #[allow(dead_code)]
     pub fn new_q(q:&Quaternion)->Quaternion{
@@ -80,393 +122,470 @@ impl Quaternion {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn create_from_euler_degrees_xyz(eulerDegrees:&Vector3)->Quaternion{
+    pub unsafe fn create_from_euler_degrees_xyz(euler_degrees:&Vector3) ->Quaternion{
+        return Quaternion::create_from_euler_radians_xyz(Vector3::vector3deg_to_rad(euler_degrees).borrow());
+    }
 
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_from_euler_degrees_yxz(euler_degrees:&Vector3) ->Quaternion{
+        return Quaternion::create_from_euler_radians_yxz(Vector3::vector3deg_to_rad(euler_degrees).borrow())
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_from_euler_degrees_zyx(euler_degrees:&Vector3) ->Quaternion{
+        return Quaternion::create_from_euler_radians_zyx(Vector3::vector3deg_to_rad(euler_degrees).borrow())
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_from_vector3and_value(v:&Vector3,w:&f32)->Quaternion{
+        return Quaternion::new_vec3_w(v,w);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_rotation_x(angle_in_radians:&f32) ->Quaternion{
+        let half_angle = 0.5f32 * angle_in_radians;
+        let mut sin:f32;
+        let mut cos:f32;
+        simd_sin_cos(half_angle.borrow(), sin.borrow_mut(), cos.borrow_mut());
+        return Quaternion::new_xyzw(sin.borrow(),0.0.borrow(),0.0.borrow(),cos.borrow())
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_rotation_y(angle_in_radians:&f32) ->Quaternion{
+        let half_angle = 0.5f32 * angle_in_radians;
+        let mut sin:f32;
+        let mut cos:f32;
+        simd_sin_cos(half_angle.borrow(), sin.borrow_mut(), cos.borrow_mut());
+        return Quaternion::new_xyzw(0.0.borrow(),sin.borrow(),0.0.borrow(),cos.borrow())
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_rotation_z(angle_in_radians:&f32) ->Quaternion{
+        let half_angle = 0.5f32 * angle_in_radians;
+        let mut sin:f32;
+        let mut cos:f32;
+        simd_sin_cos(half_angle.borrow(), sin.borrow_mut(), cos.borrow_mut());
+        return Quaternion::new_xyzw(0.0.borrow(),0.0.borrow(),sin.borrow(),cos.borrow())
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_from_euler_radians_xyz(euler_radians:&Vector3) ->Quaternion{
+        let half = Vec3::splat(0.5.borrow());
+        let angles = Vec3::mul(half.borrow(), euler_radians.get_simd_value().borrow());
+        let mut sin:FloatType;
+        let mut cos :FloatType;
+        Vec3::sin_cos(angles.borrow(),sin.borrow_mut(),cos.borrow_mut());
+        let sx = Vec3::select_index0(sin.borrow());
+        let cx = Vec3::select_index0(cos.borrow());
+        let sy = Vec3::select_index1(sin.borrow());
+        let cy = Vec3::select_index1(cos.borrow());
+        let sz = Vec3::select_index2(sin.borrow());
+        let cz = Vec3::select_index2(cos.borrow());
+        return Quaternion::new_xyzw((cx * sy * sz + sx * cy * cz).borrow(),
+                                    (cx * sy * cz - sx * cy * sz).borrow(),
+                                    (cx * cy * sz + sx * sy * cz).borrow(),
+                                    (cx * cy * cz - sx * sy * sz).borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_from_euler_radians_yxz(euler_radians:&Vector3) ->Quaternion{
+        let half = Vec3::splat(0.5.borrow());
+        let angles = Vec3::mul(half.borrow(), euler_radians.get_simd_value().borrow());
+        let mut sin:FloatType;
+        let mut cos :FloatType;
+        Vec3::sin_cos(angles.borrow(),sin.borrow_mut(),cos.borrow_mut());
+        let sx = Vec3::select_index0(sin.borrow());
+        let cx = Vec3::select_index0(cos.borrow());
+        let sy = Vec3::select_index1(sin.borrow());
+        let cy = Vec3::select_index1(cos.borrow());
+        let sz = Vec3::select_index2(sin.borrow());
+        let cz = Vec3::select_index2(cos.borrow());
+        return Quaternion::new_xyzw((cy * sx * cz + sy * cx * sz).borrow(),
+                                    (sy * cx * cz - cy * sx * sz).borrow(),
+                                    (cy * cx * sz - sy * sx * cz).borrow(),
+                                    (cy * cx * cz + sy * sx * sz).borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_from_euler_radians_zyx(euler_radians:&Vector3) ->Quaternion{
+        let half = Vec3::splat(0.5.borrow());
+        let angles = Vec3::mul(half.borrow(), euler_radians.get_simd_value().borrow());
+        let mut sin:FloatType;
+        let mut cos :FloatType;
+        Vec3::sin_cos(angles.borrow(),sin.borrow_mut(),cos.borrow_mut());
+        let sx = Vec3::select_index0(sin.borrow());
+        let cx = Vec3::select_index0(cos.borrow());
+        let sy = Vec3::select_index1(sin.borrow());
+        let cy = Vec3::select_index1(cos.borrow());
+        let sz = Vec3::select_index2(sin.borrow());
+        let cz = Vec3::select_index2(cos.borrow());
+        return Quaternion::new_xyzw((sx * cy * cz - cx * sy * sz).borrow(),
+                                    (cx * sy * cz + sx * cy * sz).borrow(),
+                                    (cx * cy * sz - sx * sy * cz).borrow(),
+                                    (cx * cy * cz + sx * sy * sz).borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_from_matrix3x3(m:&Matrix3x3)->Quaternion{
+        return Quaternion::create_from_basis(m.get_basis_x().borrow(),m.get_basis_y().borrow(),m.get_basis_z().borrow())
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_from_matrix3x4(m:&Matrix3x4) ->Quaternion{
+        return Quaternion::create_from_basis(m.get_basis_x().borrow(),m.get_basis_y().borrow(),m.get_basis_z().borrow())
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_from_matrix4x4(m:&Matrix4x4) ->Quaternion{
+        return Quaternion::create_from_basis(m.get_basis_x_as_vector3().borrow(),m.get_basis_y_as_vector3().borrow(),m.get_basis_z_as_vector3().borrow())
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_from_basis(basis_x:&Vector3, basis_y:&Vector3, basis_z:&Vector3) ->Quaternion{
+        let mut trace:f32;
+        let mut result:Quaternion = Quaternion::new();
+        if basis_z.get_z() < 0.0f32 {
+            if basis_x.get_x() > basis_y.get_y() {
+                trace = 1.0f32 + basis_x.get_x() - basis_y.get_y() - basis_z.get_z();
+                result =Quaternion::new_xyzw(trace.borrow(), (basis_x.get_y() + basis_y.get_x()).borrow(), (basis_z.get_x() + basis_x.get_z()).borrow(), (basis_y.get_z() - basis_z.get_y()).borrow());
+            }else {
+                trace = 1.0f32 - basis_x.get_x() + basis_y.get_y() - basis_z.get_z();
+                result = Quaternion::new_xyzw((basis_x.get_y() + basis_y.get_x()).borrow(), trace.borrow(), (basis_y.get_z() + basis_z.get_y()).borrow(), (basis_z.get_x() - basis_x.get_z()).borrow());
+            }
+        }
+        else
+        {
+            if (basis_x.get_x() < -basis_y.get_y())
+            {
+                trace = 1.0f32 - basis_x.get_x() - basis_y.get_y() + basis_z.get_z();
+                result = Quaternion::new_xyzw((basis_z.get_x() + basis_x.get_z()).borrow(), (basis_y.get_z() + basis_z.get_y()).borrow(), trace.borrow(), (basis_x.get_y() - basis_y.get_x()).borrow());
+            }
+            else
+            {
+                trace = 1.0f32 + basis_x.get_x() + basis_y.get_y() + basis_z.get_z();
+                result = Quaternion::new_xyzw((basis_y.get_z() - basis_z.get_y()).borrow(), (basis_z.get_x() - basis_x.get_z()).borrow(), (basis_x.get_y() - basis_y.get_x()).borrow(), trace.borrow());
+            }
+        }
+        return result * (0.5f32 *simd_inv_sqrt(trace.borrow()));
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_from_axis_angle(axis:&Vector3,angle:&f32)->Quaternion{
+        let half_angle = 0.5f32*angle;
+        let mut sin:f32;
+        let mut cos:f32;
+        simd_sin_cos(half_angle.borrow(), sin.borrow_mut(), cos.borrow_mut());
+        return Quaternion::create_from_vector3and_value((axis*sin.to_owned()).borrow(),cos.borrow())
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_from_scaled_axis_angle(scaledAxisAngle:&Vector3)->Quaternion{
+        let exponential_map = scaledAxisAngle / 2.0f32;
+        let half_angle = exponential_map.get_length();
+        if half_angle < FLOAT_EPSILON {
+            return Quaternion::create_from_vector3and_value(exponential_map.borrow(),1.0.borrow()).get_normalized();
+        }else {
+            let mut sin:f32;
+            let mut cos:f32;
+            simd_sin_cos(half_angle.borrow(), sin.borrow_mut(), cos.borrow_mut());
+            return Quaternion::create_from_vector3and_value(((sin.to_owned() / half_angle)*exponential_map).borrow(), cos.borrow())
+        }
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn store_to_float4(mut self, values:*mut f32){
+        Vec4::store_unaligned(values,self._value.borrow())
     }
 
 
-    AZ_MATH_INLINE Quaternion Quaternion::CreateFromEulerDegreesXYZ(const Vector3& eulerDegrees)
-    {
-    return CreateFromEulerRadiansXYZ(Vector3DegToRad(eulerDegrees));
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_x(self)->f32{
+        let values = *self._value as *const f32;
+        *values[0]
     }
 
-    AZ_MATH_INLINE Quaternion Quaternion::CreateFromEulerDegreesYXZ(const Vector3& eulerDegrees)
-    {
-    return CreateFromEulerRadiansYXZ(Vector3DegToRad(eulerDegrees));
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_y(self)->f32{
+        let values = *self._value as *const f32;
+        *values[1]
     }
 
-    AZ_MATH_INLINE Quaternion Quaternion::CreateFromEulerDegreesZYX(const Vector3& eulerDegrees)
-    {
-    return CreateFromEulerRadiansZYX(Vector3DegToRad(eulerDegrees));
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_z(self)->f32{
+        let values = *self._value as *const f32;
+        *values[2]
     }
 
-    AZ_MATH_INLINE Quaternion Quaternion::CreateFromVector3AndValue(const Vector3& v, float w)
-    {
-    return Quaternion(v, w);
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_w(self)->f32{
+        let values = *self._value as *const f32;
+        *values[3]
     }
 
-    AZ_MATH_INLINE Quaternion Quaternion::CreateRotationX(float angleInRadians)
-    {
-    const float halfAngle = 0.5f * angleInRadians;
-    float sin, cos;
-    SinCos(halfAngle, sin, cos);
-    return Quaternion(sin, 0.0f, 0.0f, cos);
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_element(self,index:i32)->f32{
+        let values = *self._value as *const f32;
+        *values[index]
     }
 
-
-    AZ_MATH_INLINE Quaternion Quaternion::CreateRotationY(float angleInRadians)
-    {
-    const float halfAngle = 0.5f * angleInRadians;
-    float sin, cos;
-    SinCos(halfAngle, sin, cos);
-    return Quaternion(0.0f, sin, 0.0f, cos);
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_x(self, x:f32) {
+        let mut values = *self._value as *const f32;
+        *values[0] = x
     }
 
-
-    AZ_MATH_INLINE Quaternion Quaternion::CreateRotationZ(float angleInRadians)
-    {
-    const float halfAngle = 0.5f * angleInRadians;
-    float sin, cos;
-    SinCos(halfAngle, sin, cos);
-    return Quaternion(0.0f, 0.0f, sin, cos);
-    }
-
-    static Quaternion CreateFromEulerRadiansXYZ(const Vector3& eulerRadians);
-    static Quaternion CreateFromEulerRadiansYXZ(const Vector3& eulerRadians);
-    static Quaternion CreateFromEulerRadiansZYX(const Vector3& eulerRadians);
-
-    static Quaternion CreateFromEulerDegreesXYZ(const Vector3& eulerDegrees);
-    static Quaternion CreateFromEulerDegreesYXZ(const Vector3& eulerDegrees);
-    static Quaternion CreateFromEulerDegreesZYX(const Vector3& eulerDegrees);
-    AZ_MATH_INLINE Quaternion Quaternion::CreateFromAxisAngle(const Vector3& axis, float angle)
-    {
-    const float halfAngle = 0.5f * angle;
-    float sin, cos;
-    SinCos(halfAngle, sin, cos);
-    return CreateFromVector3AndValue(sin * axis, cos);
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_y(self, y:f32) {
+        let mut values = *self._value as *const f32;
+        *values[1] = y
     }
 
 
-    AZ_MATH_INLINE Quaternion Quaternion::CreateFromScaledAxisAngle(const Vector3& scaledAxisAngle)
-    {
-    const AZ::Vector3 exponentialMap = scaledAxisAngle / 2.0f;
-    const float halfAngle = exponentialMap.GetLength();
-
-    if (halfAngle < AZ::Constants::FloatEpsilon)
-    {
-    return AZ::Quaternion::CreateFromVector3AndValue(exponentialMap, 1.0f).GetNormalized();
-    }
-    else
-    {
-    float sin, cos;
-    SinCos(halfAngle, sin, cos);
-    return AZ::Quaternion::CreateFromVector3AndValue((sin / halfAngle) * exponentialMap, cos);
-    }
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_z(self, z:f32) {
+        let mut values = *self._value as *const f32;
+        *values[2] = z
     }
 
 
-    AZ_MATH_INLINE void Quaternion::StoreToFloat4(float* values) const
-    {
-    Simd::Vec4::StoreUnaligned(values, m_value);
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_w(self, w:f32) {
+        let mut values = *self._value as *const f32;
+        *values[3] = w
+    }
+
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_element(self,index:&i32, v:&f32) {
+        let mut values = *self._value as *const f32;
+        *values[index] = v
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_value(mut self,x:&f32){
+        self._value = Vec4::splat(x);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_xyzw(mut self,x:&f32,y:&f32,z:&f32,w:&f32){
+        self._value = Vec4::load_immediate(x,y,z,w);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_vec3_w(mut self,v:&Vector3,w:&f32){
+        self._value = Vector4::new_vec3_w(v,w).get_simd_value()
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_value_ptr(mut self, values:*const f32){
+        self._value = Vec4::load_unaligned(values);
+    }
+
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_conjugate(self)->Quaternion{
+        let conjugate_mask = Vec4::load_aligned_i128(G_NEGATE_XYZMASK.borrow());
+        return Quaternion::new_float_type(Vec4::xor(self._value.borrow(),Vec4::cast_to_float(conjugate_mask.borrow()).borrow()).borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_inverse_fast(self)->Quaternion{
+        return self.get_conjugate();
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn invert_fast(mut self){
+        self._value = self.get_inverse_fast()._value;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_inverse_full(self)->Quaternion{
+        return self.get_conjugate() / self.get_length_sq()
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn invert_full(mut self){
+        self._value = self.get_inverse_full()._value;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn dot(self, q:&Quaternion)->f32{
+        return  Vec1::select_index0(Vec4::dot(self._value.borrow(),q._value.borrow()).borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_length_sq(self)->f32{
+        return self.dot(self.borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_length(self)->f32{
+        let length_sq = Vec4::dot(self._value.borrow(), self._value.borrow());
+        return  Vec1::select_index0(Vec1::sqrt(length_sq.borrow()).borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_length_estimate(self)->f32{
+        let length_sq = Vec4::dot(self._value.borrow(), self._value.borrow());
+        return Vec1::select_index0(Vec1::sqrt_estimate(length_sq.borrow()).borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_length_reciprocal(self) ->f32{
+        let length_sq = Vec4::dot(self._value.borrow(), self._value.borrow());
+        return Vec1::select_index0(Vec1::sqrt_inv(length_sq.borrow()).borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_length_reciprocal_estimate(self) ->f32{
+        let length_sq = Vec4::dot(self._value.borrow(), self._value.borrow());
+        return Vec1::select_index0(Vec1::sqrt_inv_estimate(length_sq.borrow()).borrow())
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_normalized(self)->Quaternion{
+        return Quaternion::new_float_type(Vec4::normalize(self._value.borrow()).borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_normalized_estimate(self) ->Quaternion{
+        return  Quaternion::new_float_type(Vec4::normalize_estimate(self._value.borrow()).borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn normalize(mut self){
+        self._value = self.get_normalized()._value;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn normalize_estimate(mut self){
+        self._value = self.get_normalized_estimate()._value;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn normalize_with_length(mut self)->f32{
+        let length = Vec1::select_index0(Vec1::sqrt(Vec4::dot(self._value.borrow(),self._value.borrow()).borrow()).borrow());
+        self._value = Vec4::div(self._value.borrow(),Vec4::splat(length.borrow()).borrow());
+        return length;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn normalize_with_length_estimate(mut self)->f32{
+        let length = Vec1::select_index0(Vec1::sqrt_estimate(Vec4::dot(self._value.borrow(),self._value.borrow()).borrow()).borrow());
+        self._value = Vec4::div(self._value.borrow(),Vec4::splat(length.borrow()).borrow());
+        return length;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_shortest_equivalent(self)->Quaternion{
+        if self.get_w() < 0.0f32{
+            return -(*self);
+        }else {
+            return *self;
+        }
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn shortest_equivalent(mut self){
+        self._value = self.get_shortest_equivalent()._value;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn lerp(self,dest:&Quaternion,t:&f32)->Quaternion{
+        if self.dot(dest) >= 0.0f32 {
+            return (*self) * (1.0 -t) + dest * t;
+        }
+        return  (*self) *(1.0 -t) - dest *t ;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn nlerp(self,dest:&Quaternion,t:&f32)->Quaternion{
+        let result = self.lerp(dest,t);
+        result.normalize();
+        result
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn squad(self,dest:&Quaternion,inv :&Quaternion,out:&Quaternion,t:&f32)->Quaternion{
+        let k = 2.0 * (1.0 - t) *t;
+        let temp1 = inv.slerp(out,t);
+        let temp2 = self.slerp(dest,t);
+        return temp1.slerp(temp2.borrow(),k.borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn is_close(self,q:&Quaternion,tolerance:&f32)->bool{
+        let abs_diff = Vec4::abs(Vec4::sub(q._value.borrow(), self._value.borrow()).borrow());
+        return Vec4::cmp_all_lt(abs_diff.borrow(), Vec4::splat(tolerance).borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn is_identity(self,tolerance:&f32)->bool{
+        return self.is_close(self.create_identity().borrow(),tolerance);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn is_zero(self,tolerance:&f32)->bool{
+        let abs_diff = Vec4::abs(self._value.borrow());
+        return Vec4::cmp_all_lt(abs_diff.borrow(), Vec4::splat(tolerance).borrow())
+    }
 
 
-AZ_MATH_INLINE float Quaternion::GetX() const
-{
-return m_x;
-}
-
-
-AZ_MATH_INLINE float Quaternion::GetY() const
-{
-return m_y;
-}
-
-
-AZ_MATH_INLINE float Quaternion::GetZ() const
-{
-return m_z;
-}
-
-
-AZ_MATH_INLINE float Quaternion::GetW() const
-{
-return m_w;
-}
-
-
-AZ_MATH_INLINE float Quaternion::GetElement(int index) const
-{
-AZ_MATH_ASSERT((index >= 0) && (index < 4), "Invalid index for component access!\n");
-return m_values[index];
-}
-
-
-AZ_MATH_INLINE void Quaternion::SetX(float x)
-{
-m_x = x;
-}
-
-
-AZ_MATH_INLINE void Quaternion::SetY(float y)
-{
-m_y = y;
-}
-
-
-AZ_MATH_INLINE void Quaternion::SetZ(float z)
-{
-m_z = z;
-}
-
-
-AZ_MATH_INLINE void Quaternion::SetW(float w)
-{
-m_w = w;
-}
-
-
-AZ_MATH_INLINE void Quaternion::SetElement(int index, float v)
-{
-AZ_MATH_ASSERT((index >= 0) && (index < 4), "Invalid index for component access!\n");
-m_values[index] = v;
-}
-
-
-AZ_MATH_INLINE float Quaternion::operator()(int index) const
-{
-return GetElement(index);
-}
-
-
-AZ_MATH_INLINE void Quaternion::Set(float x)
-{
-m_value = Simd::Vec4::Splat(x);
-}
-
-
-AZ_MATH_INLINE void Quaternion::Set(float x, float y, float z, float w)
-{
-m_value = Simd::Vec4::LoadImmediate(x, y, z, w);
-}
-
-
-AZ_MATH_INLINE void Quaternion::Set(const Vector3& v, float w)
-{
-m_value = Simd::Vec4::FromVec3(v.GetSimdValue());
-m_w = w;
-}
-
-
-AZ_MATH_INLINE void Quaternion::Set(const float values[])
-{
-m_value = Simd::Vec4::LoadUnaligned(values);
-}
-
-
-AZ_MATH_INLINE Quaternion Quaternion::GetConjugate() const
-{
-#if AZ_TRAIT_USE_PLATFORM_SIMD_SCALAR
-return Quaternion(-m_x, -m_y, -m_z, m_w);
-#else
-const Simd::Vec4::Int32Type conjugateMask(Simd::Vec4::LoadAligned((const int32_t*)&Simd::g_negateXYZMask));
-return Quaternion(Simd::Vec4::Xor(m_value, Simd::Vec4::CastToFloat(conjugateMask)));
-#endif
-}
-
-
-AZ_MATH_INLINE Quaternion Quaternion::GetInverseFast() const
-{
-return GetConjugate();
-}
-
-
-AZ_MATH_INLINE void Quaternion::InvertFast()
-{
-*this = GetInverseFast();
-}
-
-
-AZ_MATH_INLINE Quaternion Quaternion::GetInverseFull() const
-{
-return GetConjugate() / GetLengthSq();
-}
-
-
-AZ_MATH_INLINE void Quaternion::InvertFull()
-{
-*this = GetInverseFull();
-}
-
-
-AZ_MATH_INLINE float Quaternion::Dot(const Quaternion& q) const
-{
-#if AZ_TRAIT_USE_PLATFORM_SIMD_SCALAR
-return m_x * q.m_x + m_y * q.m_y + m_z * q.m_z + m_w * q.m_w;
-#else
-return Simd::Vec1::SelectIndex0(Simd::Vec4::Dot(m_value, q.m_value));
-#endif
-}
-
-
-AZ_MATH_INLINE float Quaternion::GetLengthSq() const
-{
-return Dot(*this);
-}
-
-
-AZ_MATH_INLINE float Quaternion::GetLength() const
-{
-const Simd::Vec1::FloatType lengthSq = Simd::Vec4::Dot(m_value, m_value);
-return Simd::Vec1::SelectIndex0(Simd::Vec1::Sqrt(lengthSq));
-}
-
-
-AZ_MATH_INLINE float Quaternion::GetLengthEstimate() const
-{
-const Simd::Vec1::FloatType lengthSq = Simd::Vec4::Dot(m_value, m_value);
-return Simd::Vec1::SelectIndex0(Simd::Vec1::SqrtEstimate(lengthSq));
-}
-
-
-AZ_MATH_INLINE float Quaternion::GetLengthReciprocal() const
-{
-const Simd::Vec1::FloatType lengthSq = Simd::Vec4::Dot(m_value, m_value);
-return Simd::Vec1::SelectIndex0(Simd::Vec1::SqrtInv(lengthSq));
-}
-
-
-AZ_MATH_INLINE float Quaternion::GetLengthReciprocalEstimate() const
-{
-const Simd::Vec1::FloatType lengthSq = Simd::Vec4::Dot(m_value, m_value);
-return Simd::Vec1::SelectIndex0(Simd::Vec1::SqrtInvEstimate(lengthSq));
-}
-
-
-AZ_MATH_INLINE Quaternion Quaternion::GetNormalized() const
-{
-return Quaternion(Simd::Vec4::Normalize(m_value));
-}
-
-
-AZ_MATH_INLINE Quaternion Quaternion::GetNormalizedEstimate() const
-{
-return Quaternion(Simd::Vec4::NormalizeEstimate(m_value));
-}
-
-
-AZ_MATH_INLINE void Quaternion::Normalize()
-{
-*this = GetNormalized();
-}
-
-
-AZ_MATH_INLINE void Quaternion::NormalizeEstimate()
-{
-*this = GetNormalizedEstimate();
-}
-
-
-AZ_MATH_INLINE float Quaternion::NormalizeWithLength()
-{
-const float length = Simd::Vec1::SelectIndex0(
-Simd::Vec1::Sqrt(Simd::Vec4::Dot(m_value, m_value)));
-m_value = Simd::Vec4::Div(m_value, Simd::Vec4::Splat(length));
-return length;
-}
-
-
-AZ_MATH_INLINE float Quaternion::NormalizeWithLengthEstimate()
-{
-const float length = Simd::Vec1::SelectIndex0(
-Simd::Vec1::SqrtEstimate(Simd::Vec4::Dot(m_value, m_value)));
-m_value = Simd::Vec4::Div(m_value, Simd::Vec4::Splat(length));
-return length;
-}
-
-
-AZ_MATH_INLINE Quaternion Quaternion::GetShortestEquivalent() const
-{
-if (GetW() < 0.0f)
-{
-return -(*this);
-}
-
-return *this;
-}
-
-
-AZ_MATH_INLINE void Quaternion::ShortestEquivalent()
-{
-*this = GetShortestEquivalent();
-}
-
-
-AZ_MATH_INLINE Quaternion Quaternion::Lerp(const Quaternion& dest, float t) const
-{
-if (Dot(dest) >= 0.0f)
-{
-return (*this) * (1.0f - t) + dest * t;
-}
-
-return (*this) * (1.0f - t) - dest * t;
-}
-
-
-AZ_MATH_INLINE Quaternion Quaternion::NLerp(const Quaternion& dest, float t) const
-{
-Quaternion result = Lerp(dest, t);
-result.Normalize();
-return result;
-}
-
-
-AZ_MATH_INLINE Quaternion Quaternion::Squad(const Quaternion& dest, const Quaternion& in, const Quaternion& out, float t) const
-{
-float k = 2.0f * (1.0f - t) * t;
-Quaternion temp1 = in.Slerp(out, t);
-Quaternion temp2 = Slerp(dest, t);
-return temp1.Slerp(temp2, k);
-}
-
-
-AZ_MATH_INLINE bool Quaternion::IsClose(const Quaternion& q, float tolerance) const
-{
-#if AZ_TRAIT_USE_PLATFORM_SIMD_SCALAR
-return ((fabsf(q.m_x - m_x) <= tolerance) && (fabsf(q.m_y - m_y) <= tolerance) && (fabsf(q.m_z - m_z) <= tolerance) && (fabsf(q.m_w - m_w) <= tolerance));
-#else
-Simd::Vec4::FloatType absDiff = Simd::Vec4::Abs(Simd::Vec4::Sub(q.m_value, m_value));
-return Simd::Vec4::CmpAllLt(absDiff, Simd::Vec4::Splat(tolerance));
-#endif
-}
-
-
-AZ_MATH_INLINE bool Quaternion::IsIdentity(float tolerance) const
-{
-#if AZ_TRAIT_USE_PLATFORM_SIMD_SCALAR
-return (fabsf(m_x) <= tolerance) && (fabsf(m_y) <= tolerance) && (fabsf(m_z) <= tolerance) && (fabsf(m_w) >= (1.0f - tolerance));
-#else
-return IsClose(CreateIdentity(), tolerance);
-#endif
-}
-
-
-AZ_MATH_INLINE bool Quaternion::IsZero(float tolerance) const
-{
-#if AZ_TRAIT_USE_PLATFORM_SIMD_SCALAR
-return (fabsf(m_x) <= tolerance) && (fabsf(m_y) <= tolerance) && (fabsf(m_z) <= tolerance) && (fabsf(m_w) <= tolerance);
-#else
-Simd::Vec4::FloatType absDiff = Simd::Vec4::Abs(m_value);
-return Simd::Vec4::CmpAllLt(absDiff, Simd::Vec4::Splat(tolerance));
-#endif
-}
-
-
-AZ_MATH_INLINE Quaternion& Quaternion::operator=(const Quaternion& rhs)
-{
-m_value = rhs.m_value;
-return *this;
-}
 
 
 AZ_MATH_INLINE Quaternion Quaternion::operator-() const
