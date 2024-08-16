@@ -24,6 +24,7 @@ mod common_sse;
 mod vectorn;
 mod matrix3x3;
 mod transform;
+mod quaternion;
 
 #[cfg(test)]
 mod tests {

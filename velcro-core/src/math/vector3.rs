@@ -51,6 +51,7 @@ impl Mul<f32> for &mut Vector3 {
     }
 }
 
+
 impl Mul<f32> for &Vector3 {
     type Output = Vector3;
 

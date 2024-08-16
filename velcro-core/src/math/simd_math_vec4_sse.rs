@@ -30,7 +30,7 @@ impl VecType for  Vec4 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-     unsafe fn load_unaligned(addr:&f32)->FloatType{
+     unsafe fn load_unaligned(addr:*const f32)->FloatType{
         return  sse::load_unaligned(addr);
     }
 
