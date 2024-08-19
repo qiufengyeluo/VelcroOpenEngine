@@ -260,8 +260,7 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  set_value_ptr(mut self, ptr:*const f32){
-        let values = *self._value as *const f32;
+    pub unsafe fn  set_value_ptr(mut self, values:*const f32){
         self._value = Vec3::load_immediate(*values[0],*values[1],*values[2]);
     }
 
