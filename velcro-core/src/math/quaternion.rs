@@ -1,10 +1,10 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
 
-use std::ops::{Div, Mul};
+use std::ops::{Add, AddAssign, Div, Mul, Sub, SubAssign};
 
 use crate::math::common_sse::{Vec4Type, VecFourthType, VecThirdType, VecTwoType, VecType};
-use crate::math::constants::{FLOAT_EPSILON, G_NEGATE_XYZMASK};
+use crate::math::constants::{FLOAT_EPSILON, G_NEGATE_XMASK, G_NEGATE_XYZMASK};
 use crate::math::simd_math::{simd_inv_sqrt, simd_sin_cos};
 use crate::math::simd_math_vec1_sse::Vec1;
 use crate::math::simd_math_vec3_sse::Vec3;
@@ -18,13 +18,22 @@ pub struct Quaternion {
    _value:FloatType,
 }
 
+impl PartialEq<Self> for Quaternion {
+    fn eq(&self, other: &Self) -> bool {
+        unsafe { return Vec4::cmp_all_eq(self._value.borrow(), other._value.borrow()); }
+    }
+    fn ne(&self, other: &Self) -> bool {
+        unsafe { return !Vec4::cmp_all_eq(self._value.borrow(), other._value.borrow()); }
+    }
+}
+
 impl Mul<f32> for Quaternion {
     type Output = Quaternion;
 
     fn mul(self, rhs: f32) -> Self::Output {
         unsafe {
             return Quaternion {
-                _value: Vec3::mul(self._value.borrow(),Vec3::splat(rhs.borrow()).borrow())
+                _value: Vec4::mul(self._value.borrow(),Vec3::splat(rhs.borrow()).borrow())
             }
         }
     }
@@ -46,6 +55,91 @@ impl Div<f32> for Quaternion {
     }
 }
 
+
+
+impl Sub for Quaternion {
+    type Output = Quaternion;
+    fn sub(self, rhs: Self) -> Self::Output {
+        let negate_mask = unsafe { Vec4::load_aligned_i128(G_NEGATE_XMASK.borrow()) };
+        unsafe { return Quaternion::new_float_type(Vec4::xor(self._value.borrow(), Vec4::cast_to_float(negate_mask.borrow()).borrow()).borrow()) }
+    }
+}
+
+impl Add<Quaternion> for Quaternion{
+    type Output = Quaternion;
+
+    fn add(self, rhs: Quaternion) -> Self::Output {
+        unsafe { return Quaternion::new_float_type(Vec4::add(self._value.borrow(), rhs._value.borrow()).borrow()); }
+    }
+}
+
+
+impl Sub<Quaternion> for Quaternion{
+    type Output = Quaternion;
+
+    fn sub(self, rhs: Quaternion) -> Self::Output {
+        unsafe { return Quaternion::new_float_type(Vec4::sub(self._value.borrow(), rhs._value.borrow()).borrow()); }
+    }
+}
+
+impl Mul<Quaternion> for Quaternion{
+    type Output = Quaternion;
+
+    fn mul(self, rhs: Quaternion) -> Self::Output {
+        unsafe { return Quaternion::new_float_type(Vec4::quaternion_multiply(self._value.borrow(), rhs._value.borrow()).borrow()); }
+    }
+}
+
+impl Mul<f32> for Quaternion{
+    type Output = Quaternion;
+
+    fn mul(self, multiplier: f32) -> Self::Output {
+        unsafe { return Quaternion::new_float_type(Vec4::mul(self._value.borrow(),Vec4::splat(multiplier.borrow()).borrow()).borrow()); }
+    }
+}
+
+
+
+impl Div<f32> for Quaternion{
+    type Output = Quaternion;
+
+    fn div(self, divisor: f32) -> Self::Output {
+        unsafe { return Quaternion::new_float_type(Vec4::div(self._value.borrow(),Vec4::splat((1.0/divisor).borrow()).borrow()).borrow()); }
+    }
+}
+
+
+impl AddAssign<Quaternion> for Quaternion{
+    fn add_assign(&mut self, rhs: Quaternion) {
+        self._value = (self.to_owned() + rhs)._value;
+    }
+}
+
+impl SubAssign<Quaternion> for Quaternion{
+    fn sub_assign(&mut self, rhs: Quaternion) {
+        self._value = (self.to_owned() - rhs)._value;
+    }
+}
+
+AZ_MATH_INLINE Quaternion& Quaternion::operator*=(const Quaternion& q)
+{
+*this = *this * q;
+return *this;
+}
+
+
+AZ_MATH_INLINE Quaternion& Quaternion::operator*=(float multiplier)
+{
+*this = *this * multiplier;
+return *this;
+}
+
+
+AZ_MATH_INLINE Quaternion& Quaternion::operator/=(float divisor)
+{
+*this = *this / divisor;
+return *this;
+}
 impl Quaternion {
 
     #[inline]
@@ -588,92 +682,9 @@ impl Quaternion {
 
 
 
-AZ_MATH_INLINE Quaternion Quaternion::operator-() const
-{
-#if AZ_TRAIT_USE_PLATFORM_SIMD_SCALAR
-return Quaternion(-m_x, -m_y, -m_z, -m_w);
-#else
-const Simd::Vec4::Int32Type negateMask(Simd::Vec4::LoadAligned((const int32_t*)&Simd::g_negateMask));
-return Quaternion(Simd::Vec4::Xor(m_value, Simd::Vec4::CastToFloat(negateMask)));
-#endif
-}
 
 
-AZ_MATH_INLINE Quaternion Quaternion::operator+(const Quaternion& q) const
-{
-return Quaternion(Simd::Vec4::Add(m_value, q.m_value));
-}
 
-
-AZ_MATH_INLINE Quaternion Quaternion::operator-(const Quaternion& q) const
-{
-return Quaternion(Simd::Vec4::Sub(m_value, q.m_value));
-}
-
-
-AZ_MATH_INLINE Quaternion Quaternion::operator*(const Quaternion& q) const
-{
-return Quaternion(Simd::Vec4::QuaternionMultiply(m_value, q.m_value));
-}
-
-
-AZ_MATH_INLINE Quaternion Quaternion::operator*(float multiplier) const
-{
-return Quaternion(Simd::Vec4::Mul(m_value, Simd::Vec4::Splat(multiplier)));
-}
-
-
-AZ_MATH_INLINE Quaternion Quaternion::operator/(float divisor) const
-{
-return Quaternion(Simd::Vec4::Mul(m_value, Simd::Vec4::Splat(1.0f / divisor)));
-}
-
-
-AZ_MATH_INLINE Quaternion& Quaternion::operator+=(const Quaternion& q)
-{
-*this = *this + q;
-return *this;
-}
-
-
-AZ_MATH_INLINE Quaternion& Quaternion::operator-=(const Quaternion& q)
-{
-*this = *this - q;
-return *this;
-}
-
-
-AZ_MATH_INLINE Quaternion& Quaternion::operator*=(const Quaternion& q)
-{
-*this = *this * q;
-return *this;
-}
-
-
-AZ_MATH_INLINE Quaternion& Quaternion::operator*=(float multiplier)
-{
-*this = *this * multiplier;
-return *this;
-}
-
-
-AZ_MATH_INLINE Quaternion& Quaternion::operator/=(float divisor)
-{
-*this = *this / divisor;
-return *this;
-}
-
-
-AZ_MATH_INLINE bool Quaternion::operator==(const Quaternion& rhs) const
-{
-return Simd::Vec4::CmpAllEq(m_value, rhs.m_value);
-}
-
-
-AZ_MATH_INLINE bool Quaternion::operator!=(const Quaternion& rhs) const
-{
-return !Simd::Vec4::CmpAllEq(m_value, rhs.m_value);
-}
 
 
 AZ_MATH_INLINE Vector3 Quaternion::TransformVector(const Vector3& v) const
