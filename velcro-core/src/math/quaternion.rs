@@ -1,7 +1,7 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
 
-use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
 use crate::math::common_sse::{Vec4Type, VecFourthType, VecThirdType, VecTwoType, VecType};
 use crate::math::constants::{FLOAT_EPSILON, G_NEGATE_XMASK, G_NEGATE_XYZMASK};
@@ -128,17 +128,16 @@ impl MulAssign<Quaternion> for Quaternion{
     }
 }
 
-AZ_MATH_INLINE Quaternion& Quaternion::operator*=(float multiplier)
-{
-*this = *this * multiplier;
-return *this;
+impl MulAssign<f32> for Quaternion{
+    fn mul_assign(&mut self, rhs: f32) {
+        self._value = (self.to_owned() * rhs)._value;
+    }
 }
 
-
-AZ_MATH_INLINE Quaternion& Quaternion::operator/=(float divisor)
-{
-*this = *this / divisor;
-return *this;
+impl DivAssign<f32> for Quaternion{
+    fn div_assign(&mut self, rhs: f32) {
+        self._value = (self.to_owned() / rhs)._value;
+    }
 }
 impl Quaternion {
 
@@ -678,13 +677,6 @@ impl Quaternion {
         let abs_diff = Vec4::abs(self._value.borrow());
         return Vec4::cmp_all_lt(abs_diff.borrow(), Vec4::splat(tolerance).borrow())
     }
-
-
-
-
-
-
-
 
 
 AZ_MATH_INLINE Vector3 Quaternion::TransformVector(const Vector3& v) const
