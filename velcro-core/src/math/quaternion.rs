@@ -5,7 +5,8 @@ use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
 use crate::math::common_sse::{Vec4Type, VecFourthType, VecThirdType, VecTwoType, VecType};
 use crate::math::constants::{FLOAT_EPSILON, G_NEGATE_XMASK, G_NEGATE_XYZMASK};
-use crate::math::simd_math::{simd_inv_sqrt, simd_sin_cos};
+use crate::math::math_utils::get_clamp;
+use crate::math::simd_math::{simd_acos, simd_atan2, simd_inv_sqrt, simd_sin_cos, simd_sqrt};
 use crate::math::simd_math_vec1_sse::Vec1;
 use crate::math::simd_math_vec3_sse::Vec3;
 use crate::math::simd_math_vec4_sse::Vec4;
@@ -678,68 +679,59 @@ impl Quaternion {
         return Vec4::cmp_all_lt(abs_diff.borrow(), Vec4::splat(tolerance).borrow())
     }
 
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn transform_vector(self,v:&Vector3)->Vector3{
+        return  Vector3::new_float_type(Vec4::quaternion_transform(self._value.borrow(),v.get_simd_value().borrow()).borrow());
+    }
 
-AZ_MATH_INLINE Vector3 Quaternion::TransformVector(const Vector3& v) const
-{
-return Vector3(Simd::Vec4::QuaternionTransform(m_value, v.GetSimdValue()));
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_angle(self)->f32{
+        return  2.0f32 * simd_acos(get_clamp(self.get_w().borrow(),(-1.0).borrow(),1.0.borrow()));
+    }
 
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_euler_degrees(self)->Vector3{
+        return Vector3::vector3rad_to_deg(self.get_euler_radians().borrow())
+    }
 
-AZ_MATH_INLINE float Quaternion::GetAngle() const
-{
-return 2.0f * Acos(AZ::GetClamp(GetW(), -1.0f, 1.0f));
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_euler_radians(self)->Vector3{
+        let sinp = 2.0 *(self.get_x() * self.get_y() + self.get_z() * self.get_w());
+        if sinp *sinp < 0.5 {
+            let roll = simd_atan2((2.0*(self.get_w() * self.get_x() - self.get_z() * self.get_y()).borrow(),(1.0 - 2.0 *(self.get_x(),self.get_x() + self.get_y() * self.get_y())).borrow()));
+            let pitch = asinf(sinp);
+            let yaw = simd_atan2((2.0 *(self.get_w()*self.get_z() - self.get_x() * self.get_y())).borrow(),(1.0 - 2.0*(self.get_y()*self.get_y() + self.get_z() * self.get_z())).borrow());
+            return Vector3::new_xyz(roll.borrow(),pitch.borrow(),yaw.borrow());
+        }else {
+           let mut sign = -1.0f32;
+            if sinp > 0.0{
+                sign = 1.0f32;
+            }
+            let m12 = 2.0f32 * (self.get_z()*self.get_y()-self.get_w()*self.get_x());
+            let m22 = 1.0f32 - 2.0f32 * (self.get_x() * self.get_x() + self.get_y() * self.get_y());
+            let cospSq = m12 * m12 + m22 * m22;
+            let cosp =simd_sqrt(cospSq);
+            let pitch = sign * acosf(cosp);
+            if (cospSq > FLOAT_EPSILON)
+            {
+                let roll = simd_atan2(-m12, m22);
+                let yaw = simd_atan2((2.0 * (self.get_w() * self.get_z() - self.get_x() * self.get_y())).borrow(), (1.0 - 2.0 * (self.get_y() * self.get_y() + self.get_z() * self.get_z())).borrow());
+                return Vector3::new_xyz(roll.borrow(),pitch.borrow(),yaw.borrow());
+            }
+            else
+            {
+                let m21 = 2.0 * (self.get_y() * self.get_z() + self.get_x() * self.get_w());
+                let m11 = 1.0 - 2.0 * (self.get_x() * self.get_x() + self.get_z() * self.get_z());
+                let roll = simd_atan2(m21, m11);
+                return Vector3::new_xyz(roll.borrow(),pitch.borrow(),0.0.borrow());
+            }
+        }
+    }
 
-
-AZ_MATH_INLINE Vector3 Quaternion::GetEulerDegrees() const
-{
-return Vector3RadToDeg(GetEulerRadians());
-}
-
-
-AZ_MATH_INLINE Vector3 Quaternion::GetEulerRadians() const
-{
-const float sinp = 2.0f * (m_w * m_y + m_z * m_x);
-
-if (sinp * sinp < 0.5f)
-{
-// roll (x-axis rotation)
-const float roll = Atan2(2.0f * (m_w * m_x - m_z * m_y), 1.0f - 2.0f * (m_x * m_x + m_y * m_y));
-
-// pitch (y-axis rotation)
-const float pitch = asinf(sinp);
-
-// yaw (z-axis rotation)
-const float yaw = Atan2(2.0f * (m_w * m_z - m_x * m_y), 1.0f - 2.0f * (m_y * m_y + m_z * m_z));
-
-return Vector3(roll, pitch, yaw);
-}
-
-// find the pitch from its cosine instead, to avoid issues with sensitivity of asin when the sine value is close to 1
-else
-{
-const float sign = sinp > 0.0f ? 1.0f : -1.0f;
-const float m12 = 2.0f * (m_z * m_y - m_w * m_x);
-const float m22 = 1.0f - 2.0f * (m_x * m_x + m_y * m_y);
-const float cospSq = m12 * m12 + m22 * m22;
-const float cosp = Sqrt(cospSq);
-const float pitch = sign * acosf(cosp);
-if (cospSq > Constants::FloatEpsilon)
-{
-const float roll = Atan2(-m12, m22);
-const float yaw = Atan2(2.0f * (m_w * m_z - m_x * m_y), 1.0f - 2.0f * (m_y * m_y + m_z * m_z));
-return Vector3(roll, pitch, yaw);
-}
-// if the pitch is close enough to +-pi/2, use a different approach because the terms used above lose roll and yaw information
-else
-{
-const float m21 = 2.0f * (m_y * m_z + m_x * m_w);
-const float m11 = 1.0f - 2.0f * (m_x * m_x + m_z * m_z);
-const float roll = Atan2(m21, m11);
-return Vector3(roll, pitch, 0.0f);
-}
-}
-}
 
 
 AZ_MATH_INLINE void Quaternion::SetFromEulerDegrees(const Vector3& eulerDegrees)
@@ -806,9 +798,4 @@ AZ_MATH_INLINE void ConvertQuaternionToAxisAngle(const Quaternion& quat, Vector3
 quat.ConvertToAxisAngle(outAxis, outAngle);
 }
 
-
-AZ_MATH_INLINE Quaternion operator*(float multiplier, const Quaternion& rhs)
-{
-return rhs * multiplier;
-}
 }
