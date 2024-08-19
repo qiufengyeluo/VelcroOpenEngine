@@ -1,7 +1,7 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
 
-use std::ops::{Add, AddAssign, Div, Mul, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Sub, SubAssign};
 
 use crate::math::common_sse::{Vec4Type, VecFourthType, VecThirdType, VecTwoType, VecType};
 use crate::math::constants::{FLOAT_EPSILON, G_NEGATE_XMASK, G_NEGATE_XYZMASK};
@@ -121,12 +121,12 @@ impl SubAssign<Quaternion> for Quaternion{
     }
 }
 
-AZ_MATH_INLINE Quaternion& Quaternion::operator*=(const Quaternion& q)
-{
-*this = *this * q;
-return *this;
-}
 
+impl MulAssign<Quaternion> for Quaternion{
+    fn mul_assign(&mut self, rhs: Quaternion) {
+        self._value = (self.to_owned() * rhs)._value;
+    }
+}
 
 AZ_MATH_INLINE Quaternion& Quaternion::operator*=(float multiplier)
 {
