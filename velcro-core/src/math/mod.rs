@@ -1,6 +1,7 @@
 use vector::*;
 
 pub mod vsimd;
+pub mod intersect;
 mod constants;
 pub mod sfmt;
 pub mod random;
@@ -26,7 +27,8 @@ mod matrix3x3;
 mod transform;
 mod quaternion;
 mod capsule;
-mod intersect;
+mod line_segment;
+mod ray;
 
 #[cfg(test)]
 mod tests {
