@@ -1,6 +1,8 @@
 #![warn(clip::pedantic)]
 #![allow(clip::many_single_char_names)]
 
+use crate::math::intersect;
+use crate::math::line_segment::LineSegment;
 use crate::math::math_utils::is_close_f32;
 use crate::math::vector3::Vector3;
 
@@ -98,6 +100,6 @@ impl Capsule{
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn contains(self,point:&Vector3)->bool{
-        return  Intersect::point_segment_distance_sq(point,self._first_hemisphere_center.borrow(),self._second_hemisphere_center.borrow()) <= self._radius * self._radius;
+        return  intersect::point_segment_distance_sq(point,self._first_hemisphere_center.borrow(),self._second_hemisphere_center.borrow()) <= self._radius * self._radius;
     }
 }

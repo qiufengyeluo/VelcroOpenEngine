@@ -4,6 +4,7 @@
 use crate::math::ray::Ray;
 use crate::math::vector3::Vector3;
 
+#[derive(Debug, Copy, Clone)]
 pub struct LineSegment{
     _start:Vector3,
     _end:Vector3,

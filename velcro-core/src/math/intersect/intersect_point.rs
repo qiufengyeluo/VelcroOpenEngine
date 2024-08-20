@@ -1,162 +1,156 @@
 #![warn(clip::pedantic)]
 #![allow(clip::many_single_char_names)]
 
+use crate::math::vector3::Vector3;
 
-AZ_MATH_INLINE Vector3
-Barycentric(const Vector3& a, const Vector3& b, const Vector3& c, const Vector3& p)
-{
-Vector3 v0 = b - a;
-Vector3 v1 = c - a;
-Vector3 v2 = p - a;
+pub struct Intersect{
 
-float d00 = v0.Dot(v0);
-float d01 = v0.Dot(v1);
-float d11 = v1.Dot(v1);
-float d20 = v2.Dot(v0);
-float d21 = v2.Dot(v1);
+}
+impl Intersect{
 
-float denom = d00 * d11 - d01 * d01;
-float denomRCP = 1.0f / denom;
-float v = (d11 * d20 - d01 * d21) * denomRCP;
-float w = (d00 * d21 - d01 * d20) * denomRCP;
-float u = 1.0f - v - w;
-return Vector3(u, v, w);
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn barycentric(a:&Vector3,b:&Vector3,c:&Vector3,p:&Vector3) ->Vector3{
+        let v0 = b - a;
+        let v1 = c - a;
+        let v2 = p - a;
+        let d00 = v0.dot3(v0.borrow());
+        let d01 = v0.dot3(v1.borrow());
+        let d11 = v1.dot3(v1.borrow());
+        let d20 = v2.dot3(v0.borrow());
+        let d21 = v2.dot3(v1.borrow());
+        let denom = d00 * d11 - d01 * d01;
+        let denom_rcp = 1.0 / denom;
+        let v = (d11 * d20 - d01 * d21) * denom_rcp;
+        let w = (d00 * d21 - d01 * d20) * denom_rcp;
+        let u = 1.0 - v - w;
+        return Vector3::new_xyz(u.borrow(), v.borrow(), w.borrow())
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn test_point_triangle(p:&Vector3, a:&Vector3, b:&Vector3, c:&Vector3) ->bool{
+        let uvw =Intersect::barycentric(a,b,c,p);
+        return uvw.is_greater_equal_than(Vector3::create_zero().borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn test_point_triangle_ccw(p:&Vector3, a:&Vector3, b:&Vector3, c:&Vector3)->bool{
+        let p_a = a - p;
+        let p_b = b - p;
+        let p_c = c - p;
+        let ab = p_a.dot3(p_b.borrow());
+        let ac = p_a.dot3(p_c.borrow());
+        let bc = p_b.dot3(p_c.borrow());
+        let cc = p_c.dot3(p_c.borrow());
+
+        if (bc * ac - cc * ab < 0.0)
+        {
+            return false;
+        }
+
+        let bb = p_b.dot3(p_b.borrow());
+
+        if (ab * bc - ac * bb < 0.0)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn closest_point_plane(p:&Vector3, plane:&Plane, mut pt_on_plane:&Vector3) ->f32{
+        let dist = plane.get_point_dist(p);
+        pt_on_plane = p - dist * plane.get_normal();
+        return dist;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn closest_point_triangle(p:&Vector3, a:&Vector3, b:&Vector3, c:&Vector3)->Vector3{
+        let ab = b - a;
+        let ac = c - a;
+        let ap = p - a;
+        let d1 = ab.dot3(ap.borrow());
+        let d2 = ac.dot3(ap.borrow());
+
+        if (d1 <= 0.0 && d2 <= 0.0)
+        {
+            return a.to_owned();
+        }
+        let bp = p - b;
+        let d3 = ab.dot3(bp.borrow());
+        let d4 = ac.dot3(bp.borrow());
+        if (d3 >= 0.0 && d4 <= d3)
+        {
+            return b.to_owned();
+        }
+        let vc = d1 * d4 - d3 * d2;
+        if (vc <= 0.0 && d1 >= 0.0 && d3 <= 0.0)
+        {
+            let v = d1 / (d1 - d3);
+            return   ab * v + a.to_owned();
+        }
+
+        let cp = p - c;
+        let d5 = ab.dot3(cp.borrow());
+        let d6 = ac.dot3(cp.borrow());
+        if (d6 >= 0.0 && d5 <= d6)
+        {
+            return c.to_owned();
+        }
+
+        let vb = d5 * d2 - d1 * d6;
+        if (vb <= 0.0 && d2 >= 0.0 && d6 <= 0.0)
+        {
+            let w = d2 / (d2 - d6);
+            return ac * w +a.to_owned();
+        }
+
+        let va = d3 * d6 - d5 * d4;
+        if (va <= 0.0 && d4 >= d3 && d5 >= d6)
+        {
+            let w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+            return (c - b) *w +b.to_owned();
+        }
+
+        let denom_rcp = 1.0 / (va + vb + vc);
+        let v = vb * denom_rcp;
+        let w = vc * denom_rcp;
+        return  ab * v + ac * w + a.to_owned();
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn point_sphere(center_position:&Vector3, radius_squared:&f32, test_point:&Vector3) ->bool{
+        return test_point.get_distance_sq(center_position) < radius_squared.to_owned();
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn point_cylinder(base_center_point:&Vector3, axis_vector:&Vector3, axis_length_squared:&f32, radius_squared:&f32, test_point:&Vector3) ->bool{
+        if (axis_length_squared.to_owned() <= 0.0 || radius_squared.to_owned() <= 0.0)
+        {
+            return false;
+        }
+
+
+        let base_center_point_to_test_point = test_point - base_center_point;
+        let dot_product = base_center_point_to_test_point.dot3(axis_vector);
+
+        // If the dot is < 0, the point is below the base cap of the cylinder, if it's > lengthSquared then it's beyond the other cap.
+        if (dot_product < 0.0 || dot_product > axis_length_squared.to_owned())
+        {
+            return false;
+        }
+        else
+        {
+            let distance_squared = (base_center_point_to_test_point.get_length_sq()) - (dot_product * dot_product / axis_length_squared);
+            return distance_squared <= radius_squared.to_owned();
+        }
+    }
 }
 
-AZ_MATH_INLINE bool
-TestPointTriangle(const Vector3& p, const Vector3& a, const Vector3& b, const Vector3& c)
-{
-Vector3 uvw = Barycentric(a, b, c, p);
-return uvw.IsGreaterEqualThan(Vector3::CreateZero());
-}
-
-AZ_MATH_INLINE bool
-TestPointTriangleCCW(const Vector3& p, const Vector3& a, const Vector3& b, const Vector3& c)
-{
-// Translate the triangle so it lies in the origin p.
-Vector3 pA = a - p;
-Vector3 pB = b - p;
-Vector3 pC = c - p;
-float ab = pA.Dot(pB);
-float ac = pA.Dot(pC);
-float bc = pB.Dot(pC);
-float cc = pC.Dot(pC);
-
-// Make sure plane normals for pab and pac point in the same direction.
-if (bc * ac - cc * ab < 0.0f)
-{
-return false;
-}
-
-float bb = pB.Dot(pB);
-
-// Make sure plane normals for pab and pca point in the same direction.
-if (ab * bc - ac * bb < 0.0f)
-{
-return false;
-}
-
-// Otherwise p must be in the triangle.
-return true;
-}
-
-AZ_MATH_INLINE float
-ClosestPointPlane(const Vector3& p, const Plane& plane, Vector3& ptOnPlane)
-{
-float dist = plane.GetPointDist(p);
-// \todo add Vector3 from Vector4 quick function.
-ptOnPlane = p - dist * plane.GetNormal();
-
-return dist;
-}
-
-inline Vector3 ClosestPointTriangle(const Vector3& p, const Vector3& a, const Vector3& b, const Vector3& c)
-{
-// Check if p in vertex region is outside a.
-Vector3 ab = b - a;
-Vector3 ac = c - a;
-Vector3 ap = p - a;
-float d1 = ab.Dot(ap);
-float d2 = ac.Dot(ap);
-
-if (d1 <= 0.0f && d2 <= 0.0f)
-{
-return a; // barycentric coordinates (1,0,0)
-}
-// Check if p in vertex region is outside b.
-Vector3 bp = p - b;
-float d3 = ab.Dot(bp);
-float d4 = ac.Dot(bp);
-if (d3 >= 0.0f && d4 <= d3)
-{
-return b; // barycentric coordinates (0,1,0)
-}
-// Check if p in edge region of ab, if so return projection of p onto ab.
-float vc = d1 * d4 - d3 * d2;
-if (vc <= 0.0f && d1 >= 0.0f && d3 <= 0.0f)
-{
-float v = d1 / (d1 - d3);
-return a + v * ab; // barycentric coordinates (1-v,v,0)
-}
-
-// Check if p in vertex region outside C.
-Vector3 cp = p - c;
-float d5 = ab.Dot(cp);
-float d6 = ac.Dot(cp);
-if (d6 >= 0.0f && d5 <= d6)
-{
-return c; // barycentric coordinates (0,0,1)
-}
-
-// Check if P in edge region of ac, if so return projection of p onto ac.
-float vb = d5 * d2 - d1 * d6;
-if (vb <= 0.0f && d2 >= 0.0f && d6 <= 0.0f)
-{
-float w = d2 / (d2 - d6);
-return a + w * ac; // barycentric coordinates (1-w,0,w)
-}
-
-// Check if p in edge region of bc, if so return projection of p onto bc.
-float va = d3 * d6 - d5 * d4;
-if (va <= 0.0f && d4 >= d3 && d5 >= d6)
-{
-float w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-return b + w * (c - b);  // barycentric coordinates (0,1-w,w)
-}
-
-// p inside face region. Compute q trough its barycentric coordinates (u,v,w)
-float denomRCP = 1.0f / (va + vb + vc);
-float v = vb * denomRCP;
-float w = vc * denomRCP;
-return a + ab * v + ac * w; // = u*a + v*b + w*c, u = va * denom = 1.0 - v - w
-}
-
-AZ_INLINE bool PointSphere(const Vector3& centerPosition,
-float radiusSquared, const Vector3& testPoint)
-{
-return testPoint.GetDistanceSq(centerPosition) < radiusSquared;
-}
-
-AZ_INLINE bool PointCylinder(const AZ::Vector3& baseCenterPoint, const AZ::Vector3& axisVector,
-float axisLengthSquared, float radiusSquared, const AZ::Vector3& testPoint)
-{
-// If the cylinder shape has no volume then the point cannot be inside.
-if (axisLengthSquared <= 0.0f || radiusSquared <= 0.0f)
-{
-return false;
-}
-
-AZ::Vector3 baseCenterPointToTestPoint = testPoint - baseCenterPoint;
-float dotProduct = baseCenterPointToTestPoint.Dot(axisVector);
-
-// If the dot is < 0, the point is below the base cap of the cylinder, if it's > lengthSquared then it's beyond the other cap.
-if (dotProduct < 0.0f || dotProduct > axisLengthSquared)
-{
-return false;
-}
-else
-{
-float distanceSquared = (baseCenterPointToTestPoint.GetLengthSq()) - (dotProduct * dotProduct / axisLengthSquared);
-return distanceSquared <= radiusSquared;
-}
-}

@@ -1,7 +1,7 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
 
-use std::ops::{Mul, MulAssign, SubAssign};
+use std::ops::*;
 
 #[cfg(target_arch = "arm")]
 #[allow(dead_code)]
@@ -69,7 +69,63 @@ impl Mul<f32> for &Vector4 {
         unsafe { return Vector4::new_float_type(Vec3::mul(self._value.borrow(), Vec3::splat(rhs.borrow()).borrow()).borrow()) }
     }
 }
+impl Add<Vector4> for Vector4 {
+    type Output = Vector4;
 
+    fn add(self, rhs: Self) -> Self::Output {
+        unsafe {
+            Vector4 {
+                _value: Vec4::add(self._value.borrow(), rhs._value.borrow())
+            }
+        }
+    }
+}
+
+impl Sub<Vector4> for Vector4 {
+    type Output = Vector4;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        unsafe {
+            Vector4 {
+                _value: Vec4::sub(self._value.borrow(), rhs._value.borrow())
+            }
+        }
+    }
+}
+impl Mul<Vector4> for Vector4 {
+    type Output = Vector4;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        unsafe {
+            Vector4 {
+                _value: Vec4::mul(self._value.borrow(), rhs._value.borrow())
+            }
+        }
+    }
+}
+
+impl Mul<f32> for Vector4 {
+    type Output = Vector4;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        unsafe {
+            Vector4 {
+                _value: Vec4::mul(self._value.borrow(), Vec4::splat(rhs.borrow()).borrow())
+            }
+        }
+    }
+}
+impl Div<Vector4> for Vector4 {
+    type Output = Vector4;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        unsafe {
+            Vector4 {
+                _value: Vec4::div(self._value.borrow(), rhs._value.borrow())
+            }
+        }
+    }
+}
 impl Vector4 {
     #[inline]
     #[allow(dead_code)]

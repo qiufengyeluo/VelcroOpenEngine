@@ -29,6 +29,7 @@ mod quaternion;
 mod capsule;
 mod line_segment;
 mod ray;
+mod color;
 
 #[cfg(test)]
 mod tests {

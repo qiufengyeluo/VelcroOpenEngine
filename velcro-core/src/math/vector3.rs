@@ -811,7 +811,13 @@ impl Sub for Vector3 {
         unsafe { Vector3 { _value: Vec3::sub(self._value.borrow(), rhs._value.borrow()) } }
     }
 }
+impl Sub<&Vector3> for &Vector3 {
+    type Output = Vector3;
 
+    fn sub(&self, rhs: &Vector3) -> Self::Output {
+        unsafe { Vector3 { _value: Vec3::sub(self._value.borrow(), rhs._value.borrow()) } }
+    }
+}
 impl Mul for Vector3 {
     type Output = Vector3;
 
