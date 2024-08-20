@@ -835,7 +835,13 @@ impl Div for Vector3 {
         unsafe { Vector3 { _value: Vec3::div(self._value.borrow(),val.borrow_mut()) } }
     }
 }
+impl Div<f32> for Vector3 {
+    type Output = Vector3;
 
+    fn div(self, rhs: &f32) -> Self::Output {
+        unsafe { Vector3 { _value: Vec3::div(self._value.borrow(),Vec3::splat(rhs).borrow_mut()) } }
+    }
+}
 impl AddAssign<Vector3> for Vector3 {
     fn add_assign(&mut self, rhs: &Vector3) {
         self._value = self.add(rhs)._value;

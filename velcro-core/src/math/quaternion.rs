@@ -3,10 +3,10 @@
 
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
-use crate::math::common_sse::{Vec4Type, VecFourthType, VecThirdType, VecTwoType, VecType};
+use crate::math::common_sse::{Vec3Type, Vec4Type, VecFourthType, VecThirdType, VecTwoType, VecType};
 use crate::math::constants::{FLOAT_EPSILON, G_NEGATE_XMASK, G_NEGATE_XYZMASK};
-use crate::math::math_utils::get_clamp;
-use crate::math::simd_math::{simd_acos, simd_atan2, simd_inv_sqrt, simd_sin_cos, simd_sqrt};
+use crate::math::math_utils::{get_clamp, is_finite_float};
+use crate::math::simd_math::{simd_acos, simd_atan2, simd_inv_sqrt, simd_sin, simd_sin_cos, simd_sqrt};
 use crate::math::simd_math_vec1_sse::Vec1;
 use crate::math::simd_math_vec3_sse::Vec3;
 use crate::math::simd_math_vec4_sse::Vec4;
@@ -732,70 +732,146 @@ impl Quaternion {
         }
     }
 
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_from_euler_degrees(self, euler_degrees:&Vector3){
+        self.set_from_euler_degrees(Vector3::vector3deg_to_rad(euler_degrees).borrow())
+    }
 
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_imaginary(self)->Vector3{
+        return Vector3::new_float_type(Vec4::value_to_vec3(self._value.borrow()).borrow())
+    }
 
-AZ_MATH_INLINE void Quaternion::SetFromEulerDegrees(const Vector3& eulerDegrees)
-{
-SetFromEulerRadians(Vector3DegToRad(eulerDegrees));
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn is_finite(self)->bool{
+        return is_finite_float(self.get_x().borrow()) && is_finite_float(self.get_y().borrow()) && is_finite_float(self.get_z().borrow()) && is_finite_float(self.get_w().borrow())
+    }
 
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_simd_value(self)->FloatType{
+        self._value
+    }
 
-AZ_MATH_INLINE Vector3 Quaternion::GetImaginary() const
-{
-return Vector3(Simd::Vec4::ToVec3(m_value));
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_abs(self)->Quaternion{
+        return Quaternion::new_float_type(Vec4::abs(self._value.borrow()).borrow())
+    }
 
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn convert_quaternion_to_euler_degrees(q:&Quaternion)->Vector3{
+        return q.get_euler_degrees()
+    }
 
-AZ_MATH_INLINE bool Quaternion::IsFinite() const
-{
-return IsFiniteFloat(GetX()) && IsFiniteFloat(GetY()) && IsFiniteFloat(GetZ()) && IsFiniteFloat(GetW());
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn convert_quaternion_to_euler_radians(q:&Quaternion)->Vector3{
+        return q.get_euler_radians()
+    }
 
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn convert_euler_radians_to_quaternion(euler_radians:&Vector3) ->Quaternion{
+        let mut q = Quaternion::new();
+        q.set_from_euler_radians(euler_radians.borrow());
+        q
+    }
 
-AZ_MATH_INLINE Simd::Vec4::FloatType Quaternion::GetSimdValue() const
-{
-return m_value;
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn convert_euler_degrees_to_quaternion(euler_degrees:&Vector3) ->Quaternion{
+        let mut q = Quaternion::new();
+        q.set_from_euler_degrees(euler_degrees.borrow());
+        q
+    }
 
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn convert_quaternion_to_axis_angle(quat:&Quaternion, out_axis:&Vector3, out_angle:&mut f32){
+        quat.convert_to_axis_angle(out_axis, out_angle)
+    }
 
-AZ_MATH_INLINE Quaternion Quaternion::GetAbs() const
-{
-return Quaternion(Simd::Vec4::Abs(m_value));
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn convert_to_axis_angle(self, mut out_axis: &Vector3, mut out_angle: &f32){
+        out_angle = (2.0 * simd_acos(self.get_w().borrow())).borrow_mut();
+        let sin_half_angle = simd_sin((out_angle *0.5).borrow());
+        if sin_half_angle > 0.0{
+            out_axis = (self.get_imaginary() / sin_half_angle).borrow();
+        }else {
+            out_axis.set_value_xyz(0.0.borrow(), 1.0.borrow(), 0.0.borrow());
+            out_angle = 0.0.borrow();
+        }
+    }
 
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn convert_to_scaled_axis_angle(self) ->Vector3{
+        let  imaginary = self.get_imaginary();
+        let length = imaginary.get_length();
+        if length < FLOAT_EPSILON {
+            return imaginary *2.0
+        }else {
+            let half_angle = acosf(get_clamp(self.get_w().borrow(), (-1.0).borrow(), 1.0.borrow()));
+            return  half_angle * 2.0 * (imaginary / length);
+        }
+    }
 
-// Non-member functionality belonging to the AZ namespace
-AZ_MATH_INLINE Vector3 ConvertQuaternionToEulerDegrees(const Quaternion& q)
-{
-return q.GetEulerDegrees();
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn slerp(self,dest:&Quaternion,t:&f32)->Quaternion{
+        let DestDot = self.dot(dest);
+        let mut cosom = -DestDot;
+        if DestDot > 0.0{
+            cosom = DestDot;
+        }
+        let mut sclA:f32;
+        let mut sclB:f32;
+        if cosom < 0.9999 {
+            let omega = simd_acos(cosom.borrow());
+            let angles = Vec3::load_immediate(omega.borrow(),((1.0-t)*omega).borrow(),(t*omega).borrow());
+            let sin = Vec3::sin(angles.borrow());
+            let sinom = 1.0/Vec3::select_index0(sin.borrow());
+            sclA = Vec3::select_index1(sin.borrow()) *sinom;
+            sclB = Vec3::select_index2(sin.borrow()) *sinom;
+        }else {
+            sclA = 1.0 - t;
+            sclB = t.to_owned();
+        }
+        if (DestDot < 0.0)
+        {
+            sclA = -sclA;
+        }
 
+        return (*self) * sclA + dest * sclB.borrow();
+    }
 
-AZ_MATH_INLINE Vector3 ConvertQuaternionToEulerRadians(const Quaternion& q)
-{
-return q.GetEulerRadians();
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_from_euler_radians(self,eulerRadians:&Vector3){
+        let half = Vec3::splat(0.5.borrow());
+        let angles = Vec3::mul(half.borrow(),eulerRadians.get_simd_value().borrow());
+        let mut sin:FloatType;
+        let mut cos:FloatType;
+        Vec3::sin_cos(angles.borrow(),sin.borrow_mut(),cos.borrow_mut());
+        let sx = Vec3::select_index0(sin.borrow());
+        let sy = Vec3::select_index1(sin.borrow());
+        let sz = Vec3::select_index2(sin.borrow());
+        let cx = Vec3::select_index0(cos.borrow());
+        let cy = Vec3::select_index1(cos.borrow());
+        let cz = Vec3::select_index2(cos.borrow());
 
+        // rot = rotx * roty * rotz
+        let w = cx * cy * cz - sx * sy * sz;
+        let x = cx * sy * sz + sx * cy * cz;
+        let y = cx * sy * cz - sx * cy * sz;
+        let z = cx * cy * sz + sx * sy * cz;
 
-AZ_MATH_INLINE Quaternion ConvertEulerRadiansToQuaternion(const Vector3& eulerRadians)
-{
-Quaternion q;
-q.SetFromEulerRadians(eulerRadians);
-return q;
-}
-
-
-AZ_MATH_INLINE Quaternion ConvertEulerDegreesToQuaternion(const Vector3& eulerDegrees)
-{
-Quaternion q;
-q.SetFromEulerDegrees(eulerDegrees);
-return q;
-}
-
-
-AZ_MATH_INLINE void ConvertQuaternionToAxisAngle(const Quaternion& quat, Vector3& outAxis, float& outAngle)
-{
-quat.ConvertToAxisAngle(outAxis, outAngle);
-}
-
+       self.set_xyzw(x.borrow(), y.borrow(), z.borrow(), w.borrow());
+    }
 }
