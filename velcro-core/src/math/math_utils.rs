@@ -3,7 +3,7 @@
 
 use core::f64;
 
-use crate::math::constants::PI;
+use crate::math::constants::{PI, TOLERANCE};
 
 pub fn get_clamp<T>(value :T, min:T, max:T ) ->T
 {
@@ -31,6 +31,21 @@ pub fn min<T>(left:&T,right:&T)->T{
     }else {
         right
     }
+}
+pub fn is_close_f32(a:&f32,b:&f32,tolerance:&f32)->bool{
+    return abs(a - b) <= tolerance
+}
+
+pub fn is_close_f32_default(a:&f32,b:&f32)->bool{
+    return abs(a - b) <= TOLERANCE
+}
+
+pub fn is_close_f64(a:&f64,b:&f64,tolerance:&f64)->bool{
+    return abs(a - b) <= tolerance
+}
+
+pub fn is_close_f64_default(a:&f64,b:&f64)->bool{
+    return abs(a - b) <= TOLERANCE
 }
 
 pub fn rad_to_deg(rad:&f32)->f32{
