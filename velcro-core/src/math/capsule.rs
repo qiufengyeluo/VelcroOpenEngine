@@ -25,11 +25,11 @@ impl Capsule{
 
     #[inline]
     #[allow(dead_code)]
-    pub fn new_line_f32(lineSegment:&LineSegment,radius:&f32)->Capsule{
+    pub fn new_line_f32(line_segment:&LineSegment, radius:&f32) ->Capsule{
         Capsule{
             _radius:radius.to_owned(),
-            _first_hemisphere_center: lineSegment.get_start(),
-            _second_hemisphere_center: lineSegment.get_end(),
+            _first_hemisphere_center: line_segment.get_start(),
+            _second_hemisphere_center: line_segment.get_end(),
         }
     }
 
@@ -99,9 +99,5 @@ impl Capsule{
     #[allow(dead_code)]
     pub unsafe fn contains(self,point:&Vector3)->bool{
         return  Intersect::point_segment_distance_sq(point,self._first_hemisphere_center.borrow(),self._second_hemisphere_center.borrow()) <= self._radius * self._radius;
-    }
-    AZ_MATH_INLINE bool Capsule::Contains(const AZ::Vector3& point) const
-    {
-    return Intersect::PointSegmentDistanceSq(point, m_firstHemisphereCenter, m_secondHemisphereCenter) <= m_radius * m_radius;
     }
 }
