@@ -4,6 +4,7 @@
 use crate::math::common_sse::VecType;
 use crate::math::constants::FLOAT_MAX;
 use crate::math::simd_math_vec3_sse::Vec3;
+use crate::math::transform::Transform;
 use crate::math::vector3::Vector3;
 
 // PartialEq 是否相等
@@ -109,14 +110,14 @@ impl Aabb {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn get_min(self) -> &Vector3 {
-        return self._min.borrow();
+    pub unsafe fn get_min(self) -> Vector3 {
+        return self._min;
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn get_max(self) -> &Vector3 {
-        return self._max.borrow();
+    pub unsafe fn get_max(self) -> Vector3 {
+        return self._max;
     }
 
     #[inline]
@@ -315,64 +316,41 @@ impl Aabb {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn get_transformed_aabb(self,transform:&Transform)->Aabb{
-
+        let mut aabb = Aabb::create_from_min_max(self._min.borrow(),self._max.borrow());
+        aabb.apply_transform(transform);
+        aabb
     }
 
 
-    AZ_MATH_INLINE Aabb Aabb::GetTransformedAabb(const Transform& transform) const
-{
-Aabb aabb = Aabb::CreateFromMinMax(m_min, m_max);
-aabb.ApplyTransform(transform);
-return aabb;
+
+#[inline]
+#[allow(dead_code)]
+pub unsafe fn get_transformed_aabb_matrix3x4(self,matrix3x4:&Matrix3x4)->Aabb{
+    let mut aabb = Aabb::create_from_min_max(self._min.borrow(),self._max.borrow());
+    aabb.apply_matrix3x4(matrix3x4);
+    aabb
+}
+
+#[allow(dead_code)]
+pub unsafe fn apply_matrix3x4(&mut self, matrix3x4:&Matrix3x4){
+    let new_min = matrix3x4;
+    let new_max = new_min;
+    let mut axis_index = 0;
+    while axis_index < 3 {
+        let axis_coeffs = matrix3x4.get_row_as_vector3(axis_index);
+        let projected_contributions_from_min = axis_coeffs * self._min;
+        let projected_contributions_from_max = axis_coeffs * self._max;
+        new_min.set_element(axis_index, new_min.get_element(axis_index)+ projected_contributions_from_min.get_min(projected_contributions_from_max).dot(Vector3::create_one().borrow()));
+        new_max.set_element(axis_index, new_max.get_element(axis_index)+ projected_contributions_from_min.get_max(projected_contributions_from_max).dot(Vector3::create_one().borrow()));
+        axis_index +=1;
+    }
+    self._min = new_min;
+    self._max = new_max;
 }
 
 #[inline]
 #[allow(dead_code)]
-pub unsafe fn get_transformed_aabb(self,matrix3x4:&Matrix3x4)->Aabb{
-    let aabb = Aabb::create_from_min_max(self._min,self._max);
-    aabb.
-}
-AZ_MATH_INLINE Aabb Aabb::GetTransformedAabb(const Matrix3x4& matrix3x4) const
-{
-Aabb aabb = Aabb::CreateFromMinMax(m_min, m_max);
-aabb.ApplyMatrix3x4(matrix3x4);
-return aabb;
-}
-#[allow(dead_code)]
-pub fn apply_matrix3x4(self,matrix3x4:&Matrix3x4){
-    let newMin = matrix3x4;
-}
-void Aabb::ApplyMatrix3x4(const Matrix3x4& matrix3x4)
-{
-// See ApplyTransform for more details on how this works.
-
-Vector3 newMin = matrix3x4.GetTranslation();
-Vector3 newMax = newMin;
-
-// Find extreme points for each axis.
-for (int axisIndex = 0; axisIndex < 3; axisIndex++)
-{
-const Vector3 axisCoeffs = matrix3x4.GetRowAsVector3(axisIndex);
-const Vector3 projectedContributionsFromMin = axisCoeffs * m_min;
-const Vector3 projectedContributionsFromMax = axisCoeffs * m_max;
-
-newMin.SetElement(
-axisIndex,
-newMin.GetElement(axisIndex) +
-projectedContributionsFromMin.GetMin(projectedContributionsFromMax).Dot(Vector3::CreateOne()));
-newMax.SetElement(
-axisIndex,
-newMax.GetElement(axisIndex) +
-projectedContributionsFromMin.GetMax(projectedContributionsFromMax).Dot(Vector3::CreateOne()));
-}
-
-m_min = newMin;
-m_max = newMax;
-}
-
-#[inline]
-#[allow(dead_code)]
-pub fn is_close(self, rhs :&Aabb, tolerance:&f32 ) ->bool
+pub unsafe fn is_close(self, rhs :&Aabb, tolerance:&f32 ) ->bool
     {
         return self._min.is_close(rhs._min.borrow(), tolerance) && self._max.is_close(rhs._max.borrow(), tolerance);
     }
@@ -381,14 +359,13 @@ pub fn is_close(self, rhs :&Aabb, tolerance:&f32 ) ->bool
 #[allow(dead_code)]
 pub fn is_valid(self) ->bool
     {
-        return self.m_min.is_less(self.m_max);
+        return self._min.is_less(self._max);
     }
 
 #[inline]
 #[allow(dead_code)]
-pub fn is_finite(self) ->bool
+pub unsafe fn is_finite(self) ->bool
     {
-        return self.m_min.IsFinite() && self.m_max.IsFinite();
+        return self._min.is_finite() && self._max.is_finite();
     }
-
 }

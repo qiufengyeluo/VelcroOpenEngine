@@ -25,6 +25,8 @@ mod vectorn;
 mod matrix3x3;
 mod transform;
 mod quaternion;
+mod capsule;
+mod intersect;
 
 #[cfg(test)]
 mod tests {

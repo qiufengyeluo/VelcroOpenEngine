@@ -10,7 +10,7 @@ pub enum IntersectResult{
 
 
 // PartialEq 是否相等
-#[derive(Debug,Eq, Copy, Clone)]
+#[derive(Debug,Copy, Clone)]
 pub struct Plane {
     _plane: Vector4
 }
