@@ -3,12 +3,25 @@
 
 use std::ops::*;
 use std::ops::Add;
-use crate::math::simd_math_vec4_sse::Vec4;
+
+use crate::math::constants::TWO_PI;
+use crate::math::math_utils::{deg_to_rad, get_clamp};
+use crate::math::vector2::Vector2;
+use crate::math::vector3::Vector3;
 use crate::math::vector4::Vector4;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Color{
     _color:Vector4
+}
+
+impl PartialEq<Self> for Color {
+    fn eq(&self, other: &Self) -> bool {
+        return self._color == other._color;
+    }
+    fn ne(&self, other: &Self) -> bool {
+        return self._color != other._color;
+    }
 }
 
 impl Sub for Color{
@@ -73,505 +86,509 @@ impl Mul<f32> for Color{
     }
 }
 
-AZ_MATH_INLINE Color Color::operator*(float multiplier) const
-{
-return Color(m_color * multiplier);
+impl Div<f32> for Color{
+    type Output = Color;
+
+    fn div(self, multiplier: f32) -> Self::Output {
+        Color{
+            _color: self._color / multiplier,
+        }
+    }
 }
 
-
-AZ_MATH_INLINE Color Color::operator/(float divisor) const
-{
-return Color(m_color / divisor);
+impl AddAssign<Color> for Color {
+    fn add_assign(&mut self, rhs: Color) {
+        self._color += rhs._color;
+    }
 }
 
-
-AZ_MATH_INLINE Color& Color::operator+=(const Color& rhs)
-{
-*this = (*this) + rhs;
-return *this;
+impl SubAssign<Color> for Color {
+    fn sub_assign(&mut self, rhs: Color) {
+        self._color -= rhs._color;
+    }
 }
 
-
-AZ_MATH_INLINE Color& Color::operator-=(const Color& rhs)
-{
-*this = (*this) - rhs;
-return *this;
+impl MulAssign<Color> for Color {
+    fn mul_assign(&mut self, rhs: Color) {
+        self._color *= rhs._color;
+    }
 }
 
-
-AZ_MATH_INLINE Color& Color::operator*=(const Color& rhs)
-{
-*this = (*this) * rhs;
-return *this;
+impl DivAssign<Color> for Color {
+    fn div_assign(&mut self, rhs: Color) {
+        self._color /= rhs._color;
+    }
 }
 
-
-AZ_MATH_INLINE Color& Color::operator/=(const Color& rhs)
-{
-*this = (*this) / rhs;
-return *this;
+impl MulAssign<f32> for Color {
+    fn mul_assign(&mut self, rhs: f32) {
+        self._color *= rhs;
+    }
 }
 
-
-AZ_MATH_INLINE Color& Color::operator*=(float multiplier)
-{
-*this = (*this) * multiplier;
-return *this;
+impl DivAssign<f32> for Color {
+    fn div_assign(&mut self, rhs: f32) {
+        self._color /= rhs;
+    }
 }
 
-
-AZ_MATH_INLINE Color& Color::operator/=(float divisor)
-{
-*this = (*this) / divisor;
-return *this;
-}
-
-
-AZ_MATH_INLINE const Color operator*(float multiplier, const Color& rhs)
-{
-return rhs * multiplier;
-}
 impl  Color{
-    AZ_MATH_INLINE Color::Color(const Vector2& source)
-    {
-    m_color = Vector4(source);
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn new()->Color{
+        Color{
+            _color:Vector4::new(),
+        }
+    }
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn new_vec4(source:&Vector4)->Color{
+        Color{
+            _color:source.to_owned(),
+        }
+    }
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn new_vec2(source:&Vector2)->Color{
+        Color{
+            _color:Vector4::new_vec2(source),
+        }
     }
 
-    AZ_MATH_INLINE Color::Color(const Vector3& source)
-    {
-    m_color = Vector4(source);
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn new_vec3(source:&Vector3)->Color{
+        Color{
+            _color:Vector4::new_vec3(source),
+        }
     }
 
-    AZ_MATH_INLINE Color::Color(float rgba)
-    : m_color(rgba)
-    {
-    ;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn new_f32(rgba:&f32)->Color{
+        Color{
+            _color:Vector4::new_x(rgba)
+        }
     }
 
-    AZ_MATH_INLINE Color::Color(float r, float g, float b, float a)
-    : m_color(r, g, b, a)
-    {
-    ;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn new_rgba_f32(r:&f32,g:&f32,b:&f32,a:&f32)->Color{
+        Color{
+            _color:Vector4::new_x_y_z_w(r,g,b,a),
+        }
     }
 
-    AZ_MATH_INLINE Color::Color(u8 r, u8 g, u8 b, u8 a)
-    {
-    SetR8(r);
-    SetG8(g);
-    SetB8(b);
-    SetA8(a);
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn new_rgba_u8(r:&u8,g:&u8,b:&u8,a:&u8)->Color{
+        let mut result = Color::new();
+        result.set_r8(r);
+        result.set_g8(g);
+        result.set_b8(b);
+        result.set_a8(a);
+        result
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_zero()->Color{
+        Color{
+            _color:Vector4::create_zero(),
+        }
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_one()->Color{
+        let  result = Color::new_f32(1.0.borrow());
+        result
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_from_rgba(r:&u8,g:&u8,b:&u8,a:&u8)->Color{
+        return Color::new_rgba_u8(r,g,b,a);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_from_float4(values:*const f32)->Color{
+        let mut result = Color::new();
+        result.set_float4(values);
+        result
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_from_vector3(v:&Vector3)->Color{
+        let mut result = Color::new();
+        result.set_vec3(v);
+        result
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_from_vector3and_float(v:&Vector3,w:&f32)->Color{
+        let mut result = Color::new();
+        result.set_vec3_f32(v,w);
+        result
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_u32(r:&u8,g:&u8,b:&u8,a:&u8)->u32{
+        return (a << 24) | (b << 16) | (g << 8) | r;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn store_to_float4(&self, values:*mut f32){
+        self._color.store_to_float_4(values)
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_r8(self)->u8{
+        return (self._color.get_x() * 255.0) as u8
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_g8(self)->u8{
+        return (self._color.get_y() * 255.0) as u8
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_b8(self)->u8{
+        return (self._color.get_z() * 255.0) as u8
     }
 
 
-    AZ_MATH_INLINE Color Color::CreateZero()
-    {
-    return Color(Vector4::CreateZero());
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_a8(self)->u8{
+        return (self._color.get_w() * 255.0) as u8
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_r8(&self,r:&u8){
+        self._color.set_x(((r.to_owned() as f32)*(1.0/255.0)).borrow())
     }
 
 
-    AZ_MATH_INLINE Color Color::CreateOne()
-    {
-    return Color(1.0f);
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_g8(&self,g:&u8){
+        self._color.set_y(((g.to_owned() as f32)*(1.0/255.0)).borrow())
     }
 
 
-    AZ_MATH_INLINE Color Color::CreateFromRgba(u8 r, u8 g, u8 b, u8 a)
-    {
-    return Color(r,g,b,a);
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_b8(&self,b:&u8){
+        self._color.set_z(((b.to_owned() as f32)*(1.0/255.0)).borrow())
     }
 
 
-    AZ_MATH_INLINE Color Color::CreateFromFloat4(const float* values)
-    {
-    Color result;
-    result.Set(values);
-    return result;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_a8(&self,a:&u8){
+        self._color.set_w(((a.to_owned() as f32)*(1.0/255.0)).borrow())
     }
 
 
-    AZ_MATH_INLINE Color Color::CreateFromVector3(const Vector3& v)
-    {
-    Color result;
-    result.Set(v);
-    return result;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_r(self)->f32{
+        return self._color.get_x();
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_g(self)->f32{
+        return self._color.get_y();
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_b(self)->f32{
+        return self._color.get_z();
     }
 
 
-    AZ_MATH_INLINE Color Color::CreateFromVector3AndFloat(const Vector3& v, float w)
-    {
-    Color result;
-    result.Set(v, w);
-    return result;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_a(self)->f32{
+        return self._color.get_w();
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_element(self,index:&i32)->f32{
+        return self._color.get_element(index)
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_r(&mut self,r:&f32){
+        self._color.set_x(r)
     }
 
 
-    AZ_MATH_INLINE u32 Color::CreateU32(u8 r, u8 g, u8 b, u8 a)
-    {
-    return (a << 24) | (b << 16) | (g << 8) | r;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_g(&mut self,g:&f32){
+        self._color.set_y(g)
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_b(&mut self,b:&f32){
+        self._color.set_z(b)
     }
 
 
-    AZ_MATH_INLINE void Color::StoreToFloat4(float* values) const
-    {
-    m_color.StoreToFloat4(values);
-}
-
-
-AZ_MATH_INLINE u8 Color::GetR8() const
-{
-return static_cast<u8>(m_color.GetX() * 255.0f);
-}
-
-
-AZ_MATH_INLINE u8 Color::GetG8() const
-{
-return static_cast<u8>(m_color.GetY() * 255.0f);
-}
-
-
-AZ_MATH_INLINE u8 Color::GetB8() const
-{
-return static_cast<u8>(m_color.GetZ() * 255.0f);
-}
-
-
-AZ_MATH_INLINE u8 Color::GetA8() const
-{
-return static_cast<u8>(m_color.GetW() * 255.0f);
-}
-
-
-AZ_MATH_INLINE void Color::SetR8(u8 r)
-{
-m_color.SetX(static_cast<float>(r) * (1.0f / 255.0f));
-}
-
-
-AZ_MATH_INLINE void Color::SetG8(u8 g)
-{
-m_color.SetY(static_cast<float>(g) * (1.0f / 255.0f));
-}
-
-
-AZ_MATH_INLINE void Color::SetB8(u8 b)
-{
-m_color.SetZ(static_cast<float>(b) * (1.0f / 255.0f));
-}
-
-
-AZ_MATH_INLINE void Color::SetA8(u8 a)
-{
-m_color.SetW(static_cast<float>(a) * (1.0f / 255.0f));
-}
-
-
-AZ_MATH_INLINE float Color::GetR() const
-{
-return m_color.GetX();
-}
-
-
-AZ_MATH_INLINE float Color::GetG() const
-{
-return m_color.GetY();
-}
-
-
-AZ_MATH_INLINE float Color::GetB() const
-{
-return m_color.GetZ();
-}
-
-
-AZ_MATH_INLINE float Color::GetA() const
-{
-return m_color.GetW();
-}
-
-
-AZ_MATH_INLINE float Color::GetElement(int32_t index) const
-{
-return m_color.GetElement(index);
-}
-
-
-AZ_MATH_INLINE void Color::SetR(float r)
-{
-m_color.SetX(r);
-}
-
-
-AZ_MATH_INLINE void Color::SetG(float g)
-{
-m_color.SetY(g);
-}
-
-
-AZ_MATH_INLINE void Color::SetB(float b)
-{
-m_color.SetZ(b);
-}
-
-
-AZ_MATH_INLINE void Color::SetA(float a)
-{
-m_color.SetW(a);
-}
-
-
-AZ_MATH_INLINE void Color::Set(float x)
-{
-m_color.Set(x);
-}
-
-
-AZ_MATH_INLINE void Color::Set(float r, float g, float b, float a)
-{
-m_color.Set(r, g, b, a);
-}
-
-
-AZ_MATH_INLINE void Color::Set(const float values[4])
-{
-m_color.Set(values);
-}
-
-
-AZ_MATH_INLINE void Color::Set(const Vector3& v)
-{
-m_color.Set(v);
-}
-
-
-AZ_MATH_INLINE void Color::Set(const Vector3& color, float a)
-{
-m_color.Set(color, a);
-}
-
-
-AZ_MATH_INLINE void Color::SetElement(int32_t index, float v)
-{
-m_color.SetElement(index, v);
-}
-
-
-AZ_MATH_INLINE Vector3 Color::GetAsVector3() const
-{
-return m_color.GetAsVector3();
-}
-
-
-AZ_MATH_INLINE Vector4 Color::GetAsVector4() const
-{
-return m_color;
-}
-
-
-AZ_MATH_INLINE void Color::SetFromHSVRadians(float hueRadians, float saturation, float value)
-{
-float alpha = GetA();
-
-// Saturation and value outside of [0-1] are invalid, so clamp them to valid values.
-saturation = GetClamp(saturation, 0.0f, 1.0f);
-value = GetClamp(value, 0.0f, 1.0f);
-
-hueRadians = fmodf(hueRadians, AZ::Constants::TwoPi);
-if (hueRadians < 0)
-{
-hueRadians += AZ::Constants::TwoPi;
-}
-
-// https://en.wikipedia.org/wiki/HSL_and_HSV#Converting_to_RGB
-float hue = fmodf(hueRadians / AZ::DegToRad(60.0f), 6.0f);
-const int32_t hueSexant = static_cast<int32_t>(hue);
-const float hueSexantRemainder = hue - hueSexant;
-
-const float offColor = value * (1.0f - saturation);
-const float fallingColor = value * (1.0f - (saturation * hueSexantRemainder));
-const float risingColor = value * (1.0f - (saturation * (1.0f - hueSexantRemainder)));
-
-switch (hueSexant)
-{
-case 0:
-Set(value, risingColor, offColor, alpha);
-break;
-case 1:
-Set(fallingColor, value, offColor, alpha);
-break;
-case 2:
-Set(offColor, value, risingColor, alpha);
-break;
-case 3:
-Set(offColor, fallingColor, value, alpha);
-break;
-case 4:
-Set(risingColor, offColor, value, alpha);
-break;
-case 5:
-Set(value, offColor, fallingColor, alpha);
-break;
-default:
-AZ_MATH_ASSERT(true,
-"SetFromHSV has generated invalid data from these parameters : H %.5f, S %.5f, V %.5f.",
-hueRadians,
-saturation,
-value);
-}
-}
-
-
-AZ_MATH_INLINE bool Color::IsClose(const Color& v, float tolerance) const
-{
-return m_color.IsClose(v.GetAsVector4(), tolerance);
-}
-
-
-AZ_MATH_INLINE bool Color::IsZero(float tolerance) const
-{
-return IsClose(CreateZero(), tolerance);
-}
-
-AZ_MATH_INLINE bool Color::IsFinite() const
-{
-return m_color.IsFinite();
-}
-
-AZ_MATH_INLINE bool Color::operator==(const Color& rhs) const
-{
-return m_color == rhs.m_color;
-}
-
-
-AZ_MATH_INLINE bool Color::operator!=(const Color& rhs) const
-{
-return m_color != rhs.m_color;
-}
-
-
-AZ_MATH_INLINE Color::operator Vector3() const
-{
-return m_color.GetAsVector3();
-}
-
-
-AZ_MATH_INLINE Color::operator Vector4() const
-{
-return m_color;
-}
-
-
-AZ_MATH_INLINE Color& Color::operator=(const Vector3& rhs)
-{
-Set(rhs);
-return *this;
-}
-
-
-// Color to u32 => 0xAABBGGRR (COLREF format)
-AZ_MATH_INLINE u32 Color::ToU32() const
-{
-return CreateU32(GetR8(), GetG8(), GetB8(), GetA8());
-}
-
-
-// Color from u32 => 0xAABBGGRR (COLREF format)
-AZ_MATH_INLINE void Color::FromU32(u32 c)
-{
-SetA(static_cast<float>(c >> 24) * (1.0f / 255.0f));
-SetB(static_cast<float>((c >> 16) & 0xff) * (1.0f / 255.0f));
-SetG(static_cast<float>((c >> 8) & 0xff) * (1.0f / 255.0f));
-SetR(static_cast<float>(c & 0xff) * (1.0f / 255.0f));
-}
-
-
-AZ_MATH_INLINE u32 Color::ToU32LinearToGamma() const
-{
-return LinearToGamma().ToU32();
-}
-
-
-AZ_MATH_INLINE void Color::FromU32GammaToLinear(u32 c)
-{
-FromU32(c);
-*this = GammaToLinear();
-}
-
-AZ_MATH_INLINE float Color::ConvertSrgbGammaToLinear(float x)
-{
-return x <= 0.04045 ? (x / 12.92f) : static_cast<float>(pow((static_cast<double>(x) + 0.055) / 1.055, 2.4));
-}
-
-AZ_MATH_INLINE float Color::ConvertSrgbLinearToGamma(float x)
-{
-return x <= 0.0031308 ? 12.92f * x : static_cast<float>(1.055 * pow(static_cast<double>(x), 1.0 / 2.4) - 0.055);
-}
-
-AZ_MATH_INLINE Color Color::LinearToGamma() const
-{
-float r = GetR();
-float g = GetG();
-float b = GetB();
-
-r = ConvertSrgbLinearToGamma(r);
-g = ConvertSrgbLinearToGamma(g);
-b = ConvertSrgbLinearToGamma(b);
-
-return Color(r,g,b,GetA());
-}
-
-
-AZ_MATH_INLINE Color Color::GammaToLinear() const
-{
-float r = GetR();
-float g = GetG();
-float b = GetB();
-
-return Color(ConvertSrgbGammaToLinear(r),
-ConvertSrgbGammaToLinear(g),
-ConvertSrgbGammaToLinear(b), GetA());
-}
-
-
-AZ_MATH_INLINE bool Color::IsLessThan(const Color& rhs) const
-{
-return m_color.IsLessThan(rhs.m_color);
-}
-
-
-AZ_MATH_INLINE bool Color::IsLessEqualThan(const Color& rhs) const
-{
-return m_color.IsLessEqualThan(rhs.m_color);
-}
-
-
-AZ_MATH_INLINE bool Color::IsGreaterThan(const Color& rhs) const
-{
-return m_color.IsGreaterThan(rhs.m_color);
-}
-
-
-AZ_MATH_INLINE bool Color::IsGreaterEqualThan(const Color& rhs) const
-{
-return m_color.IsGreaterEqualThan(rhs.m_color);
-}
-
-
-AZ_MATH_INLINE Color Color::Lerp(const Color& dest, float t) const
-{
-return Color(m_color.Lerp(dest.m_color, t));
-}
-
-
-AZ_MATH_INLINE float Color::Dot(const Color& rhs) const
-{
-return (m_color.Dot(rhs.m_color));
-}
-
-
-AZ_MATH_INLINE float Color::Dot3(const Color& rhs) const
-{
-return (m_color.Dot3(rhs.m_color.GetAsVector3()));
-}
-
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_a(&mut self,a:&f32){
+        self._color.set_w(a)
+    }
+
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_f32(&mut self,x:&f32){
+        self._color.set_f32(x);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_rgba_f32(&mut self,r:&f32,g:&f32,b:&f32,a:&f32){
+        self._color.set_x_y_z_w(r,g,b,a);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_float4(&mut self,values:*const f32){
+        self._color.set_float4(values)
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_vec3(&mut self,v:&Vector3){
+        self._color.set_vec3(v);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_vec3_f32(&mut self,v:&Vector3,a:&f32){
+        self._color.set_vec3_f32(v,a);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_element(&mut self,index:&i32,v:&f32){
+        self._color.set_element(index,v);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_as_vector3(self)->Vector3{
+        return self._color.get_as_vector3();
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_as_vector4(self)->Vector4{
+        return self._color;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_from_hsvradians(&mut self, mut hue_radians:&f32, mut saturation:&f32, mut value:&f32){
+        let alpha = self.get_a();
+        saturation = get_clamp(saturation,0.0.borrow(),1.0.borrow());
+        value = get_clamp(value,0.0.borrow(),1.0.borrow());
+        hue_radians = fmodf(hue_radians, TWO_PI);
+        if (hue_radians.to_owned() < 0f32)
+        {
+            hue_radians = &(hue_radians + TWO_PI);
+        }
+        let hue = fmodf(hue_radians / deg_to_rad(60.0.borrow()), 6.0);
+        let hue_sexant = hue as i32;
+        let hue_sexant_remainder = hue - hue_sexant;
+
+        let off_color = value * (1.0 - saturation);
+        let falling_color = value * (1.0 - (saturation * hue_sexant_remainder));
+        let rising_color = value * (1.0 - (saturation * (1.0 - hue_sexant_remainder)));
+        match hue_sexant {
+            0=>{
+                self.set_rgba_f32(value, rising_color, off_color.borrow(), alpha.borrow())
+            }
+            1=>{
+                self.set_rgba_f32(falling_color, value, off_color.borrow(), alpha.borrow())
+            }
+            2=>{
+                self.set_rgba_f32(off_color.borrow(), value, rising_color, alpha.borrow())
+            }
+            3=>{
+                self.set_rgba_f32(off_color.borrow(), falling_color, value, alpha.borrow())
+            }
+            4=>{
+                self.set_rgba_f32(rising_color, off_color.borrow(), value, alpha.borrow())
+            }
+            5=>{
+                self.set_rgba_f32(value, off_color.borrow(), falling_color, alpha.borrow())
+            }
+            _ => {}
+        }
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn is_close(&self, v:&Color, tolerance:&f32)->bool{
+        return self._color.is_close(v.get_as_vector4().borrow(),tolerance);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn is_zero(&self,tolerance:&f32)->bool{
+        return self.is_close(Color::create_zero().borrow(),tolerance);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn is_finite(self)->bool{
+        return self._color.is_finite();
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn vector3(self)->Vector3{
+        return self._color.get_as_vector3();
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn vector4(self)->Vector4{
+        return self._color;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn to_u32(self)->u32{
+        return Color::create_u32(self.get_r8().borrow(),self.get_g8().borrow(),self.get_b8().borrow(),self.get_a8().borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn from_u32(&mut self, c:&u32){
+        self.set_a(&(((c.to_owned() >> 24) as f32) * (1.0 / 255.0) ));
+        self.set_b(&(((c.to_owned() >> 16) & 0xff)as f32 * (1.0 / 255.0)));
+        self.set_g(&(((c.to_owned() >> 8) & 0xff)as f32 * (1.0 / 255.0)));
+        self.set_r(&(((c.to_owned() & 0xff)as f32) * (1.0 / 255.0)));
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn to_u32linear_to_gamma(self)->u32{
+        return self.linear_to_gamma().to_u32()
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn from_u32gamma_to_linear(&mut self,c:&u32){
+        self.from_u32(c);
+        self._color =  self.gamma_to_linear()._color;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn convert_srgb_gamma_to_linear(x:&f32) ->f32{
+        if x.to_owned() <= 0.04045 {
+            return x / 12.92;
+        }
+        return  ((x + 0.055) / 1.055).powf(2.4);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn convert_srgb_linear_to_gamma(x:&f32)->f32{
+        if x.to_owned() <= 0.0031308 {
+            return 12.92 * x
+        }
+        return  (1.055 * x.powf(1.0 / 2.4) - 0.055);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn linear_to_gamma(self) ->Color{
+        let mut r = self.get_r();
+        let mut g =  self.get_g();
+        let mut b =  self.get_b();
+        r = Color::convert_srgb_linear_to_gamma(r.borrow());
+        g = Color::convert_srgb_linear_to_gamma(g.borrow());
+        b = Color::convert_srgb_linear_to_gamma(b.borrow());
+        return Color::new_rgba_f32(r.borrow(),g.borrow(),b.borrow(),self.get_a().borrow()) ;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn gamma_to_linear(self)->Color{
+        let mut r = self.get_r();
+        let mut g =  self.get_g();
+        let mut b =  self.get_b();
+        return Color::new_rgba_f32(Color::convert_srgb_gamma_to_linear(r.borrow()).borrow(),
+                                   Color::convert_srgb_gamma_to_linear(g.borrow()).borrow(),
+                                   Color::convert_srgb_gamma_to_linear(b.borrow()).borrow(),
+                                    self.get_a().borrow())
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn is_less_than(self,rhs:&Color)->bool{
+        return self._color.is_less_than(rhs._color.borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn is_less_equal_than(self,rhs:&Color)->bool{
+        return self._color.is_less_equal_than(rhs._color.borrow());
+    }
+
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn is_greater_than(self,rhs:&Color)->bool{
+        return  self._color.is_greater_than(rhs._color.borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn is_greater_equal_than(self,rhs:&Color)->bool{
+        return  self._color.is_greater_equal_than(rhs._color.borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn lerp(self,dest:&Color,t:&f32)->Color{
+        return Color::new_vec4(self._color.lerp(dest._color.borrow(),t).borrow())
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn dot(&mut self,rhs:&Color)->f32{
+        return self._color.dot4(rhs._color.borrow())
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn dot3(&mut self,rhs:&Color)->f32{
+        return self._color.dot3(rhs._color.get_as_vector3().borrow());
+    }
 
 }

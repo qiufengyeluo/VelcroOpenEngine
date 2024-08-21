@@ -80,6 +80,11 @@ impl Add<Vector4> for Vector4 {
         }
     }
 }
+impl AddAssign<Vector4> for Vector4 {
+    fn add_assign(&mut self, rhs: Vector4) {
+        unsafe { self._value = Vec4::add(self._value.borrow(), rhs._value.borrow()); }
+    }
+}
 
 impl Sub<Vector4> for Vector4 {
     type Output = Vector4;
@@ -92,6 +97,14 @@ impl Sub<Vector4> for Vector4 {
         }
     }
 }
+
+impl SubAssign<Vector4> for Vector4 {
+    fn sub_assign(&mut self, rhs: Vector4) {
+        unsafe { self._value = Vec4::sub(self._value.borrow(), rhs._value.borrow()); }
+    }
+}
+
+
 impl Mul<Vector4> for Vector4 {
     type Output = Vector4;
 
@@ -104,6 +117,12 @@ impl Mul<Vector4> for Vector4 {
     }
 }
 
+impl MulAssign<Vector4> for Vector4 {
+    fn mul_assign(&mut self, rhs: Vector4) {
+        unsafe { self._value = Vec4::mul(self._value.borrow(), rhs._value.borrow()); }
+    }
+}
+
 impl Mul<f32> for Vector4 {
     type Output = Vector4;
 
@@ -111,6 +130,18 @@ impl Mul<f32> for Vector4 {
         unsafe {
             Vector4 {
                 _value: Vec4::mul(self._value.borrow(), Vec4::splat(rhs.borrow()).borrow())
+            }
+        }
+    }
+}
+
+impl Div<f32> for Vector4 {
+    type Output = Vector4;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        unsafe {
+            Vector4 {
+                _value: Vec4::div(self._value.borrow(), Vec4::splat(rhs.borrow()).borrow())
             }
         }
     }
@@ -126,6 +157,17 @@ impl Div<Vector4> for Vector4 {
         }
     }
 }
+impl DivAssign<Vector4> for Vector4 {
+    fn div_assign(&mut self, rhs: Vector4) {
+        unsafe { self._value = Vec4::div(self._value.borrow(), rhs._value.borrow()); }
+    }
+}
+impl DivAssign<f32> for Vector4 {
+    fn div_assign(&mut self, rhs: f32) {
+        unsafe { self._value = Vec4::div(self._value.borrow(), Vec4::splat(rhs.borrow()).borrow()); }
+    }
+}
+
 impl Vector4 {
     #[inline]
     #[allow(dead_code)]
@@ -330,35 +372,35 @@ impl Vector4 {
 
     #[inline]
     #[allow(dead_code)]
-    pub fn get_element(self,index:i32)->f32{
+    pub fn get_element(self,index:&i32)->f32{
         let values = *self._value as *const f32;
         *values[index]
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub fn set_x(mut self, x :f32){
+    pub fn set_x(mut self, x :&f32){
         let values = *self._value as *const f32;
         *values[0] = x
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub fn set_y(mut self, y:f32){
+    pub fn set_y(mut self, y:&f32){
         let values = *self._value as *const f32;
         *values[1] = y
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub fn set_z(mut self, z:f32){
+    pub fn set_z(mut self, z:&f32){
         let values = *self._value as *const f32;
         *values[2] = z
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub fn set_w(mut self, w:f32){
+    pub fn set_w(mut self, w:&f32){
         let values = *self._value as *const f32;
         *values[3] = w
     }
@@ -377,7 +419,7 @@ impl Vector4 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn set(mut self, values:*const f32){
+    pub unsafe fn set_float4(mut self, values:*const f32){
         self._value = Vec4::load_aligned(values);
     }
 
@@ -688,7 +730,7 @@ impl Vector4 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn dot3(self,rhs:&Vector4)->f32{
+    pub unsafe fn dot3(self,rhs:&Vector3)->f32{
         return Vec1::select_index0(Vec3::dot(Vec4::value_to_vec3(self._value.borrow()).borrow(),rhs.get_simd_value().borrow()).borrow());
     }
 

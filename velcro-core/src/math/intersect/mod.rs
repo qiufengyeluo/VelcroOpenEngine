@@ -1,3 +1,3 @@
 pub mod intersect_segment;
-mod intersect_point;
-mod interpolation_sample;
+pub mod intersect_point;
+pub mod interpolation_sample;
