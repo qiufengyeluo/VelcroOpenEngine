@@ -1,9 +1,11 @@
 #![warn(clip::pedantic)]
 #![allow(clip::many_single_char_names)]
 
+use std::ops::Mul;
 use crate::math::aabb::Aabb;
 use crate::math::quaternion::Quaternion;
 use crate::math::simd_math_vec3_sse::Vec3;
+use crate::math::transform::Transform;
 use crate::math::vector3::Vector3;
 
 #[derive(Debug, Copy, Clone)]
@@ -192,5 +194,14 @@ impl PartialEq<Self> for Obb {
     }
     fn ne(&self, rhs: &Self) -> bool {
         unsafe { return !(self.to_owned() == rhs.to_owned()); }
+    }
+}
+impl Mul<&Transform> for Obb {
+    type Output = Obb;
+
+    fn mul(self, transform: &Transform) -> Self::Output {
+        unsafe { return Obb::create_from_position_rotation_and_half_lengths(transform.transform_point_vec3(self.get_position().borrow()).borrow(),
+                                                                            (transform.get_rotation() * self.get_rotation()).borrow(),
+                                                                            (transform.get_uniform_scale()*self.get_half_lengths()).borrow()) }
     }
 }
