@@ -4,8 +4,9 @@
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
 use crate::math::common_sse::{Vec3Type, Vec4Type, VecFourthType, VecThirdType, VecTwoType, VecType};
-use crate::math::constants::{FLOAT_EPSILON, G_NEGATE_XMASK, G_NEGATE_XYZMASK};
+use crate::math::constants::{FLOAT_EPSILON, G_NEGATE_XMASK, G_NEGATE_XYZMASK, TOLERANCE};
 use crate::math::math_utils::{get_clamp, is_finite_float};
+use crate::math::matrix3x3::Matrix3x3;
 use crate::math::simd_math::{simd_acos, simd_atan2, simd_inv_sqrt, simd_sin, simd_sin_cos, simd_sqrt};
 use crate::math::simd_math_vec1_sse::Vec1;
 use crate::math::simd_math_vec3_sse::Vec3;
@@ -190,11 +191,7 @@ impl Quaternion {
         }
     }
 
-    #[inline]
-    #[allow(dead_code)]
-    pub unsafe fn create_identity()->Quaternion{
-        return Quaternion::new_float_type(Vec4::load_immediate(0.0.borrow(),0.0.borrow(),0.0.borrow(),1.0.borrow()).borrow());
-    }
+
 
     #[inline]
     #[allow(dead_code)]
@@ -668,6 +665,13 @@ impl Quaternion {
 
     #[inline]
     #[allow(dead_code)]
+    pub unsafe fn is_close_default(self,q:&Quaternion)->bool{
+        let abs_diff = Vec4::abs(Vec4::sub(q._value.borrow(), self._value.borrow()).borrow());
+        return Vec4::cmp_all_lt(abs_diff.borrow(), Vec4::splat(TOLERANCE.borrow()).borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
     pub unsafe fn is_identity(self,tolerance:&f32)->bool{
         return self.is_close(self.create_identity().borrow(),tolerance);
     }
@@ -702,8 +706,8 @@ impl Quaternion {
     pub unsafe fn get_euler_radians(self)->Vector3{
         let sinp = 2.0 *(self.get_x() * self.get_y() + self.get_z() * self.get_w());
         if sinp *sinp < 0.5 {
-            let roll = simd_atan2((2.0*(self.get_w() * self.get_x() - self.get_z() * self.get_y()).borrow(),(1.0 - 2.0 *(self.get_x(),self.get_x() + self.get_y() * self.get_y())).borrow()));
-            let pitch = asinf(sinp);
+            let roll = simd_atan2((2.0*(self.get_w() * self.get_x() - self.get_z() * self.get_y())).borrow(),(1.0 - 2.0 *(self.get_x(),self.get_x() + self.get_y() * self.get_y())).borrow());
+            let pitch = sinp.asin();
             let yaw = simd_atan2((2.0 *(self.get_w()*self.get_z() - self.get_x() * self.get_y())).borrow(),(1.0 - 2.0*(self.get_y()*self.get_y() + self.get_z() * self.get_z())).borrow());
             return Vector3::new_xyz(roll.borrow(),pitch.borrow(),yaw.borrow());
         }else {
@@ -715,7 +719,7 @@ impl Quaternion {
             let m22 = 1.0f32 - 2.0f32 * (self.get_x() * self.get_x() + self.get_y() * self.get_y());
             let cospSq = m12 * m12 + m22 * m22;
             let cosp =simd_sqrt(cospSq);
-            let pitch = sign * acosf(cosp);
+            let pitch = sign * cosp.acos();
             if (cospSq > FLOAT_EPSILON)
             {
                 let roll = simd_atan2(-m12, m22);
@@ -817,45 +821,45 @@ impl Quaternion {
         if length < FLOAT_EPSILON {
             return imaginary *2.0
         }else {
-            let half_angle = acosf(get_clamp(self.get_w().borrow(), (-1.0).borrow(), 1.0.borrow()));
-            return  half_angle * 2.0 * (imaginary / length);
+            let half_angle =get_clamp(self.get_w().borrow(), (-1.0).borrow(), 1.0.borrow()).acos();
+            return (imaginary / length) * half_angle * 2.0;
         }
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn slerp(self,dest:&Quaternion,t:&f32)->Quaternion{
-        let DestDot = self.dot(dest);
-        let mut cosom = -DestDot;
-        if DestDot > 0.0{
-            cosom = DestDot;
+        let dest_dot = self.dot(dest);
+        let mut cosom = -dest_dot;
+        if dest_dot > 0.0{
+            cosom = dest_dot;
         }
-        let mut sclA:f32;
-        let mut sclB:f32;
+        let mut scl_a:f32;
+        let mut scl_b:f32;
         if cosom < 0.9999 {
             let omega = simd_acos(cosom.borrow());
             let angles = Vec3::load_immediate(omega.borrow(),((1.0-t)*omega).borrow(),(t*omega).borrow());
             let sin = Vec3::sin(angles.borrow());
             let sinom = 1.0/Vec3::select_index0(sin.borrow());
-            sclA = Vec3::select_index1(sin.borrow()) *sinom;
-            sclB = Vec3::select_index2(sin.borrow()) *sinom;
+            scl_a = Vec3::select_index1(sin.borrow()) *sinom;
+            scl_b = Vec3::select_index2(sin.borrow()) *sinom;
         }else {
-            sclA = 1.0 - t;
-            sclB = t.to_owned();
+            scl_a = 1.0 - t;
+            scl_b = t.to_owned();
         }
-        if (DestDot < 0.0)
+        if (dest_dot < 0.0)
         {
-            sclA = -sclA;
+            scl_a = -scl_a;
         }
 
-        return (*self) * sclA + dest * sclB.borrow();
+        return (*self) * scl_a + dest * scl_b.borrow();
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn set_from_euler_radians(self,eulerRadians:&Vector3){
+    pub unsafe fn set_from_euler_radians(self, euler_radians:&Vector3){
         let half = Vec3::splat(0.5.borrow());
-        let angles = Vec3::mul(half.borrow(),eulerRadians.get_simd_value().borrow());
+        let angles = Vec3::mul(half.borrow(), euler_radians.get_simd_value().borrow());
         let mut sin:FloatType;
         let mut cos:FloatType;
         Vec3::sin_cos(angles.borrow(),sin.borrow_mut(),cos.borrow_mut());
@@ -874,4 +878,11 @@ impl Quaternion {
 
        self.set_xyzw(x.borrow(), y.borrow(), z.borrow(), w.borrow());
     }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn create_identity() -> Quaternion {
+        return Quaternion::new_float_type(Vec4::load_immediate(0.0.borrow(),0.0.borrow(),0.0.borrow(),1.0.borrow()).borrow());
+    }
+
 }

@@ -30,6 +30,7 @@ mod capsule;
 mod line_segment;
 mod ray;
 mod color;
+mod obb;
 
 #[cfg(test)]
 mod tests {

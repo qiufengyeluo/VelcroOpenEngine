@@ -224,7 +224,7 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  get_element(self,index:i32)->f32{
+    pub unsafe fn  get_element(self,index:&i32)->f32{
         let values = *self._value as *const f32;
         *values[index]
     }
@@ -238,21 +238,21 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  set_x(mut self, x :f32){
+    pub unsafe fn  set_x(mut self, x :&f32){
         let values = *self._value as *const f32;
         *values[0] = x
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  set_y(mut self, y:f32){
+    pub unsafe fn  set_y(mut self, y:&f32){
         let values = *self._value as *const f32;
         *values[1] = y
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  set_z(mut self, z:f32){
+    pub unsafe fn  set_z(mut self, z:&f32){
         let values = *self._value as *const f32;
         *values[2] = z
     }
@@ -265,7 +265,7 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  set_element(mut self,index:i32,v:&f32){
+    pub unsafe fn  set_element(mut self,index:&i32,v:&f32){
         let values = *self._value as *const f32;
         *values[index] = v
     }
@@ -532,14 +532,14 @@ impl Vector3 {
     pub unsafe  fn is_close(&self, v:&Vector3, tolerance :&f32) ->bool
     {
         let dist:Vector3 = (v - (*self)).get_abs();
-        return dist.is_less_equal_than(Vector3::new_x(tolerance));
+        return dist.is_less_equal_than(Vector3::new_x(tolerance).borrow());
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  is_close_with_default(&self, v:&Vector3)->bool{
+    pub unsafe fn  is_close_default(&self, v:&Vector3)->bool{
         let dist:Vector3 = (v - (*self)).get_abs();
-        return dist.is_less_equal_than(Vector3::new_x(TOLERANCE.borrow()));
+        return dist.is_less_equal_than(Vector3::new_x(TOLERANCE.borrow()).borrow());
     }
 
     #[inline]

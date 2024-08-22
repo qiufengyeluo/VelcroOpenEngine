@@ -4,7 +4,6 @@
 use crate::math::vector3::Vector3;
 
 #[derive(Debug, Copy, Clone)]
-pub struct Aabb {
-    _min: Vector3,
-    _max: Vector3
+pub struct Matrix3x3 {
+    _rows:[Vector3;3]
 }
