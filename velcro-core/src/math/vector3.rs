@@ -66,6 +66,24 @@ impl Div<f32> for &Vector3 {
         unsafe { return Vector3::new_float_type(Vec3::div(self._value.borrow(), Vec3::splat(rhs.borrow()).borrow_mut()).borrow()) }
     }
 }
+impl Add<Vector3> for &Vector3 {
+    type Output = Vector3;
+
+    fn add(self, rhs: Vector3) -> Self::Output {
+        unsafe {
+            Vector3 {
+                _value: Vec3::add(self._value.borrow(), rhs._value.borrow())
+            }
+        }
+    }
+}
+impl Sub<Vector3> for &Vector3 {
+    type Output = Vector3;
+
+    fn sub(self, rhs: Vector3) -> Self::Output {
+        unsafe { return Vector3::new_float_type(Vec3::sub(self._value.borrow(), rhs._value.borrow()).borrow()) }
+    }
+}
 impl Vector3 {
     #[inline]
     #[allow(dead_code)]
@@ -818,6 +836,8 @@ impl Sub<&Vector3> for &Vector3 {
         unsafe { Vector3 { _value: Vec3::sub(self._value.borrow(), rhs._value.borrow()) } }
     }
 }
+
+
 impl Mul for Vector3 {
     type Output = Vector3;
 

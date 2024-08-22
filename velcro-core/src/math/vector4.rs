@@ -625,6 +625,14 @@ impl Vector4 {
 
     #[inline]
     #[allow(dead_code)]
+    pub unsafe fn is_close_default(&self, v:&Vector4)->bool{
+        let dist:Vector4 = (v - (*self)).get_abs();
+        return dist.is_less_equal_than(Vector4::new_x(TOLERANCE));
+    }
+
+
+    #[inline]
+    #[allow(dead_code)]
     pub unsafe fn is_zero(self, tolerance:&f32)->bool{
         let dist = self.get_abs();
         return  dist.is_less_equal_than(Vector4::new_x(tolerance).borrow());
