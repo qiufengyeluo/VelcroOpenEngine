@@ -2,8 +2,9 @@
 #![allow(clippy::many_single_char_names)]
 
 use core::f64;
-
+use num_traits::Float;
 use crate::math::constants::{PI, TOLERANCE};
+use crate::math::simd_math::simd_mod_calculate;
 
 pub fn get_clamp<T>(value :T, min:T, max:T ) ->T
 {
@@ -65,4 +66,18 @@ pub fn is_normal_double(x:&f64)->bool{
 }
 pub fn is_finite_float(x:&f32)->bool{
     return x.is_finite()
+}
+
+pub fn get_abs_f32(a :&f32)->f32{
+    return a.abs()
+}
+pub fn get_abs_f64(a :&f64)->f64{
+    return a.abs()
+}
+
+pub fn get_mod_f32(a :&f32,b:&f32)->f32{
+    unsafe { return simd_mod_calculate(a, b) }
+}
+pub fn get_mod_f64(a :&f64,b:&f64)->f64{
+    return a % b;
 }

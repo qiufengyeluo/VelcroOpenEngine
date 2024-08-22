@@ -31,6 +31,7 @@ mod line_segment;
 mod ray;
 mod color;
 mod obb;
+mod shape_intersection;
 
 #[cfg(test)]
 mod tests {
