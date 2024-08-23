@@ -6,7 +6,9 @@ use std::fmt::Debug;
 use crate::math::common_sse::VecType;
 use crate::math::constants::{G_VEC0010, G_VEC0100, G_VEC1000};
 use crate::math::quaternion::Quaternion;
+use crate::math::simd_math::simd_sin_cos;
 use crate::math::simd_math_vec3_sse::Vec3;
+use crate::math::transform::Transform;
 use crate::math::vector3::Vector3;
 use crate::math::vsimd::FloatArgType;
 
@@ -93,80 +95,125 @@ impl Matrix3x3 {
         result
     }
 
-
-    AZ_MATH_INLINE Matrix3x3 Matrix3x3::CreateRotationX(float angle)
-    {
-    Matrix3x3 result;
-    float s, c;
-    SinCos(angle, s, c);
-    result.m_rows[0] = Vector3(Simd::Vec3::LoadAligned(Simd::g_vec1000));
-    result.SetRow(1, 0.0f, c, -s);
-    result.SetRow(2, 0.0f, s, c);
-    return result;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn create_rotation_x(angle:&f32)->Matrix3x3{
+        let mut result =Matrix3x3::new();
+        let mut s:f32 = 0f32;
+        let mut c:f32 = 0f32;
+        simd_sin_cos(angle, s.borrow_mut(), c.borrow_mut());
+        result._rows[0] =Vector3::new_float_type(Vec3::load_aligned(G_VEC1000.borrow()).borrow());
+        result.set_row(1.borrow(), 0.0.borrow(), c.borrow(), (-s).borrow());
+        result.set_row(2.borrow(), 0.0.borrow(), s.borrow(), c.borrow());
+        result
     }
-
-    AZ_MATH_INLINE Matrix3x3 Matrix3x3::CreateRotationY(float angle)
-    {
-    Matrix3x3 result;
-    float s, c;
-    SinCos(angle, s, c);
-    result.SetRow(0, c, 0.0f, s);
-    result.m_rows[1] = Vector3(Simd::Vec3::LoadAligned(Simd::g_vec0100));
-    result.SetRow(2, -s, 0.0f, c);
-    return result;
-    }
-
-    AZ_MATH_INLINE Matrix3x3 Matrix3x3::CreateRotationZ(float angle)
-    {
-    Matrix3x3 result;
-    float s, c;
-    SinCos(angle, s, c);
-    result.SetRow(0, c, -s, 0.0f);
-    result.SetRow(1, s, c, 0.0f);
-    result.m_rows[2] = Vector3(Simd::Vec3::LoadAligned(Simd::g_vec0010));
-    return result;
-    }
-    //! @}
-
-    //! Sets the matrix from the left 3x3 sub-matrix of a Matrix3x4
-    static Matrix3x3 CreateFromMatrix3x4(const Matrix3x4& m);
-
-    //! Sets the matrix from the upper 3x3 sub-matrix of a Matrix4x4.
-    static Matrix3x3 CreateFromMatrix4x4(const Matrix4x4& m);
-
-    //! Creates a matrix using the scale and orientation portions of a Transform.
-    static Matrix3x3 CreateFromTransform(const Transform& t);
 
     #[inline]
     #[allow(dead_code)]
-    pub fn create_from_quaternion(q:&Quaternion)->Matrix3x3{
-        let mut result = Matrix3x3::new();
-        result.SetRotationPartFromQuaternion
+    pub unsafe  fn create_rotation_y(angle:&f32) ->Matrix3x3{
+        let mut result =Matrix3x3::new();
+        let mut s:f32 = 0f32;
+        let mut c:f32 = 0f32;
+        simd_sin_cos(angle, s.borrow_mut(), c.borrow_mut());
+        result.set_row(0.borrow(), c.borrow(), 0.0.borrow(), s.borrow());
+        result._rows[1] =Vector3::new_float_type(Vec3::load_aligned(G_VEC0100.borrow()).borrow());
+        result.set_row(2.borrow(),(-s).borrow(), 0.0.borrow(), c.borrow());
         result
     }
-    //! Sets the matrix from a quaternion.
-    AZ_MATH_INLINE Matrix3x3 Matrix3x3::CreateFromQuaternion(const Quaternion& q)
-    {
-    Matrix3x3 result;
-    result.SetRotationPartFromQuaternion(q);
-    return result;
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn create_rotation_z(angle:&f32) ->Matrix3x3{
+        let mut result =Matrix3x3::new();
+        let mut s:f32 = 0f32;
+        let mut c:f32 = 0f32;
+        simd_sin_cos(angle, s.borrow_mut(), c.borrow_mut());
+        result.set_row(0.borrow(), c.borrow(), (-s).borrow(), 0.0.borrow());
+        result.set_row(1.borrow(),s.borrow(), c.borrow(), 0.0.borrow());
+        result._rows[2] =Vector3::new_float_type(Vec3::load_aligned(G_VEC0010.borrow()).borrow());
+        result
     }
-    //! Sets the matrix to be a scale matrix.
-    static Matrix3x3 CreateScale(const Vector3& scale);
 
-    //! Sets the matrix to be a diagonal matrix.
-    static Matrix3x3 CreateDiagonal(const Vector3& diagonal);
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn create_from_matrix3x4(m:&Matrix3x4)->Matrix3x3{
+        let mut result = Matrix3x3::new() ;
+        result.set_row_vec3(0.borrow(), m.GetRowAsVector3(0));
+        result.set_row_vec3(1.borrow(), m.GetRowAsVector3(1));
+        result.set_row_vec3(2.borrow(), m.GetRowAsVector3(2));
+        return result;
+    }
 
-    //! Creates the skew-symmetric cross product matrix, i.e. M*a=p.Cross(a).
-    static Matrix3x3 CreateCrossProduct(const Vector3& p);
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn create_from_matrix4x4(m:&Matrix4x4) ->Matrix3x3{
+        let mut result = Matrix3x3::new() ;
+        result._rows[0] = m.GetRow(0).GetAsVector3();
+        result._rows[1] = m.GetRow(1).GetAsVector3();
+        result._rows[2] = m.GetRow(2).GetAsVector3();
+        return result;
+    }
 
-    //! Stores the matrix into to an array of 9 floats.
-    //! The floats need only be 4 byte aligned, 16 byte alignment is not required.
-    void StoreToRowMajorFloat9(float* values) const;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn create_from_transform(t:&Transform)->Matrix3x3{
+        return Matrix3x3::create_from_columns(t.get_basis_x().borrow(),t.get_basis_y().borrow(),t.get_basis_z().borrow())
+    }
 
-    //! Stores the matrix into to an array of 9 floats.
-    //! The floats need only be 4 byte aligned, 16 byte alignment is not required.
-    void StoreToColumnMajorFloat9(float* values) const;
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn create_from_quaternion(q:&Quaternion)->Matrix3x3{
+        let mut result = Matrix3x3::new();
+        result.set_rotation_part_from_quaternion(q);
+        result
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn create_scale(scale:&Vector3)->Matrix3x3{
+        return Matrix3x3::create_diagonal(scale);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn create_diagonal(diagonal:&Vector3)->Matrix3x3{
+        let mut result =Matrix3x3::new();
+        result.set_row(0.borrow(), diagonal.get_x().borrow(), 0.0.borrow(), 0.0.borrow());
+        result.set_row(1.borrow(), 0.0.borrow(), diagonal.get_y().borrow(), 0.0.borrow());
+        result.set_row(2.borrow(), 0.0.borrow(), 0.0.borrow(), diagonal.get_z().borrow());
+        result
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn create_cross_product(p:Vector3)->Matrix3x3{
+        let mut result =Matrix3x3::new();
+        result.set_row(0.borrow(), 0.0.borrow(), (-p.get_z()).borrow(), p.get_y().borrow());
+        result.set_row(1.borrow(), p.get_z().borrow(), 0.0.borrow(),(-p.get_x()).borrow());
+        result.set_row(2.borrow(), (-p.get_z()).borrow(), p.get_x().borrow(), 0.0.borrow());
+        return result;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn store_to_row_major_float9(self,values:&*mut f32){
+        self.get_row(0.borrow()).store_to_float_3(values);
+        self.get_row(0.borrow()).store_to_float_3((values+3));
+        self.get_row(0.borrow()).store_to_float_3((values+6));
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn store_to_column_major_float9(self,mut values:*const f32){
+
+    }
+    // AZ_MATH_INLINE void Matrix3x3::StoreToColumnMajorFloat9(float* values) const
+// {
+// GetColumn(0).StoreToFloat4(values);
+// GetColumn(1).StoreToFloat4(values + 3);
+// GetColumn(2).StoreToFloat3(values + 6);
+// }
 
     #[inline]
     #[allow(dead_code)]
