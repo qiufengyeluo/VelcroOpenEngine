@@ -418,7 +418,7 @@ impl Vector3 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  is_normalized(self,tolerance:&f32)->bool{
-        return (simd_abs((self.get_length_sq() - 1.0).borrow()) <= tolerance.to_owned());
+        return (simd::abs((self.get_length_sq() - 1.0).borrow()) <= tolerance.to_owned());
     }
 
     #[inline]
@@ -465,7 +465,7 @@ impl Vector3 {
         let dot_val = Vec1::clamp(Vec3::dot(self._value.borrow(),dest._value.borrow()).borrow(),Vec1::splat((-1.0).borrow()).borrow(),Vec1::splat(1.0.borrow()).borrow());
         let theta = Vec1::mul(Vec1::acos(dot_val.borrow()).borrow(),Vec1::splat(t).borrow());
         let relative_vec = Vec3::sub(dest.get_simd_value().borrow(), Vec3::mul(self.get_simd_value().borrow(), Vec3::from_vec1(dot_val.borrow()).borrow()).borrow());
-        let rel_vec_norm = Vec3::normalize_safe(relative_vec.borrow(), TOLERANCE.borrow());
+        let rel_vec_norm = Vec3::normalize_safe(relative_vec.borrow(), constants::TOLERANCE.borrow());
         let sin_cos = Vec3::from_vec2(Vec2::sin_cos_to_float_type(theta.borrow()).borrow());
         let rel_vec_sin_theta = Vec3::mul(rel_vec_norm.borrow(), Vec3::splat_index0(sin_cos.borrow()).borrow());
         let result = Vector3::new_float_type(Vec3::madd(self.get_simd_value().borrow(), Vec3::splat_index1(sin_cos.borrow()).borrow(),rel_vec_sin_theta.borrow()).borrow());
@@ -476,7 +476,7 @@ impl Vector3 {
     #[allow(dead_code)]
     pub unsafe fn  nlerp(self, dest :&Vector3,t:&f32)->Vector3{
         let result = self.lerp(dest.borrow(),t);
-        return  result.get_normalized_safe(TOLERANCE.borrow());
+        return  result.get_normalized_safe(constants::TOLERANCE.borrow());
     }
 
     #[inline]
@@ -539,7 +539,7 @@ impl Vector3 {
     #[allow(dead_code)]
     pub unsafe fn  is_close_default(&self, v:&Vector3)->bool{
         let dist:Vector3 = (v - (*self)).get_abs();
-        return dist.is_less_equal_than(Vector3::new_x(TOLERANCE.borrow()).borrow());
+        return dist.is_less_equal_than(Vector3::new_x(constants::TOLERANCE.borrow()).borrow());
     }
 
     #[inline]
@@ -553,7 +553,7 @@ impl Vector3 {
     #[allow(dead_code)]
     pub unsafe fn  is_zero_with_default(self)->bool{
         let dist = self.get_abs();
-        return  dist.is_less_equal_than(Vector3::new_x(FLOAT_EPSILON.borrow()).borrow());
+        return  dist.is_less_equal_than(Vector3::new_x(constants::FLOAT_EPSILON.borrow()).borrow());
     }
 
     #[inline]
@@ -621,13 +621,13 @@ impl Vector3 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_max_element(self)->f32{
-       return  max(self.get_x().borrow(),max(self.get_y().borrow(),self.get_z().borrow()).borrow());
+       return  constants::max(self.get_x().borrow(),constants::max(self.get_y().borrow(),self.get_z().borrow()).borrow());
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_min_element(self)->f32{
-        return min(self.get_x().borrow(),min(self.get_y().borrow(),self.get_z().borrow()).borrow());
+        return constants::min(self.get_x().borrow(),constants::min(self.get_y().borrow(),self.get_z().borrow()).borrow());
     }
     pub  unsafe fn get_sin(self)->Vector3{
         return Vector3::new_float_type(Vec3::sin(self.get_simd_value().borrow()).borrow());
@@ -667,15 +667,15 @@ impl Vector3 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  angle(self, v:&Vector3)->f32{
-        let cos =self.dot3(v.borrow())*simd_inv_sqrt((self.get_length_sq()*v.get_length_sq()).borrow());
-        let res = simd_acos(get_clamp(cos.borrow(), (-1.0) .borrow(), 1.0.borrow()));
+        let cos =self.dot3(v.borrow())*simd::inv_sqrt((self.get_length_sq()*v.get_length_sq()).borrow());
+        let res = simd::acos(constants::get_clamp(cos.borrow(), (-1.0) .borrow(), 1.0.borrow()));
         res
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  angle_deg(self,v:&Vector3)->f32{
-        return rad_to_deg(self.angle(v).borrow())
+        return constants::rad_to_deg(self.angle(v).borrow())
     }
 
 
@@ -784,7 +784,7 @@ impl Vector3 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  is_finite(self)->bool{
-        return is_finite_float(self.get_x().borrow())&&is_finite_float(self.get_y().borrow())&&is_finite_float(self.get_z().borrow());
+        return constants::is_finite_float(self.get_x().borrow())&&constants::is_finite_float(self.get_y().borrow())&&constants::is_finite_float(self.get_z().borrow());
     }
 
     #[inline]
@@ -796,13 +796,13 @@ impl Vector3 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  vector3rad_to_deg(radians:&Vector3)->Vector3{
-        return Vector3::new_float_type(Vec3::mul(radians.get_simd_value().borrow(),Vec3::splat((180.0/PI).borrow()).borrow()).borrow());
+        return Vector3::new_float_type(Vec3::mul(radians.get_simd_value().borrow(),Vec3::splat((180.0/constants::PI).borrow()).borrow()).borrow());
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  vector3deg_to_rad(degrees:&Vector3)->Vector3{
-        return  Vector3::new_float_type(Vec3::mul(degrees.get_simd_value().borrow(),Vec3::splat((PI/180.0).borrow()).borrow()).borrow());
+        return  Vector3::new_float_type(Vec3::mul(degrees.get_simd_value().borrow(),Vec3::splat((constants::PI/180.0).borrow()).borrow()).borrow());
     }
 }
 

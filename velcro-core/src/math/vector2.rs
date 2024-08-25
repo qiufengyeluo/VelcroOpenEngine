@@ -112,7 +112,7 @@ impl Vector2 {
     pub unsafe fn create_from_angle(angle:&f32) ->Vector2{
         let mut sin : f32;
         let mut cos : f32;
-        simd_sin_cos(angle.borrow(),sin.borrow_mut(),cos.borrow_mut());
+        simd::sin_cos(angle.borrow(),sin.borrow_mut(),cos.borrow_mut());
         let result = Vector2::new_xy(sin.borrow(),cos.borrow());
         result
     }
@@ -268,7 +268,7 @@ impl Vector2 {
     }
 
     pub unsafe fn is_normalized(self, tolerance:&f32) ->bool{
-        return simd_abs((self.get_length_sq()-1.0).borrow())<=tolerance.to_owned();
+        return simd::abs((self.get_length_sq()-1.0).borrow())<=tolerance.to_owned();
     }
 
     pub unsafe fn set_length(mut self, length:&f32){
@@ -302,7 +302,7 @@ impl Vector2 {
         let dot = Vec1::clamp(Vec2::dot(self._value.borrow(),dest._value.borrow()).borrow(),Vec1::splat(-1.0.borrow()).borrow(),Vec1::splat(1.0.borrow()).borrow());
         let theta = Vec1::mul(Vec1::acos(dot.borrow()).borrow(),Vec1::splat(t).borrow());
         let relative_vec = Vec2::sub(dest.get_simd_vaue().borrow(), Vec2::mul(self.get_simd_value().borrow(), Vec2::from_vec1(dot.borrow())));
-        let rel_vec_norm = Vec2::normalize_safe(relative_vec.borrow(), TOLERANCE.borrow());
+        let rel_vec_norm = Vec2::normalize_safe(relative_vec.borrow(), constants::TOLERANCE.borrow());
         let sin_cos_val = Vec2::sin_cos_to_float_type(theta.borrow());
         let rel_vec_sin_theta = Vec2::mul(rel_vec_norm.borrow(), Vec2::splat_index0(sin_cos_val.borrow()).borrow());
         return  Vector2::new_float_type(Vec2::madd(self.get_simd_value().borrow(), Vec2::splat_index1(sin_cos_val.borrow()).borrow(), rel_vec_sin_theta.borrow()).borrow());
@@ -310,7 +310,7 @@ impl Vector2 {
     }
 
     pub unsafe fn nlerp(self,dest:&Vector2,t:&f32)->Vector2{
-        return self.lerp(dest,t).get_normalized_safe(TOLERANCE.borrow());
+        return self.lerp(dest,t).get_normalized_safe(constants::TOLERANCE.borrow());
     }
 
     pub unsafe fn get_perpendicular(self) ->Vector2{
@@ -414,17 +414,17 @@ impl Vector2 {
     }
 
     pub unsafe fn angle(self,v:&Vector2) ->f32{
-        let cos = self.dot2(v) * simd_inv_sqrt(self.get_length_sq() * v.GetLengthSq());
-        let res = simd_acos(get_clamp(cos.borrow(),-1.0.borrow(),1.0.borrow()).borrow());
+        let cos = self.dot2(v) * simd::inv_sqrt(self.get_length_sq() * v.GetLengthSq());
+        let res = simd::acos(constants::get_clamp(cos.borrow(), -1.0.borrow(), 1.0.borrow()).borrow());
         return res;
     }
 
     pub unsafe fn angle_deg(self, v:&Vector2) ->f32{
-        return rad_to_deg(self.angle(v).borrow());
+        return constants::rad_to_deg(self.angle(v).borrow());
     }
 
     pub unsafe fn angle_safe(self, v:&Vector2) ->f32{
-        return  if !self.is_zero(FLOAT_EPSILON.borrow())&& !v.is_zero(FLOAT_EPSILON.borrow()){
+        return  if !self.is_zero(constants::FLOAT_EPSILON.borrow())&& !v.is_zero(constants::FLOAT_EPSILON.borrow()){
             let result =self.angle(v);
             result
         }else {
@@ -433,7 +433,7 @@ impl Vector2 {
     }
 
     pub unsafe fn angle_safe_deg(self,v:&Vector2)->f32{
-        return if !self.is_zero(FLOAT_EPSILON.borrow()) && !v.is_zero(FLOAT_EPSILON.borrow()){
+        return if !self.is_zero(constants::FLOAT_EPSILON.borrow()) && !v.is_zero(constants::FLOAT_EPSILON.borrow()){
             let result =self.angle_deg(v);
             result
         }else {
@@ -476,7 +476,7 @@ impl Vector2 {
     }
 
     pub unsafe fn is_finite(self) ->bool{
-        return is_finite_float(self.get_x().borrow())&&is_finite_float(self.get_y().borrow());
+        return constants::is_finite_float(self.get_x().borrow())&&constants::is_finite_float(self.get_y().borrow());
     }
 
     pub fn get_simd_value(self) ->FloatType{

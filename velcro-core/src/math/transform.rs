@@ -2,8 +2,7 @@
 #![allow(clip::many_single_char_names)]
 
 use std::ops::{Mul, MulAssign};
-
-use crate::math::math_utils::{is_close_f32, is_finite_float};
+use crate::math::math_utils::constants;
 use crate::math::quaternion::Quaternion;
 use crate::math::vector3::Vector3;
 use crate::math::vector4::Vector4;
@@ -274,7 +273,7 @@ impl Transform {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn is_orthogonal(self,tolerance:&f32)->bool{
-        return is_close_f32(self._scale.borrow(),1.0.borrow(),tolerance)
+        return constants::is_close_f32(self._scale.borrow(),1.0.borrow(),tolerance)
     }
 
     #[inline]
@@ -297,7 +296,7 @@ impl Transform {
     #[allow(dead_code)]
     pub unsafe fn is_close(self,rhs:&Transform,tolerance:&f32)->bool{
         return self._rotation.is_close(rhs._rotation.borrow(),tolerance)
-            && is_close_f32(self._scale.borrow(),rhs._scale.borrow(),tolerance)
+            && constants::is_close_f32(self._scale.borrow(),rhs._scale.borrow(),tolerance)
             && self._translation.is_close(rhs._translation.borrow(),tolerance)
     }
 
@@ -332,7 +331,7 @@ impl Transform {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn is_finite(self)->bool{
-        return self._rotation.is_finite() && is_finite_float(self._scale.borrow()) && self._translation.is_finite()
+        return self._rotation.is_finite() && constants::is_finite_float(self._scale.borrow()) && self._translation.is_finite()
     }
 
     #[inline]

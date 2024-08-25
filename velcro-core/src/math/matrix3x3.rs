@@ -2,28 +2,32 @@
 #![allow(clip::many_single_char_names)]
 
 use std::fmt::Debug;
-use std::num::{Add, Mul};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
-use crate::math::common_sse::{Vec3Type, VecType};
-use crate::math::constants::{G_VEC0010, G_VEC0100, G_VEC1000};
+use crate::math::common_sse::{Vec3Type, VecTwoType, VecType};
+use crate::math::constants::{G_VEC0010, G_VEC0100, G_VEC1000, TOLERANCE};
+use crate::math::frustum::is_close;
+use crate::math::math_utils;
+use crate::math::math_utils::constants;
 use crate::math::quaternion::Quaternion;
-use crate::math::simd_math::simd_sin_cos;
+use crate::math::simd_math::{simd, simd_sin_cos};
 use crate::math::simd_math_vec3_sse::Vec3;
-use crate::math::sphere::Sphere;
 use crate::math::transform::Transform;
 use crate::math::vector3::Vector3;
-use crate::math::vsimd::FloatArgType;
+use crate::math::vsimd::{FloatArgType, FloatType};
+
+const ROW_COUNT:usize = 3;
+const COL_COUNT:usize = 3;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Matrix3x3 {
-    _rows:[Vector3;3]
+    _rows:[Vector3;ROW_COUNT]
 }
 
 impl Mul<&Vector3> for Matrix3x3{
     type Output = Vector3;
 
     fn mul(self, rhs: &Vector3) -> Self::Output {
-        unsafe { return Vector3::new_float_type(Vec3::mat3x3transform_vector(self.get_simd_values().borrow(), rhs.get_simd_values().borrow()).borrow()) }
+        unsafe { return Vector3::new_float_type(Vec3::mat3x3transform_vector(self.get_simd_values(), rhs.get_simd_values().borrow()).borrow()) }
     }
 }
 
@@ -87,9 +91,9 @@ impl Mul<f32> for Matrix3x3 {
         unsafe {
             return Matrix3x3::new_3float_type
                 (
-                    Vec3::mul(self._rows[0].get_simd_values().borrow(), mul_vec.borrow()),
-                    Vec3::mul(self._rows[1].get_simd_values().borrow(), mul_vec.borrow()),
-                    Vec3::mul(self._rows[2].get_simd_values().borrow(), mul_vec.borrow())
+                    Vec3::mul(self._rows[0].get_simd_value().borrow(), mul_vec.borrow()).borrow(),
+                    Vec3::mul(self._rows[1].get_simd_value().borrow(), mul_vec.borrow()).borrow(),
+                    Vec3::mul(self._rows[2].get_simd_value().borrow(), mul_vec.borrow()).borrow()
                 );
         }
     }
@@ -105,13 +109,13 @@ impl Div<f32> for Matrix3x3 {
     type Output = Matrix3x3;
 
     fn div(self, divisor: f32) -> Self::Output {
-        let div_vec = unsafe { Vec3::splat(divisor.borrow()) };
+        let mut div_vec = unsafe { Vec3::splat(divisor.borrow()) };
         unsafe {
             return Matrix3x3::new_3float_type
                 (
-                    Vec3::div(self._rows[0].get_simd_values().borrow(), div_vec.borrow()),
-                    Vec3::div(self._rows[1].get_simd_values().borrow(), div_vec.borrow()),
-                    Vec3::div(self._rows[2].get_simd_values().borrow(), div_vec.borrow())
+                    Vec3::div(self._rows[0].get_simd_value().borrow(), div_vec.borrow_mut()).borrow(),
+                    Vec3::div(self._rows[1].get_simd_value().borrow(), div_vec.borrow_mut()).borrow(),
+                    Vec3::div(self._rows[2].get_simd_value().borrow(), div_vec.borrow_mut()).borrow()
                 );
         }
     }
@@ -151,8 +155,10 @@ impl Matrix3x3 {
     #[inline]
     #[allow(dead_code)]
     pub fn new()->Matrix3x3{
-        Matrix3x3{
-            _rows:[Vector3;3]
+        unsafe {
+            Matrix3x3 {
+                _rows: [Vector3::create_zero(), Vector3::create_zero(), Vector3::create_zero()]
+            }
         }
     }
 
@@ -167,7 +173,7 @@ impl Matrix3x3 {
     #[inline]
     #[allow(dead_code)]
     pub fn new_quaternion(quaternion:&Quaternion)->Matrix3x3{
-        return Matrix3x3::create_from_quaternion(quaternion);
+        unsafe { return Matrix3x3::create_from_quaternion(quaternion); }
     }
 
     #[inline]
@@ -230,7 +236,7 @@ impl Matrix3x3 {
         let mut result =Matrix3x3::new();
         let mut s:f32 = 0f32;
         let mut c:f32 = 0f32;
-        simd_sin_cos(angle, s.borrow_mut(), c.borrow_mut());
+        simd::sin_cos(angle, s.borrow_mut(), c.borrow_mut());
         result._rows[0] =Vector3::new_float_type(Vec3::load_aligned(G_VEC1000.borrow()).borrow());
         result.set_row(1.borrow(), 0.0.borrow(), c.borrow(), (-s).borrow());
         result.set_row(2.borrow(), 0.0.borrow(), s.borrow(), c.borrow());
@@ -243,7 +249,7 @@ impl Matrix3x3 {
         let mut result =Matrix3x3::new();
         let mut s:f32 = 0f32;
         let mut c:f32 = 0f32;
-        simd_sin_cos(angle, s.borrow_mut(), c.borrow_mut());
+        simd::sin_cos(angle, s.borrow_mut(), c.borrow_mut());
         result.set_row(0.borrow(), c.borrow(), 0.0.borrow(), s.borrow());
         result._rows[1] =Vector3::new_float_type(Vec3::load_aligned(G_VEC0100.borrow()).borrow());
         result.set_row(2.borrow(),(-s).borrow(), 0.0.borrow(), c.borrow());
@@ -256,7 +262,7 @@ impl Matrix3x3 {
         let mut result =Matrix3x3::new();
         let mut s:f32 = 0f32;
         let mut c:f32 = 0f32;
-        simd_sin_cos(angle, s.borrow_mut(), c.borrow_mut());
+        simd::sin_cos(angle, s.borrow_mut(), c.borrow_mut());
         result.set_row(0.borrow(), c.borrow(), (-s).borrow(), 0.0.borrow());
         result.set_row(1.borrow(),s.borrow(), c.borrow(), 0.0.borrow());
         result._rows[2] =Vector3::new_float_type(Vec3::load_aligned(G_VEC0010.borrow()).borrow());
@@ -498,62 +504,195 @@ impl Matrix3x3 {
     #[allow(dead_code)]
     pub unsafe  fn transposed_multiply(self,rhs:&Matrix3x3)->Matrix3x3{
         let mut result = Matrix3x3::new();
-        Vec3::mat3x3transpose_multiply(self.get_simd_values().borrow(),rhs.get_simd_values().borrow(),result._rows.borrow_mut());
+        Vec3::mat3x3transpose_multiply(self.get_simd_values(),rhs.get_simd_values(),result._rows.borrow_mut());
         result
     }
 
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_transpose(self)->Matrix3x3{
+        let result= Matrix3x3::new();
+        Vec3::mat3x3transpose(self.get_simd_values(), result.get_simd_values().borrow());
+        result
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn transpose(&mut self){
+        self._rows = self.get_transpose()._rows;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn invert_full(&mut self){
+        self._rows = self.get_inverse_full()._rows;
+    }
 
 
-    //! Transpose calculation, flips the rows and columns.
-    //! @{
-    Matrix3x3 GetTranspose() const;
-    void Transpose();
-    //! @}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_inverse_full(self)->Matrix3x3{
+        let mut result =Matrix3x3::new();
+        Vec3::mat3x3inverse(self.get_simd_values(), result._rows.borrow_mut());
+        result
+    }
 
-    //! Gets the inverse of the matrix.
-    //! Use GetInverseFast instead of this if the matrix is orthogonal.
-    //! @{
-    Matrix3x3 GetInverseFull() const;
-    void InvertFull();
-    //! @}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_inverse_fast(self)->Matrix3x3{
+        return self.get_transpose();
+    }
 
-    //! Fast inversion assumes the matrix is orthogonal.
-    //! @{
-    Matrix3x3 GetInverseFast() const;
-    void InvertFast();
-    //! @}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn invert_fast(&mut self){
+        self._rows = self.get_inverse_fast()._rows;
+    }
 
-    //! Gets the scale part of the transformation, i.e. the length of the scale components.
-    [[nodiscard]] Vector3 RetrieveScale() const;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn retrieve_scale(self)->Vector3{
+        return Vector3::new_xyz(self.get_basis_x().get_length().borrow(),self.get_basis_y().get_length().borrow(),self.get_basis_z().get_length().borrow())
+    }
 
-    //! Gets the squared scale part of the transformation (the squared length of the basis vectors).
-    [[nodiscard]] Vector3 RetrieveScaleSq() const;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn retrieve_scale_sq(self)->Vector3{
+        return Vector3::new_xyz(self.get_basis_x().get_length_sq().borrow(),self.get_basis_y().get_length_sq().borrow(),self.get_basis_z().get_length_sq().borrow())
+    }
 
-    //! Gets the scale part of the transformation as in RetrieveScale, and also removes this scaling from the matrix.
-    Vector3 ExtractScale();
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn extract_scale(&mut self)->Vector3{
+        let x =self. get_basis_x();
+        let y = self.get_basis_y();
+        let z = self.get_basis_z();
+        let length_x = x.get_length();
+        let length_y = y.get_length();
+        let length_z = z.get_length();
+        self.set_basis_x_vec3((x / length_x).borrow());
+        self.set_basis_x_vec3((y / length_y).borrow());
+        self.set_basis_x_vec3((z / length_z).borrow());
+        return Vector3::new_xyz(length_x.borrow(), length_y.borrow(), length_z.borrow());
+    }
 
-    //! Quick multiplication by a scale matrix, equivalent to m*=Matrix3x3::CreateScale(scale).
-    void MultiplyByScale(const Vector3& scale);
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn multiply_by_scale(&mut self, scale:&Vector3){
+        let mut transposed:[FloatType;3] = [Vec3::zero_float(),Vec3::zero_float(),Vec3::zero_float()];
+        Vec3::mat3x3transpose(self.get_simd_values(), transposed.borrow());
+        *transposed[0] = Vec3::mul((*transposed[0]).borrow(), Vec3::splat(scale.get_x().borrow()));
+        *transposed[1] = Vec3::mul((transposed[1]).borrow(), Vec3::splat(scale.get_y().borrow()));
+        *transposed[2] = Vec3::mul((transposed[2]).borrow(), Vec3::splat(scale.get_z().borrow()));
+        Vec3::mat3x3transpose(transposed.borrow(), self._rows.borrow_mut());
+    }
 
-    //! Returns a matrix with the reciprocal scale, keeping the same rotation and translation.
-    [[nodiscard]] Matrix3x3 GetReciprocalScaled() const;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_reciprocal_scaled(self)->Matrix3x3{
+        let mut result =  self.to_owned();
+        result.multiply_by_scale(self.retrieve_scale_sq().get_reciprocal().borrow());
+        result
+    }
 
-    //! Polar decomposition, M=U*H, U is orthogonal (unitary) and H is symmetric (hermitian).
-    //! This function returns the orthogonal part only
-    Matrix3x3 GetPolarDecomposition() const;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_polar_decomposition_2matrix3x3(self,orthogonalOut:&*mut Matrix3x3,symmetricOut:&*mut Matrix3x3){
+        orthogonalOut._rows = self. get_polar_decomposition()._rows;
+        symmetricOut._rows = orthogonalOut.transposed_multiply(self.borrow())._rows;
+    }
 
-    //! Polar decomposition, M=U*H, U is orthogonal (unitary) and H is symmetric (hermitian).
-    void GetPolarDecomposition(Matrix3x3* orthogonalOut, Matrix3x3* symmetricOut) const;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_polar_decomposition(self)->Matrix3x3{
+        let precision = 0.00001f32;
+        let epsilon = 0.0000001f32;
+        let max_iterations:i32 = 16;
+        let mut u = self.to_owned();
+        let mut det = u.get_determinant();
+        if (det * det > epsilon)
+        {
+            for i in max_iterations
+            {
+                u = (u + (u.get_adjugate().borrow() / det).get_transpose()) * 0.5;
+                let new_det = u.get_determinant();
+                let diff = new_det - det;
+                if (diff * diff < precision)
+                {
+                    break;
+                }
+                det = new_det;
+            }
+            u = u.get_orthogonalized();
+        }
+        else
+        {
+            u = Matrix3x3::CreateIdentity();
+        }
 
-    bool IsOrthogonal(float tolerance = Constants::Tolerance) const;
+        return u;
+    }
 
-    //! Adjusts an almost orthogonal matrix to be orthogonal.
-    Matrix3x3 GetOrthogonalized() const;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_orthogonalized(self)->Matrix3x3{
+        let row0 = Vec3::normalize_safe(Vec3::cross(self._rows[1].get_simd_value().borrow(), self._rows[2].get_simd_value().borrow()).borrow(), TOLERANCE.borrow());
+        let row1 = Vec3::normalize_safe(Vec3::cross(self._rows[2].get_simd_value().borrow(), row0.borrow()).borrow(), TOLERANCE.borrow());
+        let row2 = Vec3::normalize_safe(Vec3::cross(row0.borrow(), row1.borrow()).borrow(), TOLERANCE.borrow());
+        return Matrix3x3::new_3float_type(row0.borrow(), row1.borrow(), row2.borrow())
+    }
 
-    //! Adjusts an almost orthogonal matrix to be orthogonal.
-    void Orthogonalize();
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn is_orthogonal(self, tolerance:&f32)->bool{
+        let tolerance_sq = tolerance * tolerance;
+        if (!constants::is_close_f32(self.get_row(0.borrow()).get_length_sq().borrow(), 1.0.borrow(), tolerance_sq.borrow()) ||
+            !constants::is_close_f32(self.get_row(1.borrow()).get_length_sq().borrow(), 1.0.borrow(), tolerance_sq.borrow()) ||
+            !constants::is_close_f32(self.get_row(2.borrow()).get_length_sq().borrow(), 1.0.borrow(), tolerance_sq.borrow()))
+        {
+            return false;
+        }
 
-    bool IsClose(const Matrix3x3& rhs, float tolerance = Constants::Tolerance) const;
+        if (!constants::is_close_f32(self.get_row(0.borrow()).dot3(self.get_row(1.borrow()).borrow()).borrow(), 0.0.borrow(), tolerance) ||
+            !constants::is_close_f32(self.get_row(0.borrow()).dot3(self.get_row(2.borrow()).borrow()).borrow(), 0.0.borrow(), tolerance) ||
+            !constants::is_close_f32(self.get_row(1.borrow()).dot3(self.get_row(2.borrow()).borrow()).borrow(), 0.0.borrow(), tolerance))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn is_orthogonal_default(self)->bool{
+        return self.is_orthogonal(TOLERANCE.borrow())
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn orthogonalize(&mut self){
+        self._rows = self.get_orthogonalized()._rows;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn is_close(self,rhs:&Matrix3x3,tolerance:&f32)->bool{
+       let vec_tolerance = Vec3::splat(tolerance);
+        for row in Matrix3x3::RowCount {
+            let compare = Vec3::abs(Vec3::Sub(self._rows[row].get_simd_value(), rhs._rows[row].get_simd_value()));
+            if !Vec3::cmp_all_lt(compare, vec_tolerance) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn is_close_default(self,rhs:&Matrix3x3)->bool{
+        return self.is_close(rhs,TOLERANCE.borrow())
+    }
 
     #[inline]
     #[allow(dead_code)]
@@ -571,57 +710,56 @@ impl Matrix3x3 {
         let tyz = q.get_y() * tz;
         let tzz = q.get_z() * tz;
 
-        self.SetElement(0, 0, 1.0 - (tyy + tzz)); // 1.0-2yy-2zz    2xy-2wz    2xz+2wy
-        SetElement(0, 1, txy - twz);
-        SetElement(0, 2, txz + twy);
+        self.set_element(0.borrow(), 0.borrow(), (1.0 - (tyy + tzz)).borrow()); // 1.0-2yy-2zz    2xy-2wz    2xz+2wy
+        self.set_element(0.borrow(), 1.borrow(), (txy - twz).borrow());
+        self.set_element(0.borrow(), 2.borrow(), (txz + twy).borrow());
 
-        SetElement(1, 0, txy + twz); // 2xy+2wz    1.0-2xx-2zz    2yz-2wx
-        SetElement(1, 1, 1.0 - (txx + tzz));
-        SetElement(1, 2, tyz - twx);
+        self.set_element(1.borrow(), 0.borrow(), (txy + twz).borrow()); // 2xy+2wz    1.0-2xx-2zz    2yz-2wx
+        self.set_element(1.borrow(), 1.borrow(), (1.0 - (txx + tzz)).borrow());
+        self.set_element(1.borrow(), 2.borrow(), (tyz - twx).borrow());
 
-        SetElement(2, 0, txz - twy); // 2xz-2wy    2yz+2wx    1.0-2xx-2yy
-        SetElement(2, 1, tyz + twx);
-        SetElement(2, 2, 1.0f - (txx + tyy));
-    }
-    void Matrix3x3::SetRotationPartFromQuaternion(const Quaternion& q)
-    {
-    float tx = q.GetX() * 2.0f;
-    float ty = q.GetY() * 2.0f;
-    float tz = q.GetZ() * 2.0f;
-    float twx = q.GetW() * tx;
-    float twy = q.GetW() * ty;
-    float twz = q.GetW() * tz;
-    float txx = q.GetX() * tx;
-    float txy = q.GetX() * ty;
-    float txz = q.GetX() * tz;
-    float tyy = q.GetY() * ty;
-    float tyz = q.GetY() * tz;
-    float tzz = q.GetZ() * tz;
-
-    SetElement(0, 0, 1.0f - (tyy + tzz)); // 1.0-2yy-2zz    2xy-2wz    2xz+2wy
-    SetElement(0, 1, txy - twz);
-    SetElement(0, 2, txz + twy);
-
-    SetElement(1, 0, txy + twz); // 2xy+2wz    1.0-2xx-2zz    2yz-2wx
-    SetElement(1, 1, 1.0f - (txx + tzz));
-    SetElement(1, 2, tyz - twx);
-
-    SetElement(2, 0, txz - twy); // 2xz-2wy    2yz+2wx    1.0-2xx-2yy
-    SetElement(2, 1, tyz + twx);
-    SetElement(2, 2, 1.0f - (txx + tyy));
+        self.set_element(2.borrow(), 0.borrow(), (txz - twy).borrow()); // 2xz-2wy    2yz+2wx    1.0-2xx-2yy
+        self.set_element(2.borrow(), 1.borrow(), (tyz + twx).borrow());
+        self.set_element(2.borrow(), 2.borrow(), (1.0 - (txx + tyy)).borrow());
     }
 
-    Vector3 GetDiagonal() const;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_diagonal(self)->Vector3{
+        return Vector3::new_xyz(self.get_element(0.borrow(),0.borrow()).borrow(),self.get_element(1.borrow(),1.borrow()).borrow(),self.get_element(2.borrow(),2.borrow()).borrow())
+    }
 
-    float GetDeterminant() const;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_determinant(self) ->f32{
+        return self._rows[0].get_element(0.borrow()) * (self._rows[1].get_element(1.borrow()) * self._rows[2].get_element(2.borrow()) - self._rows[1].get_element(2.borrow()) * self._rows[2].get_element(1.borrow()))
+            + self._rows[1].get_element(0.borrow()) * (self._rows[2].get_element(1.borrow()) * self._rows[0].get_element(2.borrow()) - self._rows[2].get_element(2.borrow()) * self._rows[0].get_element(1.borrow()))
+            + self._rows[2].get_element(0.borrow()) * (self._rows[0].get_element(1.borrow()) * self._rows[1].get_element(2.borrow()) - self._rows[0].get_element(2.borrow()) * self._rows[1].get_element(1.borrow()));
+    }
 
-    //! This is the transpose of the matrix of cofactors.
-    //! Also known as the adjoint, adjugate is the modern name which avoids confusion with the adjoint conjugate transpose.
-    Matrix3x3 GetAdjugate() const;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_adjugate(self)->Matrix3x3{
+        let  result =Matrix3x3::new();
+        Vec3::mat3x3adjugate(self.get_simd_values_const(), result.get_simd_values().borrow());
+        result
+    }
 
-    bool IsFinite() const;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn is_finite(self)->bool{
+        return self.get_row(0.borrow()).is_finite() && self.get_row(1.borrow()).is_finite() && self.get_row(2.borrow()).is_finite();
+    }
 
-    const Simd::Vec3::FloatType* GetSimdValues() const;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_simd_values(self)->*FloatType{
+        (*self._rows) as *FloatType
+    }
 
-    Simd::Vec3::FloatType* GetSimdValues();
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_simd_values_const(self)->*const FloatType{
+        (*self._rows) as *const FloatType
+    }
 }

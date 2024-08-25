@@ -4,8 +4,7 @@
 use std::fmt::Debug;
 use std::ops::Add;
 use crate::math::common_sse::{VecFourthType, VecType};
-use crate::math::constants::FLOAT_EPSILON;
-use crate::math::math_utils::is_close_f32;
+use crate::math::math_utils::constants;
 use crate::math::simd_math_vec1_sse::Vec1;
 use crate::math::simd_math_vec4_sse::Vec4;
 use crate::math::transform::Transform;
@@ -134,13 +133,13 @@ impl Plane {
     #[inline]
     #[allow(dead_code)]
     pub unsafe  fn get_transform(self,tm:&Transform)->Plane{
-        let mut newDist = - self.get_distance();
-        newDist +=  self._plane.get_x() * (tm.get_basis_x().dot3(tm.get_translation().borrow()));
-        newDist += self._plane.get_y() * (tm.get_basis_y().dot3(tm.get_translation().borrow()));
-        newDist +=  self._plane.get_z() * (tm.get_basis_z().dot3(tm.get_translation().borrow()));
+        let mut new_dist = - self.get_distance();
+        new_dist +=  self._plane.get_x() * (tm.get_basis_x().dot3(tm.get_translation().borrow()));
+        new_dist += self._plane.get_y() * (tm.get_basis_y().dot3(tm.get_translation().borrow()));
+        new_dist +=  self._plane.get_z() * (tm.get_basis_z().dot3(tm.get_translation().borrow()));
         let mut normal = self.get_normal();
         normal = tm.transform_vector(normal.borrow());
-        return Plane::create_from_normal_and_distance(normal.borrow(), (-newDist).borrow());
+        return Plane::create_from_normal_and_distance(normal.borrow(), (-new_dist).borrow());
     }
 
     #[inline]
@@ -195,7 +194,7 @@ impl Plane {
     #[allow(dead_code)]
     pub unsafe  fn cast_ray_2vec3_f32(self, start:&Vector3, dir:&Vector3, mut hit_time:&f32) ->bool{
         let n_dot_dir =self._plane.dot3(dir);
-        if (is_close_f32(n_dot_dir.borrow(), 0.0.borrow(), FLOAT_EPSILON.borrow()))
+        if ( constants::is_close_f32(n_dot_dir.borrow(), 0.0.borrow(), constants::FLOAT_EPSILON.borrow()))
         {
             return false;
         }
@@ -205,16 +204,16 @@ impl Plane {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe  fn intersect_segment_3vec3( self,start:&Vector3, end:&Vector3, mut hitPoint:&Vector3)->bool{
+    pub unsafe  fn intersect_segment_3vec3(self, start:&Vector3, end:&Vector3, mut hit_point:&Vector3) ->bool{
         let dir = end - start;
-        let hitTime:f32 = 0f32;
-        if (!self.cast_ray_2vec3_f32(start, dir.borrow(), hitTime.borrow()))
+        let hit_time:f32 = 0f32;
+        if (!self.cast_ray_2vec3_f32(start, dir.borrow(), hit_time.borrow()))
         {
             return false;
         }
-        if (hitTime >= 0.0 && hitTime <= 1.0)
+        if (hit_time >= 0.0 && hit_time <= 1.0)
         {
-            hitPoint = (start + dir * hitTime).borrow_mut();
+            hit_point = (start + dir * hit_time).borrow_mut();
             return true;
         }
         return false;
@@ -222,13 +221,13 @@ impl Plane {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe  fn intersect_segment_2vec3_f32( self,start:&Vector3, end:&Vector3, mut hitTime:&f32)->bool{
+    pub unsafe  fn intersect_segment_2vec3_f32(self, start:&Vector3, end:&Vector3, mut hit_time:&f32) ->bool{
         let dir = end - start;
-        if (!self.cast_ray_2vec3_f32(start, dir.borrow(), hitTime))
+        if (!self.cast_ray_2vec3_f32(start, dir.borrow(), hit_time))
         {
             return false;
         }
-        if (hitTime.to_owned() >= 0.0 && hitTime.to_owned() <= 1.0)
+        if (hit_time.to_owned() >= 0.0 && hit_time.to_owned() <= 1.0)
         {
             return true;
         }

@@ -1,7 +1,10 @@
 #![warn(clip::pedantic)]
 #![allow(clip::many_single_char_names)]
 
+use std::cmp::{Ordering, PartialOrd};
+use crate::math::common_sse::VecType;
 use crate::math::plane::Plane;
+use crate::math::simd_math_vec1_sse::Vec1;
 use crate::math::vector4::Vector4;
 use crate::math::vsimd::FloatType;
 
@@ -46,9 +49,11 @@ impl Frustum{
     #[inline]
     #[allow(dead_code)]
     pub fn new()->Frustum{
-        Frustum{
-            _planes:[FloatType;PlaneId::MAX as usize],
-            _serialized_planes: [Plane;PlaneId::MAX as usize],
+        unsafe {
+            Frustum {
+                _planes: [Vec1::zero_float(), Vec1::zero_float(), Vec1::zero_float(), Vec1::zero_float()],
+                _serialized_planes: [Plane; PlaneId::MAX as usize],
+            }
         }
     }
 
@@ -172,7 +177,14 @@ impl Frustum{
     return frustum;
     }
 
+    #[inline]
+    #[allow(dead_code)]
+    pub fn set(&mut self,frustum:&Frustum){
+        let mut planeId = PlaneId::Near;
+        while planeId < PlaneId::MAX {
 
+        }
+    }
     void Frustum::Set(const Frustum& frustum)
     {
     for (PlaneId planeId = PlaneId::Near; planeId < PlaneId::MAX; ++planeId)

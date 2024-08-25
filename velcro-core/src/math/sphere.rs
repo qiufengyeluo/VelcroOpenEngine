@@ -2,7 +2,6 @@
 #![allow(clip::many_single_char_names)]
 
 use crate::math::aabb::Aabb;
-use crate::math::simd_math_vec3_sse::Vec3;
 use crate::math::vector3::Vector3;
 
 #[derive(Debug, Copy, Clone)]

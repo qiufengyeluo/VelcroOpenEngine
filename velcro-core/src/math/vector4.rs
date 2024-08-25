@@ -12,9 +12,8 @@ use vsimd::sse::{FloatArgType, FloatType};
 
 use crate::math::*;
 use crate::math::common_sse::{Vec2Type, Vec4Type, VecFourthType, VecThirdType, VecTwoType, VecType};
-use crate::math::constants::{FLOAT_EPSILON, TOLERANCE};
-use crate::math::math_utils::{get_clamp, is_finite_float, rad_to_deg};
-use crate::math::simd_math::{simd_abs, simd_acos, simd_inv_sqrt};
+use crate::math::math_utils::constants;
+use crate::math::simd_math::simd;
 use crate::math::simd_math_vec1_sse::Vec1;
 use crate::math::simd_math_vec2_sse::Vec2;
 use crate::math::simd_math_vec3_sse::Vec3;
@@ -581,7 +580,7 @@ impl Vector4 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn is_normalized(self,tolerance:&f32)->bool{
-        return (simd_abs((self.get_length_sq() - 1.0).borrow()) <= tolerance.to_owned());
+        return (simd::abs((self.get_length_sq() - 1.0).borrow()) <= tolerance.to_owned());
     }
 
     #[inline]
@@ -627,7 +626,7 @@ impl Vector4 {
     #[allow(dead_code)]
     pub unsafe fn is_close_default(&self, v:&Vector4)->bool{
         let dist:Vector4 = (v - (*self)).get_abs();
-        return dist.is_less_equal_than(Vector4::new_x(TOLERANCE));
+        return dist.is_less_equal_than(Vector4::new_x(constants::TOLERANCE.borrow()));
     }
 
 
@@ -642,7 +641,7 @@ impl Vector4 {
     #[allow(dead_code)]
     pub unsafe fn  is_zero_with_default(self)->bool{
         let dist = self.get_abs();
-        return  dist.is_less_equal_than(Vector4::new_x(FLOAT_EPSILON.borrow()).borrow());
+        return  dist.is_less_equal_than(Vector4::new_x(constants::FLOAT_EPSILON.borrow()).borrow());
     }
 
     #[inline]
@@ -717,7 +716,7 @@ impl Vector4 {
         let dot_val = Vec1::clamp(Vec4::dot(self._value.borrow(),dest._value.borrow()).borrow(),Vec1::splat((-1.0).borrow()).borrow(),Vec1::splat(1.0.borrow()).borrow());
         let theta = Vec1::mul(Vec1::acos(dot_val.borrow()).borrow(),Vec1::splat(t).borrow());
         let relative_vec = Vec4::sub(dest.get_simd_value().borrow(), Vec4::mul(self.get_simd_value().borrow(), Vec4::from_vec1(dot_val.borrow()).borrow()).borrow());
-        let rel_vec_norm = Vec4::normalize_safe(relative_vec.borrow(), TOLERANCE.borrow());
+        let rel_vec_norm = Vec4::normalize_safe(relative_vec.borrow(), constants::TOLERANCE.borrow());
         let sin_cos = Vec4::from_vec2(Vec2::sin_cos_to_float_type(theta.borrow()).borrow());
         let rel_vec_sin_theta = Vec4::mul(rel_vec_norm.borrow(), Vec4::splat_index0(sin_cos.borrow()).borrow());
         let result = Vector4::new_float_type(Vec4::madd(self.get_simd_value().borrow(), Vec3::splat_index1(sin_cos.borrow()).borrow(),rel_vec_sin_theta.borrow()).borrow());
@@ -727,7 +726,7 @@ impl Vector4 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  nlerp(self, dest :&Vector4,t:&f32)->Vector4{
-        return  self.lerp(dest.borrow(),t).get_normalized_safe(TOLERANCE.borrow());
+        return  self.lerp(dest.borrow(),t).get_normalized_safe(constants::TOLERANCE.borrow());
     }
 
     #[inline]
@@ -805,15 +804,15 @@ impl Vector4 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  angle(self, v:&Vector4)->f32{
-        let cos =self.dot4(v.borrow())*simd_inv_sqrt((self.get_length_sq()*v.get_length_sq()).borrow());
-        let res = simd_acos(get_clamp(cos.borrow(), (-1.0) .borrow(), 1.0.borrow()));
+        let cos =self.dot4(v.borrow())*simd::inv_sqrt((self.get_length_sq()*v.get_length_sq()).borrow());
+        let res = simd::acos(constants::get_clamp(cos.borrow(), (-1.0) .borrow(), 1.0.borrow()));
         res
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  angle_deg(self,v:&Vector4)->f32{
-        return rad_to_deg(self.angle(v).borrow())
+        return constants::rad_to_deg(self.angle(v).borrow())
     }
 
     #[inline]
@@ -859,7 +858,7 @@ impl Vector4 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  is_finite(self)->bool{
-        return is_finite_float(self.get_x().borrow())&&is_finite_float(self.get_y().borrow())&&is_finite_float(self.get_z().borrow());
+        return constants::is_finite_float(self.get_x().borrow())&&constants::is_finite_float(self.get_y().borrow())&&constants::is_finite_float(self.get_z().borrow());
     }
 
     #[inline]

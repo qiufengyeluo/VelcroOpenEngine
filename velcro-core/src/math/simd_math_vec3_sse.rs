@@ -789,7 +789,7 @@ impl Vec3Type for Vec3 {
         let arg1_yzx = _mm_shuffle_ps(arg1.to_owned(), arg1.to_owned(), _MM_SHUFFLE(3, 0, 2, 1));
         let arg2_yzx = _mm_shuffle_ps(arg2.to_owned(), arg2.to_owned(), _MM_SHUFFLE(3, 0, 2, 1));
         let partial= Vec3::sub(Vec3::mul(arg1,arg2_yzx.borrow()).borrow(),Vec3::mul(arg1_yzx.borrow(),arg2).borrow());
-        return _mm_shuffle_ps(partial, partial, _MM_SHUFFLE(3, 0, 2, 1));
+        return  _mm_shuffle_ps(partial, partial, _MM_SHUFFLE(3, 0, 2, 1));
     }
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]

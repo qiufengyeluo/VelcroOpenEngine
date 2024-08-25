@@ -3,10 +3,11 @@
 
 use crate::math::aabb::Aabb;
 use crate::math::capsule::Capsule;
-use crate::math::constants::FLOAT_EPSILON;
-use crate::math::math_utils::get_abs_f32;
+use crate::math::intersect;
+use crate::math::math_utils::{constants};
 use crate::math::obb::Obb;
 use crate::math::plane::{IntersectResult, Plane};
+use crate::math::simd_math::simd;
 use crate::math::sphere::Sphere;
 use crate::math::vector3::Vector3;
 use crate::math::vector4::Vector4;
@@ -23,7 +24,7 @@ impl ShapeIntersection{
     pub unsafe fn intersect_three_planes(p1:&Plane, p2:&Plane, p3:&Plane, mut out_p: &Vector3) ->bool{
         let n1cross_n2 = p1.get_normal().cross(p2.get_normal().borrow());
         let det = n1cross_n2.dot3(p3.get_normal().borrow());
-        if (get_abs_f32(det.borrow()) >  FLT_MIN_F32)
+        if (constants::get_abs_f32(det.borrow()) >  FLT_MIN_F32)
         {
             let n3cross_n2 = p3.get_normal().cross(p2.get_normal().borrow());
             let n1cross_n3 = p1.get_normal().cross(p3.get_normal().borrow());
@@ -57,9 +58,9 @@ impl ShapeIntersection{
     #[allow(dead_code)]
     pub unsafe fn classify_plane_and_obb(plane:&Plane,obb:&Obb)->IntersectResult{
         let d = plane.get_point_dist(obb.get_position().borrow());
-        let r = obb.get_half_length_x() * get_abs_f32(plane.get_normal().dot3(obb.get_axis_x().borrow()).borrow())
-            + obb.get_half_length_y() * get_abs_f32(plane.get_normal().dot3(obb.get_axis_y().borrow()).borrow())
-            + obb.get_half_length_z() * get_abs_f32(plane.get_normal().dot3(obb.get_axis_z().borrow()).borrow());
+        let r = obb.get_half_length_x() * constants::get_abs_f32(plane.get_normal().dot3(obb.get_axis_x().borrow()).borrow())
+            + obb.get_half_length_y() * constants::get_abs_f32(plane.get_normal().dot3(obb.get_axis_y().borrow()).borrow())
+            + obb.get_half_length_z() * constants::get_abs_f32(plane.get_normal().dot3(obb.get_axis_z().borrow()).borrow());
         if (d < -r)
         {
             return IntersectResult::Exterior;
@@ -95,7 +96,7 @@ impl ShapeIntersection{
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn overlaps_sphere_and_aabb(sphere:&Sphere, aabb:&Aabb) ->bool{
-        let dist_sq = aabb.get_distance_sq(sphere.get_center());
+        let dist_sq = aabb.get_distance_sq(sphere.get_center().borrow());
         let radius_sq = sphere.get_radius() * sphere.get_radius();
         return dist_sq <= radius_sq;
     }
@@ -109,7 +110,7 @@ impl ShapeIntersection{
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn overlaps_sphere_and_plane(sphere:&Sphere,plane:&Plane)->bool{
-        let dist = plane.get_point_dist(sphere.get_center());
+        let dist = plane.get_point_dist(sphere.get_center().borrow());
         return dist * dist <= sphere.get_radius() * sphere.get_radius();
     }
 
@@ -117,14 +118,14 @@ impl ShapeIntersection{
     #[allow(dead_code)]
     pub unsafe fn overlaps_sphere_and_sphere(sphere1:&Sphere,sphere2:&Sphere)->bool{
         let radius_sum = sphere1.get_radius() + sphere2.get_radius();
-        return sphere1.get_center().get_distance_sq(sphere2.get_center()) <= (radius_sum * radius_sum);
+        return sphere1.get_center().get_distance_sq(sphere2.get_center().borrow()) <= (radius_sum * radius_sum);
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn overlaps_sphere_and_obb(sphere:&Sphere,obb:&Obb)->bool{
         let radius = sphere.get_radius();
-        return obb.get_distance_sq(sphere.get_center()) < radius * radius;
+        return obb.get_distance_sq(sphere.get_center().borrow()) < radius * radius;
     }
 
     #[inline]
@@ -142,13 +143,13 @@ impl ShapeIntersection{
         if (sphere_distance_to_plane >= 0.0)
         {
             // Sphere is in front of hemisphere, so treat the hemisphere as a sphere
-            return ShapeIntersection::overlaps_sphere_and_sphere(Sphere(hemisphere.get_center(), hemisphere.get_radius()), sphere);
+            return ShapeIntersection::overlaps_sphere_and_sphere(Sphere::new_vec3_f32(hemisphere.get_center(), hemisphere.get_radius()), sphere);
         }
         else if (sphere_distance_to_plane > -sphere.get_radius())
         {
             // Sphere is behind hemisphere, project the sphere onto the plane, then check radius of circle.
             let projected_sphere_center = sphere.get_center() + hemisphere.get_direction() * -sphere_distance_to_plane;
-            let circle_radius = AZStd::sqrt(sphere.get_radius() * sphere.get_radius() - sphere_distance_to_plane * sphere_distance_to_plane);
+            let circle_radius = simd::sqrt(sphere.get_radius() * sphere.get_radius() - sphere_distance_to_plane * sphere_distance_to_plane);
             let radius_sum = hemisphere.get_radius() + circle_radius;
             return hemisphere.get_center().get_distance_sq(projected_sphere_center) < (radius_sum * radius_sum);
         }
@@ -227,7 +228,7 @@ impl ShapeIntersection{
         let closest_point_segment2:Vector3 = Vector3::new();;
         let segment1proportion:f32 = 0f32;
         let segment2proportion:f32 = 0f32;
-        Intersect::ClosestSegmentSegment(
+        intersect::closest_segment_segment(
             capsule1.GetFirstHemisphereCenter(), capsule1.GetSecondHemisphereCenter(), capsule2.GetFirstHemisphereCenter(),
             capsule2.GetSecondHemisphereCenter(), segment1proportion, segment2proportion, closest_point_segment1, closest_point_segment2);
         let radius_sum = capsule1.get_radius() + capsule2.get_radius();
