@@ -32,6 +32,8 @@ mod ray;
 mod color;
 mod obb;
 mod shape_intersection;
+mod sphere;
+mod frustum;
 
 #[cfg(test)]
 mod tests {

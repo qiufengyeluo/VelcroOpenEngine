@@ -2,12 +2,14 @@
 #![allow(clip::many_single_char_names)]
 
 use std::fmt::Debug;
-
-use crate::math::common_sse::VecType;
+use std::num::{Add, Mul};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
+use crate::math::common_sse::{Vec3Type, VecType};
 use crate::math::constants::{G_VEC0010, G_VEC0100, G_VEC1000};
 use crate::math::quaternion::Quaternion;
 use crate::math::simd_math::simd_sin_cos;
 use crate::math::simd_math_vec3_sse::Vec3;
+use crate::math::sphere::Sphere;
 use crate::math::transform::Transform;
 use crate::math::vector3::Vector3;
 use crate::math::vsimd::FloatArgType;
@@ -15,6 +17,133 @@ use crate::math::vsimd::FloatArgType;
 #[derive(Debug, Copy, Clone)]
 pub struct Matrix3x3 {
     _rows:[Vector3;3]
+}
+
+impl Mul<&Vector3> for Matrix3x3{
+    type Output = Vector3;
+
+    fn mul(self, rhs: &Vector3) -> Self::Output {
+        unsafe { return Vector3::new_float_type(Vec3::mat3x3transform_vector(self.get_simd_values().borrow(), rhs.get_simd_values().borrow()).borrow()) }
+    }
+}
+
+impl Add<&Matrix3x3> for Matrix3x3{
+    type Output = Matrix3x3;
+
+    fn add(self, rhs: &Matrix3x3) -> Self::Output {
+        unsafe {
+            return Matrix3x3::new_3float_type(Vec3::add(self._rows[0].get_simd_value().borrow(), rhs._rows[0].get_simd_value().borrow()).borrow(),
+                                              Vec3::add(self._rows[1].get_simd_value().borrow(), rhs._rows[1].get_simd_value().borrow()).borrow(),
+                                              Vec3::add(self._rows[2].get_simd_value().borrow(), rhs._rows[2].get_simd_value().borrow()).borrow());
+        }
+
+    }
+}
+
+impl AddAssign<&Matrix3x3> for Matrix3x3{
+    fn add_assign(&mut self, rhs: &Matrix3x3) {
+        self._rows = (self.borrow() + rhs)._rows;
+    }
+}
+
+impl Sub<&Matrix3x3> for Matrix3x3{
+    type Output = Matrix3x3;
+
+    fn sub(self, rhs: &Matrix3x3) -> Self::Output {
+        unsafe {
+            return Matrix3x3::new_3float_type(Vec3::sub(self._rows[0].get_simd_value().borrow(), rhs._rows[0].get_simd_value().borrow()).borrow(),
+                                              Vec3::sub(self._rows[1].get_simd_value().borrow(), rhs._rows[1].get_simd_value().borrow()).borrow(),
+                                              Vec3::sub(self._rows[2].get_simd_value().borrow(), rhs._rows[2].get_simd_value().borrow()).borrow());
+        }
+    }
+}
+
+impl SubAssign<&Matrix3x3> for Matrix3x3{
+    fn sub_assign(&mut self, rhs: &Matrix3x3) {
+        self._rows = (self.borrow() - rhs)._rows;
+    }
+}
+
+impl Mul<&Matrix3x3> for Matrix3x3 {
+    type Output = Matrix3x3;
+
+    fn mul(self, rhs: &Matrix3x3) -> Self::Output {
+        let mut result =Matrix3x3::new();
+        unsafe { Vec3::mat3x3multiply(self. get_simd_values(), rhs.get_simd_values(), result._rows.borrow_mut()); }
+        result
+    }
+}
+
+impl MulAssign<&Matrix3x3> for Matrix3x3{
+    fn mul_assign(&mut self, rhs: &Matrix3x3) {
+        self._rows = (self.borrow() * rhs)._rows;
+    }
+}
+impl Mul<f32> for Matrix3x3 {
+    type Output = Matrix3x3;
+
+    fn mul(self, multiplier: f32) -> Self::Output {
+        let mul_vec = unsafe { Vec3::splat(multiplier.borrow()) };
+        unsafe {
+            return Matrix3x3::new_3float_type
+                (
+                    Vec3::mul(self._rows[0].get_simd_values().borrow(), mul_vec.borrow()),
+                    Vec3::mul(self._rows[1].get_simd_values().borrow(), mul_vec.borrow()),
+                    Vec3::mul(self._rows[2].get_simd_values().borrow(), mul_vec.borrow())
+                );
+        }
+    }
+}
+
+impl MulAssign<f32> for Matrix3x3{
+    fn mul_assign(&mut self, multiplier: f32) {
+        self._rows = (self.borrow() * multiplier)._rows;
+    }
+}
+
+impl Div<f32> for Matrix3x3 {
+    type Output = Matrix3x3;
+
+    fn div(self, divisor: f32) -> Self::Output {
+        let div_vec = unsafe { Vec3::splat(divisor.borrow()) };
+        unsafe {
+            return Matrix3x3::new_3float_type
+                (
+                    Vec3::div(self._rows[0].get_simd_values().borrow(), div_vec.borrow()),
+                    Vec3::div(self._rows[1].get_simd_values().borrow(), div_vec.borrow()),
+                    Vec3::div(self._rows[2].get_simd_values().borrow(), div_vec.borrow())
+                );
+        }
+    }
+}
+
+impl DivAssign<f32> for Matrix3x3{
+    fn div_assign(&mut self, divisor: f32) {
+        self._rows = (self.borrow() / divisor)._rows;
+    }
+}
+impl Sub<Matrix3x3> for Matrix3x3 {
+    type Output = Matrix3x3;
+
+   unsafe  fn sub(self, rhs: Matrix3x3) -> Self::Output {
+        let zero_vec = Vec3::zero_float();
+        return Matrix3x3::new_3float_type
+            (
+                Vec3::sub(zero_vec.borrow(), self._rows[0].get_simd_value().borrow()).borrow(),
+                Vec3::sub(zero_vec.borrow(), self._rows[1].get_simd_value().borrow()).borrow(),
+                Vec3::sub(zero_vec.borrow(), self._rows[2].get_simd_value().borrow()).borrow()
+            );
+    }
+}
+impl PartialEq<Self> for Matrix3x3 {
+   unsafe fn eq(&self, rhs: &Self) -> bool {
+        return (Vec3::cmp_all_eq(self._rows[0].get_simd_value().borrow(), rhs._rows[0].get_simd_value().borrow())
+            && Vec3::cmp_all_eq(self._rows[1].get_simd_value().borrow(), rhs._rows[1].get_simd_value().borrow())
+            && Vec3::cmp_all_eq(self._rows[2].get_simd_value().borrow(), rhs._rows[2].get_simd_value().borrow()));
+    }
+    unsafe fn ne(&self, rhs: &Self) -> bool {
+        unsafe { return !(self == rhs); }
+    }
 }
 
 impl Matrix3x3 {
@@ -199,8 +328,8 @@ impl Matrix3x3 {
     #[allow(dead_code)]
     pub unsafe  fn store_to_row_major_float9(self,values:&*mut f32){
         self.get_row(0.borrow()).store_to_float_3(values);
-        self.get_row(0.borrow()).store_to_float_3((values+3));
-        self.get_row(0.borrow()).store_to_float_3((values+6));
+        self.get_row(0.borrow()).store_to_float_3(*((*values as usize)+3) as &*mut f32);
+        self.get_row(0.borrow()).store_to_float_3(*((*values as usize)+6) as &*mut f32);
     }
 
     #[inline]
@@ -285,7 +414,7 @@ impl Matrix3x3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe  fn get_columns(self,col0:* const Vector3,col1:* const Vector3,col2:* const Vector3){
+    pub unsafe  fn get_columns(self,col0:&*mut  Vector3,col1:&*mut  Vector3,col2:&*mut Vector3){
         col0.set_simd_value(self.get_column(0.borrow()).get_simd_value());
         col1.set_simd_value(self.get_column(1.borrow()).get_simd_value());
         col2.set_simd_value(self.get_column(2.borrow()).get_simd_value());
@@ -299,65 +428,81 @@ impl Matrix3x3 {
         self.set_row_vec3(2.borrow(),col2);
     }
 
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_basis_x(self)->Vector3{
+        return self.get_column(0.borrow());
+    }
 
-    //! @}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_basis_x(&mut self,x:&f32,y:&f32,z:&f32) {
+        self.set_column(0.borrow(),x,y,z);
+    }
 
-    //! Basis (column) access functions.
-    //! @{
-    Vector3 GetBasisX() const;
-    void SetBasisX(float x, float y, float z);
-    void SetBasisX(const Vector3& v);
-    Vector3 GetBasisY() const;
-    void SetBasisY(float x, float y, float z);
-    void SetBasisY(const Vector3& v);
-    Vector3 GetBasisZ() const;
-    void SetBasisZ(float x, float y, float z);
-    void SetBasisZ(const Vector3& v);
-    void GetBasis(Vector3* basisX, Vector3* basisY, Vector3* basisZ) const;
-    void SetBasis(const Vector3& basisX, const Vector3& basisY, const Vector3& basisZ);
-    //! @}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_basis_x_vec3(&mut self,v:&Vector3){
+        self.set_column_vec3(0.borrow(),v);
+    }
 
-    //! Calculates (this->GetTranspose() * rhs).
-    Matrix3x3 TransposedMultiply(const Matrix3x3& rhs) const;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_basis_y(self)->Vector3{
+        return self.get_column(1.borrow());
+    }
 
-    //! Post-multiplies the matrix by a vector.
-    Vector3 operator*(const Vector3& rhs) const;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_basis_y(&mut self,x:&f32,y:&f32,z:&f32) {
+        self.set_column(1.borrow(),x,y,z);
+    }
 
-    //! Operator for matrix-matrix addition.
-    //! @{
-    [[nodiscard]] Matrix3x3 operator+(const Matrix3x3& rhs) const;
-    Matrix3x3& operator+=(const Matrix3x3& rhs);
-    //! @}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_basis_y_vec3(&mut self,v:&Vector3){
+        self.set_column_vec3(1.borrow(),v);
+    }
 
-    //! Operator for matrix-matrix substraction.
-    //! @{
-    [[nodiscard]] Matrix3x3 operator-(const Matrix3x3& rhs) const;
-    Matrix3x3& operator-=(const Matrix3x3& rhs);
-    //! @}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_basis_z(self)->Vector3{
+        return self.get_column(2.borrow());
+    }
 
-    //! Operator for matrix-matrix multiplication.
-    //! @{
-    [[nodiscard]] Matrix3x3 operator*(const Matrix3x3& rhs) const;
-    Matrix3x3& operator*=(const Matrix3x3& rhs);
-    //! @}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_basis_z(&mut self,x:&f32,y:&f32,z:&f32) {
+        self.set_column(2.borrow(),x,y,z);
+    }
 
-    //! Operator for multiplying all matrix's elements with a scalar
-    //! @{
-    [[nodiscard]] Matrix3x3 operator*(float multiplier) const;
-    Matrix3x3& operator*=(float multiplier);
-    //! @}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_basis_z_vec3(&mut self,v:&Vector3){
+        self.set_column_vec3(2.borrow(),v);
+    }
 
-    //! Operator for dividing all matrix's elements with a scalar
-    //! @{
-    [[nodiscard]] Matrix3x3 operator/(float divisor) const;
-    Matrix3x3& operator/=(float divisor);
-    //! @}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_basis(self, basis_x:&*mut Vector3, basis_y:&*mut Vector3, basis_z:&*mut Vector3){
+        self.get_columns(basis_x, basis_y, basis_z)
+    }
 
-    //! Operator for negating all matrix's elements
-    [[nodiscard]] Matrix3x3 operator-() const;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_basis(&mut self,basis_x:&Vector3, basis_y:&Vector3, basis_z:&Vector3){
+        self.set_columns(basis_x, basis_y, basis_z)
+    }
 
-    bool operator==(const Matrix3x3& rhs) const;
-    bool operator!=(const Matrix3x3& rhs) const;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn transposed_multiply(self,rhs:&Matrix3x3)->Matrix3x3{
+        let mut result = Matrix3x3::new();
+        Vec3::mat3x3transpose_multiply(self.get_simd_values().borrow(),rhs.get_simd_values().borrow(),result._rows.borrow_mut());
+        result
+    }
+
+
 
     //! Transpose calculation, flips the rows and columns.
     //! @{
