@@ -342,24 +342,23 @@ impl Matrix3x4{
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn set_row(&mut self, row:&i32 , float x, float y, float z, float w){
-
+    pub unsafe fn set_row_xyzw(&mut self, row:&i32 ,  x:&f32,  y:&f32,  z:&f32,  w:&f32){
+        self._rows[row].set_xyzw(x, y, z, w);
     }
 
-    //! Sets the specified row.
-    
+
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn SetRow(int32_t row, const Vector3& v, float w);
+    pub unsafe fn set_row_vec3_f32(&mut self,  row:&i32, v: &Vector3, w:&f32){
+        self._rows[row].set_vec3_f32(v, w);
+    }
 
-    //! Sets the specified row.
-    
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn SetRow(int32_t row, const Vector4& v);
+    pub unsafe fn set_row_vec4(&mut self, row:&i32 , v:& Vector4){
+        self._rows[row] = v;
+    }
 
-    //! Gets all rows of the matrix.
-    
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn GetRows(Vector4* row0, Vector4* row1, Vector4* row2) const;
