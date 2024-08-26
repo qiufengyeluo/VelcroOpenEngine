@@ -4,8 +4,7 @@
 use std::ops::*;
 use std::ops::Add;
 
-use crate::math::constants::TWO_PI;
-use crate::math::math_utils::{deg_to_rad, get_clamp};
+use crate::math::math_utils::constants;
 use crate::math::vector2::Vector2;
 use crate::math::vector3::Vector3;
 use crate::math::vector4::Vector4;
@@ -411,14 +410,14 @@ impl  Color{
     #[allow(dead_code)]
     pub unsafe fn set_from_hsvradians(&mut self, mut hue_radians:&f32, mut saturation:&f32, mut value:&f32){
         let alpha = self.get_a();
-        saturation = get_clamp(saturation,0.0.borrow(),1.0.borrow());
-        value = get_clamp(value,0.0.borrow(),1.0.borrow());
-        hue_radians = fmodf(hue_radians, TWO_PI);
+        saturation = constants::get_clamp(saturation,0.0.borrow(),1.0.borrow());
+        value = constants::get_clamp(value,0.0.borrow(),1.0.borrow());
+        hue_radians = hue_radians.fmodf(constants::TWO_PI);
         if (hue_radians.to_owned() < 0f32)
         {
-            hue_radians = &(hue_radians + TWO_PI);
+            hue_radians = &(hue_radians + constants::TWO_PI);
         }
-        let hue = fmodf(hue_radians / deg_to_rad(60.0.borrow()), 6.0);
+        let hue = (hue_radians / constants::deg_to_rad(60.0.borrow())).fmodf(6.0);
         let hue_sexant = hue as i32;
         let hue_sexant_remainder = hue - hue_sexant;
 

@@ -2,6 +2,7 @@
 #![allow(clippy::many_single_char_names)]
 
 use num_traits::Float;
+
 pub mod constants {
     use crate::math::simd_math::simd;
 
@@ -16,7 +17,7 @@ pub mod constants {
     pub(crate) const TOLERANCE:f32 = 0.001;
     pub const FLOAT_MAX:f32 = FLT_MAX;
     pub(crate) const FLOAT_EPSILON:f32 = FLT_EPSILON;
-    enum Axis
+    pub(crate) enum Axis
     {
         XPositive,
         XNegative,

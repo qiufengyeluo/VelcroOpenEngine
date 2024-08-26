@@ -3,10 +3,9 @@
 
 use std::fmt::Debug;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
+
 use crate::math::common_sse::{Vec3Type, VecTwoType, VecType};
 use crate::math::constants::{G_VEC0010, G_VEC0100, G_VEC1000, TOLERANCE};
-use crate::math::frustum::is_close;
-use crate::math::math_utils;
 use crate::math::math_utils::constants;
 use crate::math::quaternion::Quaternion;
 use crate::math::simd_math::{simd, simd_sin_cos};
@@ -237,7 +236,7 @@ impl Matrix3x3 {
         let mut s:f32 = 0f32;
         let mut c:f32 = 0f32;
         simd::sin_cos(angle, s.borrow_mut(), c.borrow_mut());
-        result._rows[0] =Vector3::new_float_type(Vec3::load_aligned(G_VEC1000.borrow()).borrow());
+        result._rows[0] =Vector3::new_float_type(Vec3::load_aligned(simd::G_VEC1000.borrow()).borrow());
         result.set_row(1.borrow(), 0.0.borrow(), c.borrow(), (-s).borrow());
         result.set_row(2.borrow(), 0.0.borrow(), s.borrow(), c.borrow());
         result
@@ -251,7 +250,7 @@ impl Matrix3x3 {
         let mut c:f32 = 0f32;
         simd::sin_cos(angle, s.borrow_mut(), c.borrow_mut());
         result.set_row(0.borrow(), c.borrow(), 0.0.borrow(), s.borrow());
-        result._rows[1] =Vector3::new_float_type(Vec3::load_aligned(G_VEC0100.borrow()).borrow());
+        result._rows[1] =Vector3::new_float_type(Vec3::load_aligned(simd::G_VEC0100.borrow()).borrow());
         result.set_row(2.borrow(),(-s).borrow(), 0.0.borrow(), c.borrow());
         result
     }
@@ -265,7 +264,7 @@ impl Matrix3x3 {
         simd::sin_cos(angle, s.borrow_mut(), c.borrow_mut());
         result.set_row(0.borrow(), c.borrow(), (-s).borrow(), 0.0.borrow());
         result.set_row(1.borrow(),s.borrow(), c.borrow(), 0.0.borrow());
-        result._rows[2] =Vector3::new_float_type(Vec3::load_aligned(G_VEC0010.borrow()).borrow());
+        result._rows[2] =Vector3::new_float_type(Vec3::load_aligned(simd::G_VEC0010.borrow()).borrow());
         result
     }
 
@@ -637,8 +636,8 @@ impl Matrix3x3 {
     #[allow(dead_code)]
     pub unsafe  fn get_orthogonalized(self)->Matrix3x3{
         let row0 = Vec3::normalize_safe(Vec3::cross(self._rows[1].get_simd_value().borrow(), self._rows[2].get_simd_value().borrow()).borrow(), TOLERANCE.borrow());
-        let row1 = Vec3::normalize_safe(Vec3::cross(self._rows[2].get_simd_value().borrow(), row0.borrow()).borrow(), TOLERANCE.borrow());
-        let row2 = Vec3::normalize_safe(Vec3::cross(row0.borrow(), row1.borrow()).borrow(), TOLERANCE.borrow());
+        let row1 = Vec3::normalize_safe(Vec3::cross(self._rows[2].get_simd_value().borrow(), row0.borrow()).borrow(), constants::TOLERANCE.borrow());
+        let row2 = Vec3::normalize_safe(Vec3::cross(row0.borrow(), row1.borrow()).borrow(), constants::TOLERANCE.borrow());
         return Matrix3x3::new_3float_type(row0.borrow(), row1.borrow(), row2.borrow())
     }
 
@@ -666,7 +665,7 @@ impl Matrix3x3 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe  fn is_orthogonal_default(self)->bool{
-        return self.is_orthogonal(TOLERANCE.borrow())
+        return self.is_orthogonal(constants::TOLERANCE.borrow())
     }
 
     #[inline]
@@ -691,7 +690,7 @@ impl Matrix3x3 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe  fn is_close_default(self,rhs:&Matrix3x3)->bool{
-        return self.is_close(rhs,TOLERANCE.borrow())
+        return self.is_close(rhs,constants::TOLERANCE.borrow())
     }
 
     #[inline]

@@ -551,7 +551,7 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  is_zero_with_default(self)->bool{
+    pub unsafe fn  is_zero_default(self)->bool{
         let dist = self.get_abs();
         return  dist.is_less_equal_than(Vector3::new_x(constants::FLOAT_EPSILON.borrow()).borrow());
     }

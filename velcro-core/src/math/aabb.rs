@@ -1,9 +1,9 @@
 #![warn(clip::pedantic)]
 #![allow(clip::many_single_char_names)]
 
-use std::ops::Mul;
 use crate::math::common_sse::VecType;
-use crate::math::constants::FLOAT_MAX;
+use crate::math::math_utils::constants;
+use crate::math::matrix3x4::Matrix3x4;
 use crate::math::obb::Obb;
 use crate::math::quaternion::Quaternion;
 use crate::math::simd_math_vec3_sse::Vec3;
@@ -42,8 +42,8 @@ impl Aabb {
     #[allow(dead_code)]
     pub fn create_null() -> Self {
         Aabb {
-            _min: Vector3::new_splat(FLOAT_MAX),
-            _max: Vector3::new_splat(-FLOAT_MAX),
+            _min: Vector3::new_splat(constants:: FLOAT_MAX),
+            _max: Vector3::new_splat(-constants::FLOAT_MAX),
         }
     }
 
@@ -282,8 +282,8 @@ impl Aabb {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn set_null(mut self) {
-        self._min = Vector3::new_x(FLOAT_MAX.borrow());
-        self._max = Vector3::new_x((-FLOAT_MAX).borrow());
+        self._min = Vector3::new_x(constants::FLOAT_MAX.borrow());
+        self._max = Vector3::new_x((-constants::FLOAT_MAX).borrow());
     }
 
     #[inline]

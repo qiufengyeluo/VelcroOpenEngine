@@ -3,7 +3,7 @@
 
 use crate::math::intersect::intersect_point::Intersect;
 use crate::math::line_segment::LineSegment;
-use crate::math::math_utils::is_close_f32;
+use crate::math::math_utils::constants;
 use crate::math::vector3::Vector3;
 
 #[derive(Debug, Copy, Clone)]
@@ -92,7 +92,7 @@ impl Capsule{
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn is_close(self,rhs:&Capsule,tolerance:&f32)->bool{
-        return is_close_f32(self._radius.borrow(),rhs._radius.borrow(),tolerance)
+        return constants::is_close_f32(self._radius.borrow(),rhs._radius.borrow(),tolerance)
         && ( (self._first_hemisphere_center.is_close(rhs._first_hemisphere_center.borrow(),tolerance) && self._second_hemisphere_center.is_close(rhs._second_hemisphere_center.borrow(),tolerance))
             || (self._first_hemisphere_center.is_close(rhs._second_hemisphere_center.borrow(),tolerance)&& self._second_hemisphere_center.is_close(rhs._first_hemisphere_center.borrow(),tolerance)) )
     }

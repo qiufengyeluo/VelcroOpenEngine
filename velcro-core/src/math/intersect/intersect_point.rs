@@ -1,6 +1,7 @@
 #![warn(clip::pedantic)]
 #![allow(clip::many_single_char_names)]
 
+use crate::math::plane::Plane;
 use crate::math::vector3::Vector3;
 
 pub struct Intersect{
@@ -64,7 +65,7 @@ impl Intersect{
     #[allow(dead_code)]
     pub unsafe  fn closest_point_plane(p:&Vector3, plane:&Plane, mut pt_on_plane:&Vector3) ->f32{
         let dist = plane.get_point_dist(p);
-        pt_on_plane = p - dist * plane.get_normal();
+        pt_on_plane = &(p -   plane.get_normal() * dist);
         return dist;
     }
 

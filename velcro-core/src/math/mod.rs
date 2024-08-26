@@ -1,14 +1,11 @@
-use vector::*;
 
 pub mod vsimd;
 pub mod intersect;
-mod constants;
 pub mod sfmt;
 pub mod random;
 pub mod vector3;
 pub mod aabb;
 pub mod plane;
-pub mod vector;
 mod simd_math;
 mod math_utils;
 mod vector2;
