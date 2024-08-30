@@ -4,14 +4,17 @@
 use std::fmt::Debug;
 use std::ops::{Add, AddAssign, BitAnd, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
-use crate::math::common_sse::{Vec3Type, Vec4Type, VecFourthType, VecTwoType, VecType};
+use crate::math::common_sse::{Vec2Type, Vec3Type, Vec4Type, VecFourthType, VecThirdType, VecTwoType, VecType};
 use crate::math::math_utils::constants;
 use crate::math::math_utils::constants::Axis;
 use crate::math::matrix3x3::Matrix3x3;
 use crate::math::quaternion::Quaternion;
 use crate::math::simd_math::simd;
+use crate::math::simd_math_vec2_sse::Vec2;
+use crate::math::simd_math_vec3_sse::Vec3;
 use crate::math::simd_math_vec4_sse::Vec4;
 use crate::math::transform::Transform;
+use crate::math::vector2::Vector2;
 use crate::math::vector3::Vector3;
 use crate::math::vector4::Vector4;
 use crate::math::vsimd::{FloatArgType, FloatType};
@@ -21,6 +24,14 @@ const COL_COUNT:usize = 4;
 #[derive(Debug, Copy, Clone)]
 pub struct Matrix3x4 {
     _rows:[Vector4; ROW_COUNT]
+}
+impl PartialEq<Self> for Matrix3x4 {
+    unsafe fn eq(&self, rhs: &Self) -> bool {
+        return self._rows[0] == rhs._rows[0] && self._rows[1] == rhs._rows[1] && self._rows[2] == rhs._rows[2];
+    }
+    unsafe fn ne(&self, rhs: &Self) -> bool {
+        unsafe { return !(self == rhs); }
+    }
 }
 
 impl Add<&Matrix3x4> for Matrix3x4 {
@@ -68,7 +79,7 @@ impl Mul<&Matrix3x4> for Matrix3x4 {
     fn mul(self, rhs: &Matrix3x4) -> Self::Output {
         unsafe {
             let mut result = Matrix3x4::new();
-            Vec4::mat3x4multiply(self.get_simd_values(), rhs.get_simd_values(), result.get_simd_values());
+            Vec4::mat3x4multiply(self.get_simd_values(), rhs.get_simd_values(), result.get_simd_values_const().borrow());
             result
         }
     }
@@ -257,8 +268,8 @@ impl Matrix3x4{
         let mut c:f32;
         simd::sin_cos(angle, s.borrow_mut(), c.borrow_mut());
         result._rows[0] = Vector4::new_float_type(Vec4::load_aligned(simd::G_VEC1000.borrow()).borrow());
-        result.set_row(1.borrow(), 0.0.borrow(), c.borrow(), (-s).borrow(), 0.0.borrow());
-        result.set_row(2.borrow(), 0.0.borrow(), s.borrow(), c.borrow(), 0.0.borrow());
+        result.set_row_xyzw(1.borrow(), 0.0.borrow(), c.borrow(), (-s).borrow(), 0.0.borrow());
+        result.set_row_xyzw(2.borrow(), 0.0.borrow(), s.borrow(), c.borrow(), 0.0.borrow());
         return result;
     }
 
@@ -269,9 +280,9 @@ impl Matrix3x4{
         let mut s:f32 = 0.0;
         let mut c:f32;
         simd::sin_cos(angle, s.borrow_mut(), c.borrow_mut());
-        result.set_row(0.borrow(), c.borrow(), 0.0.borrow(), s.borrow(), 0.0.borrow());
+        result.set_row_xyzw(0.borrow(), c.borrow(), 0.0.borrow(), s.borrow(), 0.0.borrow());
         result._rows[1] = Vector4::new_float_type(Vec4::load_aligned(simd::G_VEC0100.borrow()).borrow());
-        result.set_row(2.borrow(), (-s).borrow(), 0.0.borrow(), c.borrow(), 0.0.borrow());
+        result.set_row_xyzw(2.borrow(), (-s).borrow(), 0.0.borrow(), c.borrow(), 0.0.borrow());
         return result;
     }
 
@@ -282,8 +293,8 @@ impl Matrix3x4{
         let mut s:f32 = 0.0;
         let mut c:f32;
         simd::sin_cos(angle, s.borrow_mut(), c.borrow_mut());
-        result.set_row(0.borrow(), c.borrow(), (-s).borrow(),0.0.borrow(), 0.0.borrow());
-        result.set_row(1.borrow(), s.borrow(), c.borrow(), 0.0.borrow(), 0.0.borrow());
+        result.set_row_xyzw(0.borrow(), c.borrow(), (-s).borrow(),0.0.borrow(), 0.0.borrow());
+        result.set_row_xyzw(1.borrow(), s.borrow(), c.borrow(), 0.0.borrow(), 0.0.borrow());
         result._rows[2] = Vector4::new_float_type(Vec4::load_aligned(simd::G_VEC0010.borrow()).borrow());
 
         return result;
@@ -293,8 +304,8 @@ impl Matrix3x4{
     #[allow(dead_code)]
     pub unsafe fn create_from_quaternion(quaternion:&Quaternion)->Matrix3x4{
         let mut result=Matrix3x4::new();
-        result.set_rotation_rart_from_quaternion(quaternion);
-        result.set_translation(Vector3::CreateZero());
+        result.set_rotation_part_from_quaternion(quaternion);
+        result.set_translation_vec3(Vector3::create_zero().borrow());
         result
     }
 
@@ -303,8 +314,8 @@ impl Matrix3x4{
     pub unsafe fn create_from_quaternion_and_translation(quaternion:& Quaternion , translation: &Vector3)->Matrix3x4
     {
         let mut result=Matrix3x4::new();
-        result.set_rotation_rart_from_quaternion(quaternion);
-        result.set_translation(translation);
+        result.set_rotation_part_from_quaternion(quaternion);
+        result.set_translation_vec3(translation);
         result
     }
 
@@ -312,9 +323,9 @@ impl Matrix3x4{
     #[allow(dead_code)]
     pub unsafe fn create_from_matrix3x3(matrix3x3: &Matrix3x3) ->Matrix3x4{
         let mut result=Matrix3x4::new();
-        result.set_row(0, matrix3x3.GetRow(0), 0.0);
-        result.set_row(1, matrix3x3.GetRow(1), 0.0);
-        result.set_row(2, matrix3x3.GetRow(2), 0.0);
+        result.set_row_vec3_f32(0.borrow(), matrix3x3.get_row(0.borrow()).borrow(), 0.0.borrow());
+        result.set_row_vec3_f32(1.borrow(), matrix3x3.get_row(1.borrow()).borrow(), 0.0.borrow());
+        result.set_row_vec3_f32(2.borrow(), matrix3x3.get_row(2.borrow()).borrow(), 0.0.borrow());
         result
     }
 
@@ -324,9 +335,9 @@ impl Matrix3x4{
     pub unsafe fn create_from_matrix3x3and_translation(matrix3x3:&Matrix3x3, translation:&Vector3 )->Matrix3x4{
         let mut result=Matrix3x4::new();
         result.set_rows(
-        Vector4::create_from_vector3_and_float(matrix3x3.get_row(0), translation.get_element(0)),
-        Vector4::create_from_vector3_and_float(matrix3x3.get_row(1), translation.get_element(1)),
-        Vector4::create_from_vector3_and_float(matrix3x3.get_row(2), translation.get_element(2))
+        Vector4::create_from_vector3_and_float(matrix3x3.get_row(0.borrow()).borrow(), translation.get_element(0.borrow()).borrow()).borrow(),
+        Vector4::create_from_vector3_and_float(matrix3x3.get_row(1.borrow()).borrow(), translation.get_element(1.borrow()).borrow()).borrow(),
+        Vector4::create_from_vector3_and_float(matrix3x3.get_row(2.borrow()).borrow(), translation.get_element(2.borrow()).borrow()).borrow()
         );
         result
     }
@@ -336,9 +347,9 @@ impl Matrix3x4{
     #[allow(dead_code)]
     pub unsafe fn unsafe_create_from_matrix4x4(matrix4x4:&Matrix4x4) ->Matrix3x4{
         let mut result=Matrix3x4::new();
-        result.set_row(0, matrix4x4.get_row(0));
-        result.set_row(1, matrix4x4.get_row(1));
-        result.set_row(2, matrix4x4.get_row(2));
+        result.set_row_vec4(0.borrow(), matrix4x4.get_row(0));
+        result.set_row_vec4(1.borrow(), matrix4x4.get_row(1));
+        result.set_row_vec4(2.borrow(), matrix4x4.get_row(2));
         return result;
     }
 
@@ -669,7 +680,7 @@ impl Matrix3x4{
     #[allow(dead_code)]
     pub unsafe fn get_transpose(self) ->Matrix3x4{
         let result =Matrix3x4::new();
-        Vec4::mat3x4transpose(self.get_simd_values(), result.get_simd_values());
+        Vec4::mat3x4transpose(self.get_simd_values(), result.get_simd_values_const().borrow());
         return result;
     }
 
@@ -783,7 +794,7 @@ impl Matrix3x4{
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn multiply_by_scale(&mut self, scale:&Vector3){
-        let vector4scale = Vec4::replace_index3_f32(Vec4::from_vec3(scale.get_simd_value().borrow()).borrow(), 1.0.borrow());
+        let vector4scale = Vec4::replace_index3_f32(Vec4::from_vec3(scale.get_simd_value().borrow()).borrow(),1.0.borrow());
         self._rows[0].set_float_type(Vec4::mul(self._rows[0].get_simd_value().borrow(), vector4scale.borrow()).borrow());
         self._rows[1].set_float_type(Vec4::mul(self._rows[1].get_simd_value().borrow(), vector4scale.borrow()).borrow());
         self._rows[2].set_float_type(Vec4::mul(self._rows[2].get_simd_value().borrow(), vector4scale.borrow()).borrow());
@@ -834,72 +845,112 @@ impl Matrix3x4{
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn Orthogonalize();
-
-    //! Tests element-wise whether this matrix is close to another matrix, within the specified tolerance.
-    bool IsClose(const Matrix3x4& rhs, float tolerance = Constants::Tolerance) const;
-
-    //! Tests whether this matrix is identical to another matrix.
-    bool operator==(const Matrix3x4& rhs) const;
-
-    //! Tests whether this matrix is not identical to another matrix.
-    bool operator!=(const Matrix3x4& rhs) const;
-
-    //! Converts the 3x3 part of the matrix to corresponding Euler angles (Z, then Y, then X), in degrees.
-    //! @return Component-wise rotation angles in degrees.
-    [[nodiscard]] 
+    pub unsafe fn orthogonalize(&mut self){
+        self._rows = self.get_orthogonalized()._rows;
+    }
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn GetEulerDegrees() const;
+    pub unsafe fn is_close_default(self,rhs:&Matrix3x4)->bool{
+        return self.is_close(rhs,constants::TOLERANCE.borrow());
+    }
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn is_close(self,rhs:&Matrix3x4,tolerance:&f32)->bool{
 
-    //! Converts the 3x3 part of the matrix to corresponding Euler angles (Z, then Y, then X), in radians.
-    //! @return Component-wise rotation angles in radians.
-    [[nodiscard]] 
-    #[inline]
-    #[allow(dead_code)]
-    pub unsafe fn GetEulerRadians() const;
-
-    //! Sets the 3x3 part of the matrix from Euler Angles (rotation angles in Z, then Y, then X), in degrees.
-    //! The translation is set to zero.
-    //! @param eulerDegrees Component-wise rotation angles in degrees.
-    //! @return A matrix calculated from the composition of rotations around Z, then Y, then X, with zero translation.
-    
-    #[inline]
-    #[allow(dead_code)]
-    pub unsafe fn SetFromEulerDegrees(const Vector3& eulerDegrees);
-
-    //! Sets the 3x3 part of the matrix from Euler Angles (rotation angles in Z, then Y, then X), in radians.
-    //! The translation is set to zero.
-    //! @param 
-    #[inline]
-    #[allow(dead_code)]
-    pub unsafe fn eulerRadians Component-wise rotation angles in radians.
-    //! @return A matrix calculated from the composition of rotations around Z, then Y, then X, with zero translation.
-    
-    #[inline]
-    #[allow(dead_code)]
-    pub unsafe fn SetFromEulerRadians(const Vector3& eulerRadians);
-
-    //! Sets the 3x3 part of the matrix from a quaternion.
-    
-    #[inline]
-    #[allow(dead_code)]
-    pub unsafe fn SetRotationPartFromQuaternion(const Quaternion& quaternion);
+        return self._rows[0].is_close(rhs._rows[0].borrow(), tolerance) && self._rows[1].is_close(rhs._rows[1].borrow(), tolerance) && self._rows[2].is_close(rhs._rows[2].borrow(), tolerance);
+    }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn GetDeterminant3x3() ->f32;
+    pub unsafe fn get_euler_degrees(self) ->Vector3
+    {
+        return Vector3::vector3_rad_to_reg(self.get_euler_radians().borrow());
+    }
 
-    //! Checks whether the elements of the matrix are all finite.
-    #[inline]
-    #[allow(dead_code)]
-    pub unsafe fn IsFinite() ->bool;
-
-    #[inline]
-    #[allow(dead_code)]
-    pub unsafe fn GetSimdValuesConst() ->*const FloatType;
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn GetSimdValues() ->* FloatType;
+    pub unsafe fn get_euler_radians(self) ->Vector3{
+        let mut result = Vector3::new();
+        let c2 = Vector2::new_xy(self.get_element(0.borrow(), 0.borrow()).borrow(), self.get_element(0.borrow(), 1.borrow()).borrow()).get_length();
+        result.set_x((-simd::atan2(self.get_element(1.borrow(), 2.borrow()).borrow(), self.get_element(2.borrow(), 2.borrow()).borrow())).borrow());
+        result.set_y((-simd::atan2((-self.get_element(0.borrow(), 2.borrow())).borrow(), c2.borrow())).borrow());
+        let angles = Vector2::new_float_type(Vec2::sin(Vec2::load_immediate((-result.get_x()).borrow(), (result.get_x() + constants::HALF_PI.borrow()).borrow()).borrow()).borrow());
+        let s1 = angles.get_x();
+        let c1 = angles.get_y();
+        result.set_z((-simd::atan2((-c1 * self.get_element(1.borrow(), 0.borrow()) + s1 * self.get_element(2.borrow(), 0.borrow())).borrow(), (c1 * self.get_element(1.borrow(), 1.borrow()) - s1 * self.get_element(2.borrow(), 1.borrow())).borrow())).borrow());
+        return Vector3::new_float_type(Vec3::wrap(result.get_simd_value().borrow(), Vec3::zero_float().borrow(), Vec3::splat(constants::TWO_PI.borrow()).borrow()).borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_from_euler_degrees(&mut self, euler_degrees:&Vector3 ){
+        self.set_from_euler_radians(Vector3::vector3deg_to_rad(euler_degrees).borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_from_euler_radians(&mut self, euler_radians:&Vector3 ){
+        let mut sin:FloatType;
+        let mut cos:FloatType;
+        Vec3::sin_cos(euler_radians.get_simd_value().borrow(), sin.borrow_mut(), cos.borrow_mut());
+
+        let sx = Vec3::select_index0(sin.borrow());
+        let sy = Vec3::select_index1(sin.borrow());
+        let sz = Vec3::select_index2(sin.borrow());
+        let cx = Vec3::select_index0(cos.borrow());
+        let cy = Vec3::select_index1(cos.borrow());
+        let cz = Vec3::select_index2(cos.borrow());
+
+        self.set_row_xyzw(0.borrow(), (cy * cz).borrow(), (-cy * sz).borrow(), sy.borrow(), 0.0.borrow());
+        self.set_row_xyzw(1.borrow(), (cx * sz + sx * sy * cz).borrow(), (cx * cz - sx * sy * sz).borrow(), (-sx * cy).borrow(), 0.0.borrow());
+        self.set_row_xyzw(2.borrow(), (sx * sz - cx * sy * cz).borrow(), (sx * cz + cx * sy * sz).borrow(), (cx * cy).borrow(), 0.0.borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_rotation_part_from_quaternion(&mut self, quaternion:&Quaternion){
+        let tx = quaternion.get_x() * 2.0;
+        let ty = quaternion.get_y() * 2.0;
+        let tz = quaternion.get_z() * 2.0;
+        let twx = quaternion.get_w() * tx;
+        let twy = quaternion.get_w() * ty;
+        let twz = quaternion.get_w() * tz;
+        let txx = quaternion.get_x() * tx;
+        let txy = quaternion.get_x() * ty;
+        let txz = quaternion.get_x() * tz;
+        let tyy = quaternion.get_y() * ty;
+        let tyz = quaternion.get_y() * tz;
+        let tzz = quaternion.get_z() * tz;
+
+        self.set_row_xyzw(0.borrow(), (1.0 - (tyy + tzz)).borrow(), (txy - twz).borrow(), (txz + twy).borrow(), self._rows[0].get_w().borrow());
+        self.set_row_xyzw(1.borrow(), (txy + twz).borrow(), (1.0 - (txx + tzz)).borrow(), (tyz - twx).borrow(), self._rows[1].get_w().borrow());
+        self.set_row_xyzw(2.borrow(), (txz - twy).borrow(), (tyz + twx).borrow(), (1.0 - (txx + tyy)).borrow(), self._rows[2].get_w().borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_determinant3x3(self) ->f32{
+        return self._rows[0].get_element(0.borrow()) * (self._rows[1].get_element(1.borrow()) * self._rows[2].get_element(2.borrow()) - self._rows[1].get_element(2.borrow()) * self._rows[2].get_element(1.borrow()))
+            + self._rows[1].get_element(0.borrow()) * (self._rows[2].get_element(1.borrow()) * self._rows[0].get_element(2.borrow()) - self._rows[2].get_element(2.borrow()) * self._rows[0].get_element(1.borrow()))
+            + self._rows[2].get_element(0.borrow()) * (self._rows[0].get_element(1.borrow()) * self._rows[1].get_element(2.borrow()) - self._rows[0].get_element(2.borrow()) * self._rows[1].get_element(1.borrow()));
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn is_finite(self) ->bool{
+        return self._rows[0].is_finite() && self._rows[1].is_finite() && self._rows[2].is_finite();
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_simd_values_const(self) ->*const FloatType{
+        return *self._rows as *const FloatType
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_simd_values(self) ->* FloatType{
+        return *self._rows as * FloatType
+    }
 }
