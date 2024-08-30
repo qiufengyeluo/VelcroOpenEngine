@@ -132,7 +132,7 @@ impl DivAssign<f32> for Matrix3x4{
 impl Sub for Matrix3x4 {
     type Output = Matrix3x4;
 
-    fn sub(self, rhs: Self) -> Self::Output {
+    fn sub(self, _rhs: Self) -> Self::Output {
        let zero_vec = unsafe { Vec4::zero_float() };
         unsafe {
             return Matrix3x4::new_3float_type
@@ -439,7 +439,7 @@ impl Matrix3x4{
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn identity()->Matrix3x4{
-        return Matrix3x4::create_identity();;
+        return Matrix3x4::create_identity();
     }
 
     #[inline]

@@ -32,6 +32,7 @@ mod shape_intersection;
 mod sphere;
 mod frustum;
 mod matrix3x4;
+mod matrix4x4;
 
 #[cfg(test)]
 mod tests {
