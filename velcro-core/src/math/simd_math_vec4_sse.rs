@@ -5,6 +5,7 @@ use std::arch::x86_64::{_mm_hadd_ps, _mm_shuffle_ps};
 
 use crate::math::common_sse::*;
 use crate::math::constants::{G_NEGATE_MASK, G_VEC1111, HALF_PI};
+use crate::math::math_utils::constants;
 use crate::math::vsimd::*;
 
 pub struct Vec4{
@@ -107,7 +108,7 @@ impl VecType for  Vec4 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-     unsafe fn add(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType{
+     unsafe fn add(arg1:FloatArgType,arg2:&FloatArgType)->FloatType{
         return sse::add(arg1.to_owned(),arg2.to_owned());
     }
 
@@ -541,7 +542,7 @@ impl VecType for  Vec4 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-     unsafe fn sin_cos(value:&FloatArgType,mut sin:&FloatType,mut cos:&FloatType){
+     unsafe fn sin_cos(value:FloatArgType,mut sin:&FloatType,mut cos:&FloatType){
         Common::sin_cos(value,sin,cos)
     }
 
@@ -642,7 +643,7 @@ impl VecTwoType for Vec4 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn select_index1(value:&FloatArgType)->f32{
+    unsafe fn select_index1(value:FloatArgType)->f32{
         return sse::select_first(sse::splat_second(value.to_owned()));
     }
 
@@ -744,7 +745,7 @@ impl VecThirdType for Vec4 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn select_index2(value:&FloatArgType)->f32{
+    unsafe fn select_index2(value:FloatArgType)->f32{
         return sse::select_first(sse::splat_third(value.to_owned()));
     }
 
@@ -784,28 +785,28 @@ impl VecFourthType for Vec4 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn from_vec3(value: &FloatArgType) -> FloatType {
+    unsafe fn from_vec3(value: FloatArgType) -> FloatType {
         return sse::replace_fourth_f32(value.to_owned(), 0.0)
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn select_index3(value:&FloatArgType)->f32{
+    unsafe fn select_index3(value:FloatArgType)->f32{
         return sse::select_first(sse::splat_fourth(value.to_owned()));
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn splat_index3(value:&FloatArgType)->FloatType{
+    unsafe fn splat_index3(value:FloatArgType)->FloatType{
         return  sse::splat_fourth(value.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn replace_index3_f32(a:&FloatArgType,b:&f32) ->FloatType{
+    unsafe fn replace_index3_f32(a:FloatArgType,b:f32) ->FloatType{
         return  sse::replace_fourth_f32(a.to_owned(),b.to_owned());
     }
 
@@ -865,7 +866,7 @@ impl Vec4Type for Vec4 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn load_immediate(x:&f32,y:&f32,z:&f32,w:&f32)->FloatType{
+    unsafe fn load_immediate(x:f32,y:f32,z:f32,w:f32)->FloatType{
         return  sse::load_immediate(x.to_owned(),y.to_owned(),z.to_owned(),w.to_owned());
     }
 
@@ -879,8 +880,8 @@ impl Vec4Type for Vec4 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn sin_cos_to_float_type(angles:&FloatArgType)->FloatType{
-        let angle_offset = Vec4::load_immediate_fourth_f32(0.0.borrow(), HALF_PI.borrow(), 0.0.borrow(), HALF_PI.borrow());
+    unsafe fn sin_cos_to_float_type(angles:FloatArgType)->FloatType{
+        let angle_offset = Vec4::load_immediate_fourth_f32(0.0.borrow(),constants:: HALF_PI.borrow(), 0.0.borrow(), constants::HALF_PI.borrow());
         let sin_angles = Vec4::add(angles, angle_offset.borrow());
         return Vec4::sin(sin_angles.borrow());
     }

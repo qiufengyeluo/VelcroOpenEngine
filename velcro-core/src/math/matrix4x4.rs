@@ -1,7 +1,7 @@
 #![warn(clip::pedantic)]
 #![allow(clip::many_single_char_names)]
 
-use crate::math::common_sse::VecType;
+use crate::math::common_sse::{Vec4Type, VecFourthType, VecThirdType, VecTwoType, VecType};
 use crate::math::matrix3x4::Matrix3x4;
 use crate::math::quaternion::Quaternion;
 use crate::math::simd_math::simd;
@@ -217,13 +217,20 @@ impl Matrix4x4{
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe  fn CreateProjectionFov(float fovX, float fovY, float nearDist, float farDist);
+    pub unsafe  fn create_projection_fov(fov_x:f32, fov_y:f32, near_dist:f32, far_dist:f32) ->Matrix4x4{
+        let angles = Vec4::load_immediate(0.5 * fov_x, 0.5 * fov_x, 0.5 * fov_y, 0.5 * fov_y);
+        let values = Vec4::sin_cos_to_float_type(angles);
+        let cot_x = Vec4::select_index1(values) / Vec4::select_index1(values);
+        let cot_y = Vec4::select_index3(values) / Vec4::select_index2(values);
+        return Matrix4x4::create_projection_internal(cot_x, cot_y, near_dist, far_dist);
+    }
 
-    //! Creates an off-center projection matrix.
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe  fn CreateProjectionOffset(float left, float right, float bottom, float top, float nearDist, float farDist);
+    pub unsafe  fn CreateProjectionOffset(float left, float right, float bottom, float top, float nearDist, float farDist){
+
+    }
 
     //! Interpolates between two matrices; linearly for scale/translation, spherically for rotation.
 

@@ -188,7 +188,7 @@ impl Vector4 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn new_xyzw(x:&f32,y:&f32,z:&f32,w:&f32)->Vector4{
+    pub unsafe fn new_xyzw(x:f32,y:f32,z:f32,w:f32)->Vector4{
         Vector4{
             _value:Vec4::load_immediate(x,y,z,w),
         }

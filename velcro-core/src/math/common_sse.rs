@@ -22,7 +22,7 @@ pub trait VecType{
 
     fn add(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
     fn sub(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
-    fn mul(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType;
+    fn mul(arg1:FloatArgType,arg2:&FloatArgType)->FloatType;
     fn madd(mul1:&FloatArgType,mul2:&FloatArgType,add:&FloatArgType)->FloatType;
     fn div(arg1:&FloatType, arg2: &mut FloatType) ->FloatType;
     fn abs(value:&FloatArgType)->FloatType;
@@ -253,7 +253,7 @@ impl  Common{
         result
     }
 
-    pub fn sin_cos<T:VecType>(value:&FloatArgType,mut sin:&FloatArgType,mut cos:&FloatArgType){
+    pub fn sin_cos<T:VecType>(value:FloatArgType,mut sin:&FloatArgType,mut cos:&FloatArgType){
         let mut x = T::mul(value,Self::fast_load_constant(G_TWO_OVER_PI.as_ptr()).borrow());
         let intx = T::convert_to_int_nearest(x.borrow());
         let offset_sin = T::and_i32(intx.borrow(), T::splat_i32(3.borrow()).borrow());
