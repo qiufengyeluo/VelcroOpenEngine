@@ -1,7 +1,10 @@
 #![warn(clip::pedantic)]
 #![allow(clip::many_single_char_names)]
 
+use std::ops::Add;
+
 use crate::math::common_sse::{Vec4Type, VecFourthType, VecThirdType, VecTwoType, VecType};
+use crate::math::matrix3x3::Matrix3x3;
 use crate::math::matrix3x4::Matrix3x4;
 use crate::math::quaternion::Quaternion;
 use crate::math::simd_math::simd;
@@ -19,6 +22,59 @@ pub struct Matrix4x4 {
     _rows:[Vector4; ROW_COUNT]
 }
 
+impl Add<&Matrix4x4> for Matrix4x4{
+    type Output = Matrix4x4;
+
+    fn add(self, rhs: &Matrix4x4) -> Self::Output {
+        unsafe {
+            return Matrix4x4::new_4float_type
+                (
+                    Vec4::add(self._rows[0].get_simd_value(), rhs._rows[0].get_simd_value()),
+                    Vec4::add(self._rows[1].get_simd_value(), rhs._rows[1].get_simd_value()),
+                    Vec4::add(self._rows[2].get_simd_value(), rhs._rows[2].get_simd_value()),
+                    Vec4::add(self._rows[3].get_simd_value(), rhs._rows[3].get_simd_value())
+                );
+        }
+    }
+}
+
+Matrix4x4& operator+=(const Matrix4x4& rhs);
+//! @}
+
+//! Operator for matrix-matrix substraction.
+//! @{
+[[nodiscard]] Matrix4x4 operator-(const Matrix4x4& rhs) const;
+Matrix4x4& operator-=(const Matrix4x4& rhs);
+//! @}
+
+//! Operator for matrix-matrix multiplication.
+//! @{
+[[nodiscard]] Matrix4x4 operator*(const Matrix4x4& rhs) const;
+Matrix4x4& operator*=(const Matrix4x4& rhs);
+//! @}
+
+//! Operator for multiplying all matrix's elements with a scalar
+//! @{
+[[nodiscard]] Matrix4x4 operator*(float multiplier) const;
+Matrix4x4& operator*=(float multiplier);
+//! @}
+
+//! Operator for dividing all matrix's elements with a scalar
+//! @{
+[[nodiscard]] Matrix4x4 operator/(float divisor) const;
+Matrix4x4& operator/=(float divisor);
+//! @}
+
+//! Operator for negating all matrix's elements
+[[nodiscard]] Matrix4x4 operator-() const;
+
+//! Post-multiplies the matrix by a vector.
+//! Assumes that the w-component of the Vector3 is 1.0.
+Vector3 operator*(const Vector3& rhs) const;
+
+//! Post-multiplies the matrix by a vector.
+Vector4 operator*(const Vector4& rhs) const;
+
 impl Matrix4x4{
 
     #[inline]
@@ -31,7 +87,7 @@ impl Matrix4x4{
 
     #[inline]
     #[allow(dead_code)]
-    pub fn new_4float_type(row0:&FloatArgType,row1:&FloatArgType,row2:&FloatArgType,row3:&FloatArgType)->Matrix4x4{
+    pub fn new_4float_type(row0:FloatArgType,row1:FloatArgType,row2:FloatArgType,row3:FloatArgType)->Matrix4x4{
         unsafe {
             Matrix4x4 {
                 _rows: [Vector4::new_float_type(row0), Vector4::new_float_type(row1), Vector4::new_float_type(row2),Vector4::new_float_type(row3)]
@@ -42,10 +98,10 @@ impl Matrix4x4{
     #[inline]
     #[allow(dead_code)]
     pub unsafe  fn create_identity() ->Matrix4x4{
-    return Matrix4x4::new_4float_type(Vec4::load_aligned(simd::G_VEC1000.borrow()).borrow()
-    , Vec4::load_aligned(simd::G_VEC0100.borrow()).borrow()
-    , Vec4::load_aligned(simd::G_VEC0010.borrow()).borrow()
-    , Vec4::load_aligned(simd::G_VEC0001.borrow()).borrow());
+    return Matrix4x4::new_4float_type(Vec4::load_aligned(simd::G_VEC1000.borrow())
+    , Vec4::load_aligned(simd::G_VEC0100.borrow())
+    , Vec4::load_aligned(simd::G_VEC0010.borrow())
+    , Vec4::load_aligned(simd::G_VEC0001.borrow()));
     }
 
     #[inline]
@@ -228,121 +284,290 @@ impl Matrix4x4{
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe  fn CreateProjectionOffset(float left, float right, float bottom, float top, float nearDist, float farDist){
-
+    pub unsafe  fn create_projection_offset(left:f32, right:f32, bottom :f32, top :f32, near_dist:f32, far_dist:f32 ){
+        let  result = Matrix4x4::new();
+        let invfn = 1.0 / (far_dist - near_dist);
+        result.set_row_xyzw(0, -2.0 * near_dist / (right - left), 0.0, (left + right) / (left - right), 0.0);
+        result.set_row_xyzw(1, 0.0, 2.0 * near_dist / (top - bottom), (top + bottom) / (bottom - top), 0.0);
+        result.set_row_xyzw(2, 0.0, 0.0, (far_dist + near_dist) * invfn, -2.0 * far_dist * near_dist * invfn);
+        result.set_row_xyzw(3, 0.0, 0.0, 1.0, 0.0);
     }
-
-    //! Interpolates between two matrices; linearly for scale/translation, spherically for rotation.
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe  fn CreateInterpolated(const Matrix4x4& m1, const Matrix4x4& m2, float t);
+    pub unsafe  fn create_interpolated(m1:&Matrix4x4 , m2:&Matrix4x4, t:f32 ){
+        let mut m1Copy = Matrix3x3::create_from_matrix4x4(m1);
+        let mut s1 = m1Copy.extract_scale();
+        let mut t1 = m1.get_translation();
+        let mut q1 = Quaternion::create_from_matrix3x3(m1Copy);
 
-    //! Stores the matrix into to an array of 16 floats.
-    //! The floats need only be 4 byte aligned, 16 byte alignment is not required.
-    void StoreToRowMajorFloat16(float* values) const;
+        let mut m2Copy = Matrix3x3::create_from_matrix4x4(m2);
+        let s2 = m2Copy.extract_scale();
+        let t2 = m2.get_translation();
+        let q2 = Quaternion::create_from_matrix3x3(m2Copy);
 
-    //! Stores the matrix into to an array of 16 floats.
-    //! The floats need only be 4 byte aligned, 16 byte alignment is not required.
-    void StoreToColumnMajorFloat16(float* values) const;
+        s1 = s1.lerp(s2, t);
+        t1 = t1.lerp(t2, t);
+        q1 = q1.slerp(q2, t);
+        q1.normalize();
+        let mut result = Matrix4x4::create_from_quaternion_and_translation(q1, t1);
+        result.multiply_by_scale(s1);
+        return result;
+    }
 
-    //! Indexed accessor functions.
-    //! @{
-    float GetElement(int32_t row, int32_t col) const;
-    void SetElement(int32_t row, int32_t col, float value);
-    //! @}
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn store_to_row_major_float16(self, values:*f32){
+        self.get_row(0).store_to_float4(values);
+        self.get_row(1).store_to_float4(values + 4);
+        self.get_row(2).store_to_float4(values + 8);
+        self.get_row(3).store_to_float4(values + 12);
+    }
 
-    //! Indexed access using operator().
-    float operator()(int32_t row, int32_t col) const;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn store_to_column_major_float16(self, values:*f32){
+        self.get_column(0).store_to_float4(values);
+        self.get_column(1).store_to_float4(values + 4);
+        self.get_column(2).store_to_float4(values + 8);
+        self.get_column(3).store_to_float4(values + 12);
+    }
 
-    //! Row access functions.
-    //! @{
-    Vector4 GetRow(int32_t row) const;
-    Vector3 GetRowAsVector3(int32_t row) const;
-    void GetRows(Vector4* row0, Vector4* row1, Vector4* row2, Vector4* row3) const;
-    void SetRow(int32_t row, float x, float y, float z, float w);
-    void SetRow(int32_t row, const Vector3& v);
-    void SetRow(int32_t row, const Vector3& v, float w);
-    void SetRow(int32_t row, const Vector4& v);
-    void SetRows(const Vector4& row0, const Vector4& row1, const Vector4& row2, const Vector4& row3);
-    //! @}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_element(self, row:i32 , col:i32)->f32{
+        return self._rows[row].get_element(col);
+    }
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_element(&mut self,row:i32 , col:i32 , value:f32 ){
+        self._rows[row].set_element(col, value);
+    }
 
-    //! Column access functions.
-    //! @{
-    Vector4 GetColumn(int32_t col) const;
-    Vector3 GetColumnAsVector3(int32_t col) const;
-    void GetColumns(Vector4* col0, Vector4* col1, Vector4* col2, Vector4* col3) const;
-    void SetColumn(int32_t col, float x, float y, float z, float w);
-    void SetColumn(int32_t col, const Vector3& v);
-    void SetColumn(int32_t col, const Vector3& v, float w);
-    void SetColumn(int32_t col, const Vector4& v);
-    void SetColumns(const Vector4& col0, const Vector4& col1, const Vector4& col2, const Vector4& col3);
-    //! @}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_row(self,row:i32 )->Vector4{
+        return self._rows[row];
+    }
 
-    //! Basis (column) access functions.
-    //! @{
-    Vector4 GetBasisX() const;
-    Vector3 GetBasisXAsVector3() const;
-    void SetBasisX(float x, float y, float z, float w);
-    void SetBasisX(const Vector4& v);
-    Vector4 GetBasisY() const;
-    Vector3 GetBasisYAsVector3() const;
-    void SetBasisY(float x, float y, float z, float w);
-    void SetBasisY(const Vector4& v);
-    Vector4 GetBasisZ() const;
-    Vector3 GetBasisZAsVector3() const;
-    void SetBasisZ(float x, float y, float z, float w);
-    void SetBasisZ(const Vector4& v);
-    void GetBasisAndTranslation(Vector4* basisX, Vector4* basisY, Vector4* basisZ, Vector4* pos) const;
-    void SetBasisAndTranslation(const Vector4& basisX, const Vector4& basisY, const Vector4& basisZ, const Vector4& pos);
-    //! @}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_row_as_vector3(self, row:i32) ->Vector3{
+        return self._rows[row].GetAsVector3();
+    }
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_rows(self, row0:&*mut Vector4, row1:&*mut Vector4, row2:&*mut Vector4, row3:&*mut Vector4){
+        row0.set_simd_value(self.get_row(0).get_simd_value());
+        row1.set_simd_value(self.get_row(1).get_simd_value()) ;
+        row2.set_simd_value(self.get_row(2).get_simd_value()) ;
+        row3.set_simd_value(self.get_row(3).get_simd_value());
+    }
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_row_xyzw(&mut self,row:i32 , x:f32 , y:f32 , z:f32 , w:f32){
+        self.set_row_vec4(row, Vector4::new_xyzw(x, y, z, w).borrow());
+    }
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_row_vec3(&mut self,row:i32 , v:&Vector3 ){
+        self._rows[row].set_element(0, v.get_x());
+        self._rows[row].set_element(1, v.get_y());
+        self._rows[row].set_element(2, v.get_z());
+    }
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_row_vec3f32(&mut self, row:i32, v:&Vector3, w:f32){
+        self._rows[row] = Vector4::new_float_type( Vec4::from_vec3(v.get_simd_value()).borrow());
+        self._rows[row].set_element(3, w);
+    }
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_row_vec4(&mut self, row:i32, v:&Vector4){
+        self._rows[row] = v;
+    }
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_rows(&mut self, row0:&Vector4, row1:&Vector4, row2:&Vector4, row3:&Vector4 ){
+        self.set_row_vec4(0, row0);
+        self.set_row_vec4(1, row1);
+        self.set_row_vec4(2, row2);
+        self.set_row_vec4(3, row3);
+    }
 
-    //! Position (last column) access functions.
-    //! @{
-    Vector3 GetTranslation() const;
-    void SetTranslation(float x, float y, float z);
-    void SetTranslation(const Vector3& v);
-    //! @}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_column(self,col:i32)->Vector4{
+        return Vector4::new_xyzw(self._rows[0].get_element(col), self._rows[1].get_element(col), self._rows[2].get_element(col), self._rows[3].get_element(col));
+    }
 
-    //! Operator for matrix-matrix addition.
-    //! @{
-    [[nodiscard]] Matrix4x4 operator+(const Matrix4x4& rhs) const;
-    Matrix4x4& operator+=(const Matrix4x4& rhs);
-    //! @}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_column_as_vector3(self,col:i32) ->Vector3{
+        return Vector3::new_xyz(self._rows[0].get_element(col), self._rows[1].get_element(col), self._rows[2].get_element(col));
+    }
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_columns(self, col0:&*mut Vector4, col1:&*mut Vector4, col2:&*mut Vector4, col3:&*mut Vector4){
+        col0.set_simd_value(self.get_column(0).get_simd_value());
+        col1.set_simd_value(self.get_column(1).get_simd_value()) ;
+        col2.set_simd_value(self.get_column(2).get_simd_value()) ;
+        col3.set_simd_value(self.get_column(3).get_simd_value());
+    }
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_column_xyzw(&mut self, col:i32, x:f32, y:f32, z:f32, w:f32 ){
+        self.set_column_vec4(col, Vector4::new_xyzw(x, y, z, w).borrow());
+    }
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_column_vec3(&mut self, col:i32, v:&Vector3 ){
+        self._rows[0].set_element(col, v.get_x());
+        self._rows[1].set_element(col, v.get_y());
+        self._rows[2].set_element(col, v.get_z());
+    }
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_column_vec3f32(&mut self, col:i32, v:&Vector3, w:f32 ){
+        self._rows[0].set_element(col, v.get_x());
+        self._rows[1].set_element(col, v.get_y());
+        self._rows[2].set_element(col, v.get_z());
+        self._rows[3].set_element(col, w);
+    }
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_column_vec4(&mut self, col:i32, v:&Vector4 ){
+        self._rows[0].set_element(col, v.get_x());
+        self._rows[1].set_element(col, v.get_y());
+        self._rows[2].set_element(col, v.get_z());
+        self._rows[3].set_element(col, v.get_w());
+    }
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_columns(&mut self, col0:&Vector4, col1:&Vector4, col2:&Vector4, col3:&Vector4){
+        self.set_column_vec4(0, col0);
+        self.set_column_vec4(1, col1);
+        self.set_column_vec4(2, col2);
+        self.set_column_vec4(3, col3);
+    }
 
-    //! Operator for matrix-matrix substraction.
-    //! @{
-    [[nodiscard]] Matrix4x4 operator-(const Matrix4x4& rhs) const;
-    Matrix4x4& operator-=(const Matrix4x4& rhs);
-    //! @}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_basis_x(self) ->Vector4{
+        return self.get_column(0);
+    }
 
-    //! Operator for matrix-matrix multiplication.
-    //! @{
-    [[nodiscard]] Matrix4x4 operator*(const Matrix4x4& rhs) const;
-    Matrix4x4& operator*=(const Matrix4x4& rhs);
-    //! @}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_basis_xas_vector3(self) ->Vector3{
+        return self.get_column_as_vector3(0);
+    }
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_basis_xxyzw(&mut self, x:f32, y:f32, z:f32, w:f32){
+        self.set_column_xyzw(0, x, y, z, w);
+    }
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_basis_xvec4(&mut self, v:&Vector4){
+        self.set_column_vec4(1, v);
+    }
 
-    //! Operator for multiplying all matrix's elements with a scalar
-    //! @{
-    [[nodiscard]] Matrix4x4 operator*(float multiplier) const;
-    Matrix4x4& operator*=(float multiplier);
-    //! @}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_basis_y(self) ->Vector4{
+        return self.get_column(1);
+    }
 
-    //! Operator for dividing all matrix's elements with a scalar
-    //! @{
-    [[nodiscard]] Matrix4x4 operator/(float divisor) const;
-    Matrix4x4& operator/=(float divisor);
-    //! @}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_basis_yas_vector3(self) ->Vector3{
+        return self.get_column_as_vector3(1);
+    }
 
-    //! Operator for negating all matrix's elements
-    [[nodiscard]] Matrix4x4 operator-() const;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_basis_yxyzw(&mut self, x:f32, y:f32, z:f32, w:f32){
+        self.set_column_xyzw(0, x, y, z, w);
+    }
 
-    //! Post-multiplies the matrix by a vector.
-    //! Assumes that the w-component of the Vector3 is 1.0.
-    Vector3 operator*(const Vector3& rhs) const;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_basis_yvec4(&mut self, v:&Vector4){
+        self.set_column_vec4(1, v);
+    }
 
-    //! Post-multiplies the matrix by a vector.
-    Vector4 operator*(const Vector4& rhs) const;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_basis_z(self) ->Vector4{
+        return self.get_column(2);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_basis_zas_vector3(self) ->Vector3{
+        return self.get_column_as_vector3(2);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_basis_zxyzw(&mut self, x:f32, y:f32, z:f32, w:f32){
+        self.set_column_xyzw(2, x, y, z, w);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_basis_zvec4(&mut self, v:&Vector4){
+        self.set_column_vec4(2, v);
+    }
+
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_basis_and_translation(self, basis_x:&*mut Vector4, basis_y:&*mut Vector4, basis_z:&*mut Vector4, pos:&*mut Vector4) {
+        self.get_columns(basis_x, basis_y, basis_z, pos);
+    }
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_basis_and_translation(&mut self, basis_x:&Vector4, basis_y:&Vector4, basis_z:&Vector4, pos:&Vector4){
+        self.set_columns(basis_x, basis_y, basis_z, pos);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_translation(self) ->Vector3{
+        return self.get_column_as_vector3(3);
+    }
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_translation_4f32(&mut self, x:f32, y:f32, z:f32 ){
+        self.set_translation_vec3(Vector3::new_xyz(x, y, z).borrow());
+    }
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_translation_vec3(&mut self, v:&Vector3){
+        self.set_column_vec3(3, v);
+    }
+
 
     //! Pre-multiplies the matrix by a vector, using only the upper 3x3 submatrix.
     //! Note that this is not the usual multiplication order for transformations.
@@ -354,28 +579,40 @@ impl Matrix4x4{
     //! Transpose operations.
     //! @{
     Matrix4x4 GetTranspose() const;
-    void Transpose();
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn Transpose();
     //! @}
 
     //! Performs a full inversion for an arbitrary 4x4 matrix.
     //! Using GetInverseTransform or GetFastInverse will often be possible, use them in preference to this.
     //! @{
     Matrix4x4 GetInverseFull() const;
-    void  InvertFull();
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn  InvertFull();
     //! @}
 
     //! Gets the inverse of the matrix.
     //! Assumes that the last row is (0,0,0,1), use GetInverseFull if this is not true.
     //! @{
     Matrix4x4 GetInverseTransform() const;
-    void InvertTransform();
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn InvertTransform();
     //! @}
 
     //! Fast inversion.
     //! Assumes the matrix consists of an upper 3x3 orthogonal matrix (i.e. a rotation) and a translation in the last column.
     //! @{
     Matrix4x4 GetInverseFast() const;
-    void InvertFast();
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn InvertFast();
     //! @}
 
     //! Gets the scale part of the transformation, i.e. the length of the scale components.
@@ -388,7 +625,10 @@ impl Matrix4x4{
     Vector3 ExtractScale();
 
     //! Quick multiplication by a scale matrix, equivalent to m*=Matrix4x4::CreateScale(scale).
-    void MultiplyByScale(const Vector3& scale);
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn MultiplyByScale(const Vector3& scale);
 
     //! Returns a matrix with the reciprocal scale, keeping the same rotation and translation.
     [[nodiscard]] Matrix4x4 GetReciprocalScaled() const;
@@ -399,7 +639,10 @@ impl Matrix4x4{
     bool operator!=(const Matrix4x4& rhs) const;
 
     //! sets the upper 3x3 rotation part of the matrix from a quaternion.
-    void SetRotationPartFromQuaternion(const Quaternion& q);
+    
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn SetRotationPartFromQuaternion(const Quaternion& q);
 
     Vector4 GetDiagonal() const;
 

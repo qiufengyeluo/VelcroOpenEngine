@@ -196,9 +196,9 @@ impl Vector4 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn new_float_type(value:&FloatArgType)->Vector4{
+    pub unsafe fn new_float_type(value:FloatArgType)->Vector4{
         Vector4{
-            _value:value.to_owned(),
+            _value:value,
         }
     }
 
@@ -371,7 +371,7 @@ impl Vector4 {
 
     #[inline]
     #[allow(dead_code)]
-    pub fn get_element(self,index:&i32)->f32{
+    pub fn get_element(self,index:i32)->f32{
         let values = *self._value as *const f32;
         *values[index]
     }
@@ -442,7 +442,7 @@ impl Vector4 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn set_element(mut self,index:&i32,v:&f32){
+    pub unsafe fn set_element(mut self,index:i32,v:f32){
         let values = *self._value as *const f32;
         *values[index] = v
     }
@@ -869,7 +869,7 @@ impl Vector4 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  set_simd_value(mut self, value :&FloatArgType ){
+    pub unsafe fn  set_simd_value(mut self, value :FloatArgType ){
         self._value = value.to_owned();
     }
 

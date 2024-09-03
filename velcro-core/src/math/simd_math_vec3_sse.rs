@@ -772,8 +772,8 @@ impl Vec3Type for Vec3 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn load_immediate(x:&f32,y:&f32,z:&f32)->FloatType{
-        return sse::load_immediate(x.to_owned(),y.to_owned(),z.to_owned(),0.0);
+    unsafe fn load_immediate(x:f32,y:f32,z:f32)->FloatType{
+        return sse::load_immediate(x,y,z,0.0);
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]

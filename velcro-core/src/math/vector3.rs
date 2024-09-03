@@ -105,7 +105,7 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn new_xyz(x:&f32, y:&f32, z:&f32) ->Vector3{
+    pub unsafe fn new_xyz(x:f32, y:f32, z:f32) ->Vector3{
         Vector3{
             _value:Vec3::load_immediate(x,y,z),
         }

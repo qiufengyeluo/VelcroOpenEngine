@@ -108,7 +108,7 @@ impl VecType for  Vec4 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-     unsafe fn add(arg1:FloatArgType,arg2:&FloatArgType)->FloatType{
+     unsafe fn add(arg1:FloatArgType,arg2:FloatArgType)->FloatType{
         return sse::add(arg1.to_owned(),arg2.to_owned());
     }
 
