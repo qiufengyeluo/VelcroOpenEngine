@@ -13,7 +13,6 @@ use vsimd::sse::FloatType;
 
 use crate::math::*;
 use crate::math::common_sse::{Vec2Type, Vec3Type, VecThirdType, VecTwoType, VecType};
-use crate::math::constants::*;
 use crate::math::math_utils::*;
 use crate::math::simd_math::*;
 use crate::math::simd_math_vec1_sse::Vec1;
@@ -29,17 +28,17 @@ pub struct Vector3 {
 
 impl MulAssign<FloatType> for Vector3 {
     fn mul_assign(&mut self, rhs: FloatType) {
-        unsafe { self._value = Vec3::mul(self._value.borrow(), rhs.borrow()) }
+        unsafe { self._value = Vec3::mul(self._value, rhs) }
     }
 }
 impl MulAssign<&Vector3> for Vector3 {
     fn mul_assign(&mut self, rhs: &Vector3) {
-        unsafe { self._value = Vec3::mul(self._value.borrow(), rhs._value.borrow())}
+        unsafe { self._value = Vec3::mul(self._value, rhs._value)}
     }
 }
 impl SubAssign<&Vector3> for &mut Vector3 {
     fn sub_assign(&mut self, rhs: &Vector3) {
-        unsafe { self._value = Vec3::sub(self._value.borrow(), rhs._value.borrow()) }
+        unsafe { self._value = Vec3::sub(self._value, rhs._value) }
     }
 }
 
@@ -47,7 +46,7 @@ impl Mul<f32> for &mut Vector3 {
     type Output = Vector3;
 
     fn mul(self, multiplier: f32) -> Self::Output {
-        unsafe { return Vector3::new_float_type(Vec3::mul(self._value.borrow(), Vec3::splat(multiplier.borrow()).borrow()).borrow()) }
+        unsafe { return Vector3::new_float_type(Vec3::mul(self._value, Vec3::splat(multiplier))) }
     }
 }
 
@@ -56,14 +55,14 @@ impl Mul<f32> for &Vector3 {
     type Output = Vector3;
 
     fn mul(self, rhs: f32) -> Self::Output {
-        unsafe { return Vector3::new_float_type(Vec3::mul(self._value.borrow(), Vec3::splat(rhs.borrow()).borrow()).borrow()) }
+        unsafe { return Vector3::new_float_type(Vec3::mul(self._value, Vec3::splat(rhs))) }
     }
 }
 impl Div<f32> for &Vector3 {
     type Output = Vector3;
 
     fn div(self, rhs: f32) -> Self::Output {
-        unsafe { return Vector3::new_float_type(Vec3::div(self._value.borrow(), Vec3::splat(rhs.borrow()).borrow_mut()).borrow()) }
+        unsafe { return Vector3::new_float_type(Vec3::div(self._value, Vec3::splat(rhs).borrow_mut())) }
     }
 }
 impl Add<Vector3> for &Vector3 {
@@ -72,7 +71,7 @@ impl Add<Vector3> for &Vector3 {
     fn add(self, rhs: Vector3) -> Self::Output {
         unsafe {
             Vector3 {
-                _value: Vec3::add(self._value.borrow(), rhs._value.borrow())
+                _value: Vec3::add(self._value, rhs._value)
             }
         }
     }
@@ -81,7 +80,7 @@ impl Sub<Vector3> for &Vector3 {
     type Output = Vector3;
 
     fn sub(self, rhs: Vector3) -> Self::Output {
-        unsafe { return Vector3::new_float_type(Vec3::sub(self._value.borrow(), rhs._value.borrow()).borrow()) }
+        unsafe { return Vector3::new_float_type(Vec3::sub(self._value, rhs._value)) }
     }
 }
 impl Vector3 {
@@ -97,7 +96,7 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn new_x(x:&f32) ->Vector3{
+    pub unsafe fn new_x(x:f32) ->Vector3{
        Vector3{
            _value:Vec3::splat(x),
        }
@@ -113,7 +112,7 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub fn new_float_type(v :  &FloatType)->Vector3{
+    pub fn new_float_type(v :FloatType)->Vector3{
         Vector3{
             _value:v.to_owned(),
         }
@@ -122,66 +121,66 @@ impl Vector3 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn create_zero() ->Vector3{
-        let result:Vector3 =Vector3::new_float_type(Vec3::zero_float().borrow());
+        let result:Vector3 =Vector3::new_float_type(Vec3::zero_float());
         result
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn create_one()->Vector3{
-        let result:Vector3 = Vector3::new_x(1.0.borrow());
+        let result:Vector3 = Vector3::new_x(1.0);
         result
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn create_axis_x(length:&f32)->Vector3{
-        let result:Vector3 = Vector3::new_xyz(length, 0.0.borrow(), 0.0.borrow());
+    pub unsafe fn create_axis_x(length:f32)->Vector3{
+        let result:Vector3 = Vector3::new_xyz(length, 0.0, 0.0);
         result
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  create_axis_y(length:&f32)->Vector3{
-        let result:Vector3 =  Vector3::new_xyz(0.0.borrow(), length, 0.0.borrow());
+    pub unsafe fn  create_axis_y(length:f32)->Vector3{
+        let result:Vector3 =  Vector3::new_xyz(0.0, length, 0.0);
         result
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  create_axis_z(length:&f32)->Vector3{
-        let result:Vector3 =  Vector3::new_xyz(0.0.borrow(), 0.0.borrow(), length);
+    pub unsafe fn  create_axis_z(length:f32)->Vector3{
+        let result:Vector3 =  Vector3::new_xyz(0.0, 0.0, length);
         result
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  create_from_float_3(ptr :*const f32)->Vector3{
-        let result:Vector3 =  Vector3::new_xyz((*ptr[0]).borrow(), (*ptr[1]).borrow(), (*ptr[2]).borrow());
+        let result:Vector3 =  Vector3::new_xyz((*ptr[0]), (*ptr[1]), (*ptr[2]));
         result
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  create_select_cmp_equal(cmp1:&Vector3, cmp2:&Vector3, va :&Vector3, vb :&Vector3) ->Vector3{
-        let mask = Vec3::cmp_eq(cmp1._value.borrow(), cmp2._value.borrow());
-        let result = Vector3::new_float_type( Vec3::select(va._value.borrow(),vb._value.borrow(),mask.borrow()).borrow());
+        let mask = Vec3::cmp_eq(cmp1._value, cmp2._value);
+        let result = Vector3::new_float_type( Vec3::select(va._value,vb._value,mask));
         result
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  create_select_cmp_greater_equal(cmp1:&Vector3, cmp2:&Vector3, va :&Vector3, vb :&Vector3) ->Vector3{
-        let mask = Vec3::cmp_gt_eq(cmp1._value.borrow(), cmp2._value.borrow());
-        let result = Vector3::new_float_type( Vec3::select(va._value.borrow(),vb._value.borrow(),mask.borrow()).borrow());
+        let mask = Vec3::cmp_gt_eq(cmp1._value, cmp2._value);
+        let result = Vector3::new_float_type( Vec3::select(va._value,vb._value,mask));
         result
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  create_select_cmp_greater(cmp1:&Vector3, cmp2:&Vector3, va :&Vector3, vb :&Vector3) ->Vector3{
-        let mask = Vec3::cmp_gt(cmp1._value.borrow(), cmp2._value.borrow());
-        let result = Vector3::new_float_type(Vec3::select(va._value.borrow(),vb._value.borrow(),mask.borrow()).borrow());
+        let mask = Vec3::cmp_gt(cmp1._value, cmp2._value);
+        let result = Vector3::new_float_type(Vec3::select(va._value,vb._value,mask));
         result
     }
 
@@ -198,7 +197,7 @@ impl Vector3 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  store_to_float_4(self,  value : *mut f32){
-        Vec3::store_unaligned(value, self._value.borrow());
+        Vec3::store_unaligned(value, self._value);
     }
 
     #[inline]
@@ -259,7 +258,7 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  set_value_x(mut self, x :&f32){
+    pub unsafe fn  set_value_x(mut self, x :f32){
         self._value = Vec3::splat(x);
     }
 
@@ -272,8 +271,8 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  set_value_xyz(mut self, x:&f32, y:&f32, z:&f32){
-        self._value = Vec3::load_immediate(x, y.borrow(), z);
+    pub unsafe fn  set_value_xyz(mut self, x:f32, y:f32, z:f32){
+        self._value = Vec3::load_immediate(x, y, z);
     }
 
     #[inline]
@@ -285,7 +284,7 @@ impl Vector3 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_length_sq(&self) ->f32{
-        let result =  Vec3::dot_vec3(Vector3{_value:self._value}.borrow());
+        let result =  Vec3::dot_vec3(Vector3{_value:self._value});
         result
     }
 
@@ -293,43 +292,43 @@ impl Vector3 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_length(self) ->f32{
-        let length_sq = Vec3::dot(self._value.borrow(), self._value.borrow());
-        return Vec1::select_index0(Vec1::sqrt(length_sq.borrow()).borrow());
+        let length_sq = Vec3::dot(self._value, self._value);
+        return Vec1::select_index0(Vec1::sqrt(length_sq));
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_length_estimate(self) ->f32{
-        let length_sq = Vec3::dot(self._value.borrow(), self._value.borrow());
-        return Vec1::select_index0(Vec1::sqrt_estimate(length_sq.borrow()).borrow());
+        let length_sq = Vec3::dot(self._value, self._value);
+        return Vec1::select_index0(Vec1::sqrt_estimate(length_sq));
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_length_reciprocal(self) ->f32{
-        let length_sq = Vec3::dot(self._value.borrow(), self._value.borrow());
-        return Vec1::select_index0(Vec1::sqrt_inv(length_sq.borrow()).borrow());
+        let length_sq = Vec3::dot(self._value, self._value);
+        return Vec1::select_index0(Vec1::sqrt_inv(length_sq));
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_length_reciprocal_estimate(self) ->f32{
-        let length_sq = Vec3::dot(self._value.borrow(), self._value.borrow());
-        return Vec1::select_index0(Vec1::sqrt_inv_estimate(length_sq.borrow()).borrow());
+        let length_sq = Vec3::dot(self._value, self._value);
+        return Vec1::select_index0(Vec1::sqrt_inv_estimate(length_sq));
     }
 
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_normalized(self) ->Vector3{
-        let result = Vector3::new_float_type(Vec3::normalize(self._value.borrow()).borrow());
+        let result = Vector3::new_float_type(Vec3::normalize(self._value));
         result
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_normalized_estimate(self)->Vector3{
-        let result = Vector3::new_float_type( Vec3::normalize_estimate(self._value.borrow()).borrow());
+        let result = Vector3::new_float_type( Vec3::normalize_estimate(self._value));
         result
     }
 
@@ -349,8 +348,8 @@ impl Vector3 {
     #[allow(dead_code)]
     pub unsafe fn  normalize_with_length(mut self)->f32{
         let length = Vec1::select_index0(
-            Vec1::sqrt(Vec3::dot(self._value.borrow(), self._value.borrow()).borrow()).borrow());
-        self._value = Vec3::div(self._value.borrow(), Vec3::splat(length.borrow()).borrow_mut());
+            Vec1::sqrt(Vec3::dot(self._value, self._value)));
+        self._value = Vec3::div(self._value, Vec3::splat(length).borrow_mut());
         return length;
     }
 
@@ -358,67 +357,67 @@ impl Vector3 {
     #[allow(dead_code)]
     pub unsafe fn  normalize_with_length_estimate(mut self)->f32{
         let length = Vec1::select_index0(
-            Vec1::sqrt_estimate(Vec3::dot(self._value.borrow(), self._value.borrow()).borrow()).borrow());
-        self._value = Vec3::div(self._value.borrow(), Vec3::splat(length.borrow()).borrow_mut());
+            Vec1::sqrt_estimate(Vec3::dot(self._value, self._value)));
+        self._value = Vec3::div(self._value, Vec3::splat(length).borrow_mut());
         return length;
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  get_normalized_safe( self,tolerance:&f32)->Vector3{
-        let result = Vector3::new_float_type(Vec3::normalize_safe(self._value.borrow(),tolerance.borrow()).borrow());
+    pub unsafe fn  get_normalized_safe( self,tolerance:f32)->Vector3{
+        let result = Vector3::new_float_type(Vec3::normalize_safe(self._value,tolerance));
         result
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  get_normalized_safe_estimate(self,tolerance:&f32)->Vector3{
-        let result = Vector3::new_float_type(Vec3::normalize_safe_estimate(self._value.borrow(),tolerance.borrow()).borrow());
+    pub unsafe fn  get_normalized_safe_estimate(self,tolerance:f32)->Vector3{
+        let result = Vector3::new_float_type(Vec3::normalize_safe_estimate(self._value,tolerance));
         result
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  normalize_safe(mut self, tolerance:&f32){
-        self._value = Vec3::normalize_safe(self._value.borrow(),tolerance.borrow())
+    pub unsafe fn  normalize_safe(mut self, tolerance:f32){
+        self._value = Vec3::normalize_safe(self._value,tolerance)
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  normalize_safe_estimate(mut self, tolerance:&f32){
-        self._value = Vec3::normalize_safe_estimate(self._value.borrow(),tolerance.borrow());
+    pub unsafe fn  normalize_safe_estimate(mut self, tolerance:f32){
+        self._value = Vec3::normalize_safe_estimate(self._value,tolerance);
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  normalize_safe_with_length(mut self, tolerance:&f32)->f32{
-        let length = Vec1::sqrt( Vec3::dot(self._value.borrow(),self._value.borrow()).borrow());
-        if Vec1::select_index0(length.borrow()) < tolerance.to_owned(){
+    pub unsafe fn  normalize_safe_with_length(mut self, tolerance:f32)->f32{
+        let length = Vec1::sqrt( Vec3::dot(self._value,self._value));
+        if Vec1::select_index0(length) < tolerance.to_owned(){
             self._value = Vec3::zero_float();
         }else {
-            self._value = Vec3::div(self._value.borrow(),Vec3::splat_index0(Vec3::from_vec1(length.borrow()).borrow()).borrow_mut());
+            self._value = Vec3::div(self._value,Vec3::splat_index0(Vec3::from_vec1(length)).borrow_mut());
         }
-        let result = Vec1::select_index0(length.borrow());
+        let result = Vec1::select_index0(length);
         result
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  normalize_safe_with_length_estimate(mut self, tolerance:&f32) ->f32{
-        let length = Vec1::sqrt_estimate(Vec3::dot(self._value.borrow(),self._value.borrow()).borrow());
-        if Vec1::select_index0(length.borrow()) < tolerance.to_owned(){
+        let length = Vec1::sqrt_estimate(Vec3::dot(self._value,self._value));
+        if Vec1::select_index0(length) < tolerance.to_owned(){
             self._value = Vec3::zero_float();
         }else {
-            self._value = Vec3::div(self._value.borrow(),Vec3::splat_index0(Vec3::from_vec1(length.borrow()).borrow()).borrow_mut());
+            self._value = Vec3::div(self._value,Vec3::splat_index0(Vec3::from_vec1(length)).borrow_mut());
         }
-        let result = Vec1::select_index0(length.borrow());
+        let result = Vec1::select_index0(length);
         result
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  is_normalized(self,tolerance:&f32)->bool{
-        return (simd::abs((self.get_length_sq() - 1.0).borrow()) <= tolerance.to_owned());
+        return (simd::abs((self.get_length_sq() - 1.0)) <= tolerance.to_owned());
     }
 
     #[inline]
@@ -455,41 +454,41 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  lerp(self,dest :&Vector3,t :&f32)->Vector3{
-        return Vector3::new_float_type(Vec3::madd(Vec3::sub(dest._value.borrow(),self._value.borrow()).borrow(),Vec3::splat(t).borrow(),self._value.borrow()).borrow());
+    pub unsafe fn  lerp(self,dest :Vector3,t :f32)->Vector3{
+        return Vector3::new_float_type(Vec3::madd(Vec3::sub(dest._value,self._value),Vec3::splat(t),self._value));
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  slerp(self,dest :&Vector3,t :&f32)->Vector3{
-        let dot_val = Vec1::clamp(Vec3::dot(self._value.borrow(),dest._value.borrow()).borrow(),Vec1::splat((-1.0).borrow()).borrow(),Vec1::splat(1.0.borrow()).borrow());
-        let theta = Vec1::mul(Vec1::acos(dot_val.borrow()).borrow(),Vec1::splat(t).borrow());
-        let relative_vec = Vec3::sub(dest.get_simd_value().borrow(), Vec3::mul(self.get_simd_value().borrow(), Vec3::from_vec1(dot_val.borrow()).borrow()).borrow());
-        let rel_vec_norm = Vec3::normalize_safe(relative_vec.borrow(), constants::TOLERANCE.borrow());
-        let sin_cos = Vec3::from_vec2(Vec2::sin_cos_to_float_type(theta.borrow()).borrow());
-        let rel_vec_sin_theta = Vec3::mul(rel_vec_norm.borrow(), Vec3::splat_index0(sin_cos.borrow()).borrow());
-        let result = Vector3::new_float_type(Vec3::madd(self.get_simd_value().borrow(), Vec3::splat_index1(sin_cos.borrow()).borrow(),rel_vec_sin_theta.borrow()).borrow());
+    pub unsafe fn  slerp(self,dest :&Vector3,t :f32)->Vector3{
+        let dot_val = Vec1::clamp(Vec3::dot(self._value,dest._value),Vec1::splat((-1.0)),Vec1::splat(1.0));
+        let theta = Vec1::mul(Vec1::acos(dot_val),Vec1::splat(t));
+        let relative_vec = Vec3::sub(dest.get_simd_value(), Vec3::mul(self.get_simd_value(), Vec3::from_vec1(dot_val)));
+        let rel_vec_norm = Vec3::normalize_safe(relative_vec, constants::TOLERANCE);
+        let sin_cos = Vec3::from_vec2(Vec2::sin_cos_to_float_type(theta));
+        let rel_vec_sin_theta = Vec3::mul(rel_vec_norm, Vec3::splat_index0(sin_cos));
+        let result = Vector3::new_float_type(Vec3::madd(self.get_simd_value(), Vec3::splat_index1(sin_cos),rel_vec_sin_theta));
         result
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  nlerp(self, dest :&Vector3,t:&f32)->Vector3{
-        let result = self.lerp(dest.borrow(),t);
-        return  result.get_normalized_safe(constants::TOLERANCE.borrow());
+    pub unsafe fn  nlerp(self, dest :&Vector3,t:f32)->Vector3{
+        let result = self.lerp(dest.to_owned(),t);
+        return  result.get_normalized_safe(constants::TOLERANCE);
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  dot3(self,rhs:&Vector3)->f32{
-        return Vec1::select_index0(Vec3::dot(self.get_simd_value().borrow(),rhs.get_simd_value().borrow()).borrow());
+        return Vec1::select_index0(Vec3::dot(self.get_simd_value(),rhs.get_simd_value()));
     }
 
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  cross(self,rhs :&Vector3)->Vector3{
-        let result = Vector3::new_float_type(Vec3::cross(self.get_simd_value().borrow(),rhs.get_simd_value().borrow()).borrow());
+        let result = Vector3::new_float_type(Vec3::cross(self.get_simd_value(),rhs.get_simd_value()));
         result
     }
 
@@ -529,7 +528,7 @@ impl Vector3 {
         return  Vector3::new_load_immediate(-self.get_y(),self.get_x(),0.0);
     }
 
-    pub unsafe  fn is_close(&self, v:&Vector3, tolerance :&f32) ->bool
+    pub unsafe  fn is_close(&self, v:&Vector3, tolerance :f32) ->bool
     {
         let dist:Vector3 = (v - (*self)).get_abs();
         return dist.is_less_equal_than(Vector3::new_x(tolerance).borrow());
@@ -539,12 +538,12 @@ impl Vector3 {
     #[allow(dead_code)]
     pub unsafe fn  is_close_default(&self, v:&Vector3)->bool{
         let dist:Vector3 = (v - (*self)).get_abs();
-        return dist.is_less_equal_than(Vector3::new_x(constants::TOLERANCE.borrow()).borrow());
+        return dist.is_less_equal_than(Vector3::new_x(constants::TOLERANCE).borrow());
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  is_zero(self, tolerance:&f32) ->bool{
+    pub unsafe fn  is_zero(self, tolerance:f32) ->bool{
         let dist = self.get_abs();
         return  dist.is_less_equal_than(Vector3::new_x(tolerance).borrow());
     }
@@ -553,62 +552,62 @@ impl Vector3 {
     #[allow(dead_code)]
     pub unsafe fn  is_zero_default(self)->bool{
         let dist = self.get_abs();
-        return  dist.is_less_equal_than(Vector3::new_x(constants::FLOAT_EPSILON.borrow()).borrow());
+        return  dist.is_less_equal_than(Vector3::new_x(constants::FLOAT_EPSILON).borrow());
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  is_less_than(self, rhs :&Vector3)->bool{
-        return Vec3::cmp_all_lt(self.get_simd_value().borrow(),rhs.get_simd_value().borrow());
+        return Vec3::cmp_all_lt(self.get_simd_value(),rhs.get_simd_value());
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  is_less_equal_than(self, rhs:&Vector3) ->bool
     {
-        return Vec3::cmp_all_lt_eq(self._value.borrow(), rhs._value.borrow());
+        return Vec3::cmp_all_lt_eq(self._value, rhs._value);
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  is_greater_than(self,rhs:&Vector3)->bool{
-        return  Vec3::cmp_all_gt(self.get_simd_value().borrow(),rhs.get_simd_value().borrow());
+        return  Vec3::cmp_all_gt(self.get_simd_value(),rhs.get_simd_value());
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  is_greater_equal_than(self,rhs:&Vector3)->bool{
-        return  Vec3::cmp_all_gt_eq(self.get_simd_value().borrow(),rhs.get_simd_value().borrow());
+        return  Vec3::cmp_all_gt_eq(self.get_simd_value(),rhs.get_simd_value());
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_floor(self)->Vector3{
-        return Vector3::new_float_type(Vec3::floor(self.get_simd_value().borrow()).borrow()) ;
+        return Vector3::new_float_type(Vec3::floor(self.get_simd_value())) ;
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_ceil(self)->Vector3{
-        return Vector3::new_float_type(Vec3::ceil(self.get_simd_value().borrow()).borrow()) ;
+        return Vector3::new_float_type(Vec3::ceil(self.get_simd_value())) ;
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_round(self)->Vector3{
-        return  Vector3::new_float_type(Vec3::round(self.get_simd_value().borrow()).borrow()) ;
+        return  Vector3::new_float_type(Vec3::round(self.get_simd_value())) ;
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_min(self,v :&Vector3)->Vector3{
-        return  Vector3::new_float_type(Vec3::min(self.get_simd_value().borrow(),v.get_simd_value().borrow()).borrow()) ;
+        return  Vector3::new_float_type(Vec3::min(self.get_simd_value(),v.get_simd_value())) ;
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_max(self,v :&Vector3)->Vector3{
-        return  Vector3::new_float_type(Vec3::max(self.get_simd_value().borrow(),v.get_simd_value().borrow()).borrow()) ;
+        return  Vector3::new_float_type(Vec3::max(self.get_simd_value(),v.get_simd_value())) ;
     }
 
     #[inline]
@@ -621,69 +620,69 @@ impl Vector3 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_max_element(self)->f32{
-       return  constants::max(self.get_x().borrow(),constants::max(self.get_y().borrow(),self.get_z().borrow()).borrow());
+       return  constants::max(self.get_x(),constants::max(self.get_y(),self.get_z()));
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_min_element(self)->f32{
-        return constants::min(self.get_x().borrow(),constants::min(self.get_y().borrow(),self.get_z().borrow()).borrow());
+        return constants::min(self.get_x(),constants::min(self.get_y(),self.get_z()));
     }
     pub  unsafe fn get_sin(self)->Vector3{
-        return Vector3::new_float_type(Vec3::sin(self.get_simd_value().borrow()).borrow());
+        return Vector3::new_float_type(Vec3::sin(self.get_simd_value()));
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_cos(self)->Vector3{
-        return  Vector3::new_float_type(Vec3::cos(self.get_simd_value().borrow()).borrow())
+        return  Vector3::new_float_type(Vec3::cos(self.get_simd_value()))
     }
 
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  get_sin_cos(self,sin:&Vector3, cos :&Vector3){
-        Vec3::sin_cos(self.get_simd_value().borrow(),sin.get_simd_value().borrow(),cos.get_simd_value().borrow());
+    pub unsafe fn  get_sin_cos(self,mut sin:&Vector3, mut cos :&Vector3){
+        Vec3::sin_cos(self.get_simd_value(),sin._value.borrow(),cos._value.borrow());
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_acos(self)->Vector3{
-        return Vector3::new_float_type(Vec3::acos(self.get_simd_value().borrow()).borrow())
+        return Vector3::new_float_type(Vec3::acos(self.get_simd_value()))
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_atan(self)->Vector3{
-        return Vector3::new_float_type(Vec3::atan(self.get_simd_value().borrow()).borrow())
+        return Vector3::new_float_type(Vec3::atan(self.get_simd_value()))
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_angle_mod(self)->Vector3{
-        return  Vector3::new_float_type(Vec3::angle_mod(self.get_simd_value().borrow()).borrow());
+        return  Vector3::new_float_type(Vec3::angle_mod(self.get_simd_value()));
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  angle(self, v:&Vector3)->f32{
-        let cos =self.dot3(v.borrow())*simd::inv_sqrt((self.get_length_sq()*v.get_length_sq()).borrow());
-        let res = simd::acos(constants::get_clamp(cos.borrow(), (-1.0) .borrow(), 1.0.borrow()));
+        let cos =self.dot3(v)*simd::inv_sqrt((self.get_length_sq()*v.get_length_sq()));
+        let res = simd::acos(constants::get_clamp(cos, (-1.0) , 1.0));
         res
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  angle_deg(self,v:&Vector3)->f32{
-        return constants::rad_to_deg(self.angle(v).borrow())
+        return constants::rad_to_deg(self.angle(v))
     }
 
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  angle_safe(self, v:&Vector3)->f32{
-       return   if !self.is_zero_with_default()&&!v.is_zero_with_default(){
-            let result = self.angle(v.borrow());
+       return   if !self.is_zero_default()&&!v.is_zero_with_default(){
+            let result = self.angle(v);
            result
         }else {
             0.0
@@ -694,7 +693,7 @@ impl Vector3 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  angle_safe_deg(self,v:&Vector3)->f32{
-        return if !self.is_zero_with_default() && !v.is_zero_with_default() {
+        return if !self.is_zero_default() && !v.is_zero_with_default() {
             let result = self.angle_deg(v);
             result
         }else{
@@ -706,28 +705,28 @@ impl Vector3 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_abs(self)->Vector3{
-        return  Vector3::new_float_type(Vec3::abs(self.get_simd_value().borrow()).borrow());
+        return  Vector3::new_float_type(Vec3::abs(self.get_simd_value()));
     }
 
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_reciprocal(self)->Vector3{
-        return  Vector3::new_float_type(Vec3::reciprocal(self.get_simd_value().borrow()).borrow());
+        return  Vector3::new_float_type(Vec3::reciprocal(self.get_simd_value()));
     }
 
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_reciprocal_estimate(self)->Vector3{
-        return Vector3::new_float_type(Vec3::reciprocal_estimate(self.get_simd_value().borrow()).borrow());
+        return Vector3::new_float_type(Vec3::reciprocal_estimate(self.get_simd_value()));
     }
 
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  get_m_add(self,mul :&Vector3,add :&Vector3)->Vector3{
-        return  Vector3::new_float_type(Vec3::madd(self.get_simd_value().borrow(),mul.get_simd_value().borrow(),add.get_simd_value().borrow()).borrow());
+        return  Vector3::new_float_type(Vec3::madd(self.get_simd_value(),mul.get_simd_value(),add.get_simd_value()));
     }
 
 
@@ -741,8 +740,8 @@ impl Vector3 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  is_perpendicular(self,v:&Vector3,tolerance:&f32)->bool{
-        let abs_length_sq = Vec1::abs(Vec3::dot(self.get_simd_value().borrow(), v.get_simd_value().borrow()).borrow());
-        return  Vec1::select_index0(abs_length_sq.borrow())< tolerance.to_owned();
+        let abs_length_sq = Vec1::abs(Vec3::dot(self.get_simd_value(), v.get_simd_value()));
+        return  Vec1::select_index0(abs_length_sq)< tolerance.to_owned();
     }
 
 
@@ -752,9 +751,9 @@ impl Vector3 {
         let mut axis:Vector3 = Vector3::new();
         let val = (self.get_x() * self.get_x());
         if val < 0.5 * self.get_length_sq(){
-            axis = Vector3::create_axis_x(1.0.borrow());
+            axis = Vector3::create_axis_x(1.0);
         }else{
-            axis = Vector3::create_axis_y(1.0.borrow());
+            axis = Vector3::create_axis_y(1.0);
         }
         return self.cross(axis.borrow());
     }
@@ -784,7 +783,7 @@ impl Vector3 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  is_finite(self)->bool{
-        return constants::is_finite_float(self.get_x().borrow())&&constants::is_finite_float(self.get_y().borrow())&&constants::is_finite_float(self.get_z().borrow());
+        return constants::is_finite_float(self.get_x())&&constants::is_finite_float(self.get_y())&&constants::is_finite_float(self.get_z());
     }
 
     #[inline]
@@ -796,29 +795,29 @@ impl Vector3 {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  vector3rad_to_deg(radians:&Vector3)->Vector3{
-        return Vector3::new_float_type(Vec3::mul(radians.get_simd_value().borrow(),Vec3::splat((180.0/constants::PI).borrow()).borrow()).borrow());
+        return Vector3::new_float_type(Vec3::mul(radians.get_simd_value(),Vec3::splat((180.0/constants::PI))));
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn  vector3deg_to_rad(degrees:&Vector3)->Vector3{
-        return  Vector3::new_float_type(Vec3::mul(degrees.get_simd_value().borrow(),Vec3::splat((constants::PI/180.0).borrow()).borrow()).borrow());
+        return  Vector3::new_float_type(Vec3::mul(degrees.get_simd_value(),Vec3::splat((constants::PI/180.0))));
     }
 }
 
 impl PartialEq<Self> for Vector3 {
     fn eq(&self, other: &Self) -> bool {
-        unsafe { return Vec3::cmp_all_eq(self._value.borrow(), other._value.borrow()); }
+        unsafe { return Vec3::cmp_all_eq(self._value, other._value); }
     }
     fn ne(&self, other: &Self) -> bool {
-        unsafe { return !Vec3::cmp_all_eq(self._value.borrow(), other._value.borrow()); }
+        unsafe { return !Vec3::cmp_all_eq(self._value, other._value); }
     }
 }
 
 impl Add for Vector3 {
     type Output = Vector3;
     fn add(self, rhs: &Vector3) -> Self::Output {
-        unsafe { Vector3 { _value: Vec3::add(self._value.borrow(), rhs._value.borrow()) } }
+        unsafe { Vector3 { _value: Vec3::add(self._value, rhs._value) } }
     }
 }
 
@@ -826,14 +825,14 @@ impl Sub for Vector3 {
     type Output = Vector3;
 
     fn sub(self, rhs: &Vector3) -> Self::Output {
-        unsafe { Vector3 { _value: Vec3::sub(self._value.borrow(), rhs._value.borrow()) } }
+        unsafe { Vector3 { _value: Vec3::sub(self._value, rhs._value) } }
     }
 }
 impl Sub<&Vector3> for &Vector3 {
     type Output = Vector3;
 
     fn sub(&self, rhs: &Vector3) -> Self::Output {
-        unsafe { Vector3 { _value: Vec3::sub(self._value.borrow(), rhs._value.borrow()) } }
+        unsafe { Vector3 { _value: Vec3::sub(self._value, rhs._value) } }
     }
 }
 
@@ -842,7 +841,7 @@ impl Mul for Vector3 {
     type Output = Vector3;
 
     fn mul(self, rhs: &Vector3) -> Self::Output {
-        unsafe { Vector3 { _value: Vec3::mul(self._value.borrow(), rhs._value.borrow()) } }
+        unsafe { Vector3 { _value: Vec3::mul(self._value, rhs._value) } }
     }
 
 }
@@ -850,7 +849,7 @@ impl Mul<f32> for Vector3 {
     type Output = Vector3;
 
     fn mul(self, rhs: f32) -> Self::Output {
-        unsafe { return Vector3::new_float_type(Vec3::mul(self.get_simd_value().borrow(), Vec3::splat(rhs.borrow()).borrow()).borrow()) }
+        unsafe { return Vector3::new_float_type(Vec3::mul(self.get_simd_value(), Vec3::splat(rhs))) }
     }
 }
 impl Div for Vector3 {
@@ -858,14 +857,14 @@ impl Div for Vector3 {
 
     fn div(self, rhs: &Vector3) -> Self::Output {
         let mut val =rhs._value;
-        unsafe { Vector3 { _value: Vec3::div(self._value.borrow(),val.borrow_mut()) } }
+        unsafe { Vector3 { _value: Vec3::div(self._value,val.borrow_mut()) } }
     }
 }
 impl Div<f32> for Vector3 {
     type Output = Vector3;
 
-    fn div(self, rhs: &f32) -> Self::Output {
-        unsafe { Vector3 { _value: Vec3::div(self._value.borrow(),Vec3::splat(rhs).borrow_mut()) } }
+    fn div(self, rhs: f32) -> Self::Output {
+        unsafe { Vector3 { _value: Vec3::div(self._value,Vec3::splat(rhs).borrow_mut()) } }
     }
 }
 impl AddAssign<Vector3> for Vector3 {
@@ -883,13 +882,13 @@ impl SubAssign<Vector3> for  Vector3 {
 
 impl MulAssign<Vector3> for Vector3 {
     fn mul_assign(&mut self, rhs: &Vector3) {
-        unsafe { self._value = Vec3::mul(self._value.borrow(), rhs._value.borrow()); }
+        unsafe { self._value = Vec3::mul(self._value, rhs._value); }
     }
 }
 
 impl MulAssign<f32> for Vector3 {
-    fn mul_assign(&mut self, rhs: &f32) {
-        unsafe { self = Vector3::new_float_type(Vec3::mul(self.get_simd_value().borrow(), Vec3::splat(rhs).borrow()).borrow()).to_owned().borrow_mut(); }
+    fn mul_assign(&mut self, rhs: f32) {
+        unsafe { self = Vector3::new_float_type(Vec3::mul(self.get_simd_value(), Vec3::splat(rhs))).to_owned().borrow_mut(); }
     }
 }
 impl DivAssign<Vector3> for Vector3 {
@@ -898,8 +897,8 @@ impl DivAssign<Vector3> for Vector3 {
     }
 }
 impl DivAssign<f32> for Vector3 {
-    fn div_assign(&mut self, rhs: &f32) {
-        unsafe { self = Vector3::new_float_type(Vec3::div(self.get_simd_value().borrow(), Vec3::splat(rhs).borrow_mut()).borrow()).to_owned().borrow_mut(); }
+    fn div_assign(&mut self, rhs: f32) {
+        unsafe { self = Vector3::new_float_type(Vec3::div(self.get_simd_value(), Vec3::splat(rhs).borrow_mut())).to_owned().borrow_mut(); }
     }
 }
 #[cfg(test)]

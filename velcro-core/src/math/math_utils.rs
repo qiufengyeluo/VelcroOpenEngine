@@ -57,7 +57,7 @@ pub mod constants {
         }
     }
 
-    pub fn max<T>(left:&T,right:&T)->T{
+    pub fn max<T>(left:T,right:T)->T{
         return if left > right{
             left
         }else {
@@ -65,7 +65,7 @@ pub mod constants {
         }
     }
 
-    pub fn min<T>(left:&T,right:&T)->T{
+    pub fn min<T>(left:T,right:T)->T{
         return  if left < right{
             left
         }else {
@@ -89,7 +89,7 @@ pub mod constants {
         return (a - b).abs() <= (TOLERANCE as f64).to_owned()
     }
 
-    pub fn rad_to_deg(rad:&f32)->f32{
+    pub fn rad_to_deg(rad:f32)->f32{
         return rad*180.0/PI
     }
 
@@ -101,25 +101,25 @@ pub mod constants {
         (x.abs() - 1.0).abs() < f64::EPSILON
     }
 
-    pub fn is_normal_double(x:&f64)->bool{
+    pub fn is_normal_double(x:f64)->bool{
         return is_normalized(x);
     }
-    pub fn is_finite_float(x:&f32)->bool{
+    pub fn is_finite_float(x:f32)->bool{
         return x.is_finite()
     }
 
-    pub fn get_abs_f32(a :&f32)->f32{
+    pub fn get_abs_f32(a :f32)->f32{
         return a.abs()
     }
-    pub fn get_abs_f64(a :&f64)->f64{
+    pub fn get_abs_f64(a :f64)->f64{
         return a.abs()
     }
 
-    pub fn get_mod_f32(a :&f32,b:&f32)->f32{
+    pub fn get_mod_f32(a :f32,b:f32)->f32{
         unsafe { return simd::mod_calculate(a, b) }
     }
 
-    pub fn get_mod_f64(a :&f64,b:&f64)->f64{
+    pub fn get_mod_f64(a :f64,b:f64)->f64{
         return a % b;
     }
 }

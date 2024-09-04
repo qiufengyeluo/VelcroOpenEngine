@@ -4,7 +4,7 @@
 use std::arch::x86_64::*;
 
 use crate::math::common_sse::*;
-use crate::math::constants::HALF_PI;
+use crate::math::math_utils::constants::HALF_PI;
 use crate::math::simd_math_vec1_sse::Vec1;
 use crate::math::vsimd::*;
 
@@ -45,7 +45,7 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn store_aligned( addr:*mut f32,value:&FloatArgType){
+    unsafe fn store_aligned( addr:*mut f32,value:FloatArgType){
         sse::store_aligned(addr,value.to_owned())
     }
 
@@ -59,7 +59,7 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn store_unaligned(addr :*mut f32,value:&FloatArgType){
+    unsafe fn store_unaligned(addr :*mut f32,value:FloatArgType){
         sse::store_unaligned(addr,value.to_owned());
     }
 
@@ -73,7 +73,7 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn stream_aligned(addr :*mut f32,value:&FloatArgType){
+    unsafe fn stream_aligned(addr :*mut f32,value:FloatArgType){
         sse::stream_aligned(addr,value.to_owned());
     }
 
@@ -87,7 +87,7 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn select_index0(value:&FloatArgType)->f32{
+    unsafe fn select_index0(value:FloatArgType)->f32{
         return sse::select_first(value.to_owned());
     }
 
@@ -108,28 +108,28 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn add(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType{
+    unsafe fn add(arg1:FloatArgType,arg2:FloatArgType)->FloatType{
         return sse::add(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn sub(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType{
+    unsafe fn sub(arg1:FloatArgType,arg2:FloatArgType)->FloatType{
         return sse::sub(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn mul(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType{
+    unsafe fn mul(arg1:FloatArgType,arg2:FloatArgType)->FloatType{
         return sse::mul(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn madd(mul1:&FloatArgType,mul2:&FloatArgType,add:&FloatArgType)->FloatType{
+    unsafe fn madd(mul1:FloatArgType,mul2:FloatArgType,add:FloatArgType)->FloatType{
         return sse::madd(mul1.to_owned(),mul2.to_owned(),add.to_owned());
     }
 
@@ -144,7 +144,7 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn abs(value:&FloatArgType)->FloatType{
+    unsafe fn abs(value:FloatArgType)->FloatType{
         return sse::abs(value.to_owned());
     }
 
@@ -186,35 +186,35 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn not(value:&FloatArgType)->FloatType{
+    unsafe fn not(value:FloatArgType)->FloatType{
         return  sse::not(value.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn and(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType{
+    unsafe fn and(arg1:FloatArgType,arg2:FloatArgType)->FloatType{
         return sse::and(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn and_not(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType{
+    unsafe fn and_not(arg1:FloatArgType,arg2:FloatArgType)->FloatType{
         return sse::and_not(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn or(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType{
+    unsafe fn or(arg1:FloatArgType,arg2:FloatArgType)->FloatType{
         return sse::or(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn xor(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType{
+    unsafe fn xor(arg1:FloatArgType,arg2:FloatArgType)->FloatType{
         return sse::xor(arg1.to_owned(),arg2.to_owned());
     }
 
@@ -255,49 +255,49 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn floor(value:&FloatArgType)->FloatType{
+    unsafe fn floor(value:FloatArgType)->FloatType{
         return sse::floor(value.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn ceil(value:&FloatArgType)->FloatType{
+    unsafe fn ceil(value:FloatArgType)->FloatType{
         return sse::ceil(value.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn round(value:&FloatArgType)->FloatType{
+    unsafe fn round(value:FloatArgType)->FloatType{
         return sse::round(value.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn truncate(value:&FloatArgType) ->FloatType{
+    unsafe fn truncate(value:FloatArgType) ->FloatType{
         return sse::truncate(value.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn min(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType{
+    unsafe fn min(arg1:FloatArgType,arg2:FloatArgType) ->FloatType{
         return sse::min(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn max(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType{
+    unsafe fn max(arg1:FloatArgType,arg2:FloatArgType) ->FloatType{
         return sse::max(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn clamp(value:&FloatArgType,min:&FloatArgType,max:&FloatArgType) ->FloatType{
+    unsafe fn clamp(value:FloatArgType,min:FloatArgType,max:FloatArgType) ->FloatType{
         return sse::clamp(value.to_owned(),min.to_owned(),max.to_owned());
     }
 
@@ -325,77 +325,77 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn cmp_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType{
+    unsafe fn cmp_eq(arg1:FloatArgType,arg2:FloatArgType) ->FloatType{
         return sse::cmp_eq(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn cmp_neq(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType{
+    unsafe fn cmp_neq(arg1:FloatArgType,arg2:FloatArgType) ->FloatType{
         return sse::cmp_neq(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn cmp_gt(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType{
+    unsafe fn cmp_gt(arg1:FloatArgType,arg2:FloatArgType) ->FloatType{
         return sse::cmp_gt(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn cmp_gt_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType{
+    unsafe fn cmp_gt_eq(arg1:FloatArgType,arg2:FloatArgType) ->FloatType{
         return sse::cmp_gt_eq(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn cmp_lt(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType{
+    unsafe fn cmp_lt(arg1:FloatArgType,arg2:FloatArgType) ->FloatType{
         return sse::cmp_lt(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn cmp_lt_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->FloatType{
+    unsafe fn cmp_lt_eq(arg1:FloatArgType,arg2:FloatArgType) ->FloatType{
         return sse::cmp_lt_eq(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn cmp_all_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->bool{
+    unsafe fn cmp_all_eq(arg1:FloatArgType,arg2:FloatArgType) ->bool{
         return sse::cmp_all_eq(arg1.to_owned(),arg2.to_owned(),0b0011);
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn cmp_all_lt(arg1:&FloatArgType,arg2:&FloatArgType) ->bool{
+    unsafe fn cmp_all_lt(arg1:FloatArgType,arg2:FloatArgType) ->bool{
         return sse::cmp_all_lt(arg1.to_owned(),arg2.to_owned(),0b0011);
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn cmp_all_lt_eq(arg1:&FloatArgType,arg2:&FloatArgType) -> bool {
+    unsafe fn cmp_all_lt_eq(arg1:FloatArgType,arg2:FloatArgType) -> bool {
         return sse::cmp_all_lt_eq(arg1.to_owned(),arg2.to_owned(),0b0011);
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn cmp_all_gt(arg1:&FloatArgType,arg2:&FloatArgType) ->bool{
+    unsafe fn cmp_all_gt(arg1:FloatArgType,arg2:FloatArgType) ->bool{
         return sse::cmp_all_gt(arg1.to_owned(),arg2.to_owned(),0b0011);
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn cmp_all_gt_eq(arg1:&FloatArgType,arg2:&FloatArgType) ->bool{
+    unsafe fn cmp_all_gt_eq(arg1:FloatArgType,arg2:FloatArgType) ->bool{
         return sse::cmp_all_gt_eq(arg1.to_owned(),arg2.to_owned(),0b0011);
     }
 
@@ -451,7 +451,7 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn select(arg1:&FloatArgType,arg2:&FloatArgType,mask:&FloatArgType)->FloatType{
+    unsafe fn select(arg1:FloatArgType,arg2:FloatArgType,mask:FloatArgType)->FloatType{
         return  sse::select(arg1.to_owned(),arg2.to_owned(),mask.to_owned());
     }
 
@@ -465,7 +465,7 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn reciprocal(value:&FloatArgType)->FloatType{
+    unsafe fn reciprocal(value:FloatArgType)->FloatType{
         let  val = sse::replace_fourth_f32(sse::replace_third_f32(value.to_owned(),1.0),1.0);
         return sse::reciprocal(val);
     }
@@ -473,7 +473,7 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn reciprocal_estimate(value:&FloatArgType)->FloatType{
+    unsafe fn reciprocal_estimate(value:FloatArgType)->FloatType{
         let val = sse::replace_fourth_f32(sse::replace_third_f32(value.to_owned(),1.0),1.0);
         return sse::reciprocal(val);
     }
@@ -481,42 +481,42 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn mod_calculate(value:&FloatArgType,divisor:&FloatArgType)->FloatType{
+    unsafe fn mod_calculate(value:FloatArgType,divisor:FloatArgType)->FloatType{
         return sse::mod_calculate(value.to_owned(),divisor.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn  wrap(value:&FloatArgType, min_value:&FloatArgType, max_value:&FloatArgType) ->FloatType{
+    unsafe fn  wrap(value:FloatArgType, min_value:FloatArgType, max_value:FloatArgType) ->FloatType{
         return Common::wrap(value, min_value, max_value);
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn angle_mod(value:&FloatArgType) ->FloatType{
+    unsafe fn angle_mod(value:FloatArgType) ->FloatType{
         return  Common::angle_mod(value);
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn sqrt(value:&FloatArgType)->FloatType{
+    unsafe fn sqrt(value:FloatArgType)->FloatType{
         return sse::sqrt(value.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn sqrt_estimate(value:&FloatArgType)->FloatType{
+    unsafe fn sqrt_estimate(value:FloatArgType)->FloatType{
         return sse::sqrt_estimate(value.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn sqrt_inv(value:&FloatArgType)->FloatType{
+    unsafe fn sqrt_inv(value:FloatArgType)->FloatType{
         let val = sse::replace_fourth_f32(sse::replace_third_f32(value.to_owned(),1.0),1.0);
         return sse::sqrt_inv(val);
     }
@@ -524,55 +524,55 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn sqrt_inv_estimate(value:&FloatArgType) ->FloatType{
+    unsafe fn sqrt_inv_estimate(value:FloatArgType) ->FloatType{
         return sse::sqrt_inv_estimate(value.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn sin(value:&FloatArgType)->FloatType{
+    unsafe fn sin(value:FloatArgType)->FloatType{
         return Common::sin(value);
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn cos(value:&FloatArgType)->FloatType{
+    unsafe fn cos(value:FloatArgType)->FloatType{
         return Common::cos(value);
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn sin_cos(value:&FloatArgType,mut sin:&FloatType,mut cos:&FloatType){
+    unsafe fn sin_cos(value:FloatArgType,mut sin:&FloatType,mut cos:&FloatType){
         Common::sin_cos(value,sin,cos)
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn acos(value:&FloatArgType)->FloatType{
+    unsafe fn acos(value:FloatArgType)->FloatType{
         return Common::acos(value);
     }
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn atan(value:&FloatArgType) ->FloatType{
+    unsafe fn atan(value:FloatArgType) ->FloatType{
         return Common::atan(value);
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn atan2(y:&FloatArgType,x:&FloatArgType) ->FloatType{
+    unsafe fn atan2(y:FloatArgType,x:FloatArgType) ->FloatType{
         return Common::atan2(y,x);
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn exp_estimate(x:&FloatArgType)->FloatType{
+    unsafe fn exp_estimate(x:FloatArgType)->FloatType{
         return Common::exp_estimate(x);
     }
 
@@ -586,14 +586,14 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn convert_to_int(value:&FloatArgType)->Int32Type{
+    unsafe fn convert_to_int(value:FloatArgType)->Int32Type{
         return sse::convert_to_int(value.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn convert_to_int_nearest(value:&FloatArgType)->Int32Type{
+    unsafe fn convert_to_int_nearest(value:FloatArgType)->Int32Type{
         return sse::convert_to_int_nearest(value.to_owned());
     }
 
@@ -607,7 +607,7 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn cast_to_int(value:&FloatArgType)->Int32Type{
+    unsafe fn cast_to_int(value:FloatArgType)->Int32Type{
         return sse::cast_to_int(value.to_owned());
     }
 
@@ -630,95 +630,95 @@ impl VecTwoType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn value_to_vec1(value:&FloatArgType) ->FloatType{
+    unsafe fn value_to_vec1(value:FloatArgType) ->FloatType{
         return value.to_owned();
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn from_vec1(value:&FloatArgType) ->FloatType{
+    unsafe fn from_vec1(value:FloatArgType) ->FloatType{
         return sse::splat_first(value.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn select_index1(value:&FloatArgType)->f32{
+    unsafe fn select_index1(value:FloatArgType)->f32{
         return sse::select_first(sse::splat_second(value.to_owned()));
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn splat_index0(value:&FloatArgType)->FloatType{
+    unsafe fn splat_index0(value:FloatArgType)->FloatType{
         return sse::splat_first(value.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn splat_index1(value:&FloatArgType)->FloatType{
+    unsafe fn splat_index1(value:FloatArgType)->FloatType{
         return sse::splat_second(value.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn replace_index0_f32(a:&FloatArgType,b:&f32)->FloatType{
+    unsafe fn replace_index0_f32(a:FloatArgType,b:&f32)->FloatType{
         return sse::replace_first_f32(a.to_owned(),b.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn replace_index0(a:&FloatArgType,b:&FloatArgType)->FloatType{
+    unsafe fn replace_index0(a:FloatArgType,b:FloatArgType)->FloatType{
         return sse::replace_first(a.to_owned(),b.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn replace_index1_f32(a:&FloatArgType,b:&f32)->FloatType{
+    unsafe fn replace_index1_f32(a:FloatArgType,b:&f32)->FloatType{
         return sse::replace_second_f32(a.to_owned(),b.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn replace_index1(a:&FloatArgType,b:&FloatArgType)->FloatType{
+    unsafe fn replace_index1(a:FloatArgType,b:FloatArgType)->FloatType{
         return sse::replace_second(a.to_owned(),b.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn dot(arg1:&FloatArgType,arg2:&FloatArgType)->FloatType{
+    unsafe fn dot(arg1:FloatArgType,arg2:FloatArgType)->FloatType{
         let x2= Vec2::mul(arg1,arg2);
-        return Vec2::splat_index0(Vec2::add(Vec2::splat_index1(x2.borrow()).borrow(),x2.borrow()).borrow());
+        return Vec2::splat_index0(Vec2::add(Vec2::splat_index1(x2),x2));
     }
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn normalize(value:&FloatArgType)->FloatType{
+    unsafe fn normalize(value:FloatArgType)->FloatType{
         return Common::normalize(value);
     }
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn normalize_estimate(value:&FloatArgType)->FloatType{
+    unsafe fn normalize_estimate(value:FloatArgType)->FloatType{
         return Common::normalize_estimate(value);
     }
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn normalize_safe(value:&FloatArgType,tolerance:&f32)->FloatType{
+    unsafe fn normalize_safe(value:FloatArgType,tolerance:&f32)->FloatType{
         return Common::normalize_safe(value,tolerance);
     }
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn normalize_safe_estimate(value:&FloatArgType,tolerance:&f32)->FloatType{
+    unsafe fn normalize_safe_estimate(value:FloatArgType,tolerance:&f32)->FloatType{
         return Common::normalize_safe_estimate(value,tolerance);
     }
 }
@@ -727,16 +727,16 @@ impl Vec2Type for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn sin_cos_to_float_type(angle:&FloatArgType)->FloatType{
-        let angle_offset = Vec2::load_immediate(0.0.borrow(), HALF_PI.borrow());
-        let angles = Vec2::add(Vec2::from_vec1(angle.borrow()).borrow(), angle_offset.borrow());
-        return Vec2::sin(angles.borrow());
+    unsafe fn sin_cos_to_float_type(angle:FloatArgType)->FloatType{
+        let angle_offset = Vec2::load_immediate(0.0, HALF_PI);
+        let angles = Vec2::add(Vec2::from_vec1(angle), angle_offset);
+        return Vec2::sin(angles);
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn load_immediate(x:&f32,y:&f32)->FloatType{
+    unsafe fn load_immediate(x:f32,y:f32)->FloatType{
         return sse::load_immediate(x.to_owned(),y.to_owned(),0.0,0.0);
     }
 
@@ -750,7 +750,7 @@ impl Vec2Type for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn atan2_float_type(value:&FloatArgType)->FloatType{
-        return  Common::atan2(Vec1::splat(Vec2::select_index1(value).borrow()).borrow(),Vec1::splat(Vec2::select_index0(value).borrow()).borrow());
+    unsafe fn atan2_float_type(value:FloatArgType)->FloatType{
+        return  Common::atan2(Vec1::splat(Vec2::select_index1(value)),Vec1::splat(Vec2::select_index0(value)));
     }
 }

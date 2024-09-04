@@ -25,7 +25,7 @@ impl Intersect{
         let v = (d11 * d20 - d01 * d21) * denom_rcp;
         let w = (d00 * d21 - d01 * d20) * denom_rcp;
         let u = 1.0 - v - w;
-        return Vector3::new_xyz(u.borrow(), v.borrow(), w.borrow())
+        return Vector3::new_xyz(u, v, w)
     }
 
     #[inline]
