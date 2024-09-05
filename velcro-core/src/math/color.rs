@@ -165,7 +165,7 @@ impl  Color{
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn new_f32(rgba:&f32)->Color{
+    pub unsafe fn new_f32(rgba:f32)->Color{
         Color{
             _color:Vector4::new_x(rgba)
         }
@@ -173,7 +173,7 @@ impl  Color{
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn new_rgba_f32(r:&f32,g:&f32,b:&f32,a:&f32)->Color{
+    pub unsafe fn new_rgba_f32(r:f32,g:f32,b:f32,a:f32)->Color{
         Color{
             _color:Vector4::new_x_y_z_w(r,g,b,a),
         }
@@ -201,7 +201,7 @@ impl  Color{
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn create_one()->Color{
-        let  result = Color::new_f32(1.0.borrow());
+        let  result = Color::new_f32(1.0);
         result
     }
 
@@ -229,7 +229,7 @@ impl  Color{
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn create_from_vector3and_float(v:&Vector3,w:&f32)->Color{
+    pub unsafe fn create_from_vector3and_float(v:&Vector3,w:f32)->Color{
         let mut result = Color::new();
         result.set_vec3_f32(v,w);
         result
@@ -275,28 +275,28 @@ impl  Color{
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn set_r8(&self,r:&u8){
-        self._color.set_x(((r.to_owned() as f32)*(1.0/255.0)).borrow())
+        self._color.set_x(((r.to_owned() as f32)*(1.0/255.0)))
     }
 
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn set_g8(&self,g:&u8){
-        self._color.set_y(((g.to_owned() as f32)*(1.0/255.0)).borrow())
+        self._color.set_y(((g.to_owned() as f32)*(1.0/255.0)))
     }
 
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn set_b8(&self,b:&u8){
-        self._color.set_z(((b.to_owned() as f32)*(1.0/255.0)).borrow())
+        self._color.set_z(((b.to_owned() as f32)*(1.0/255.0)))
     }
 
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn set_a8(&self,a:&u8){
-        self._color.set_w(((a.to_owned() as f32)*(1.0/255.0)).borrow())
+        self._color.set_w(((a.to_owned() as f32)*(1.0/255.0)))
     }
 
 
@@ -327,46 +327,46 @@ impl  Color{
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn get_element(self,index:&i32)->f32{
+    pub unsafe fn get_element(self,index:i32)->f32{
         return self._color.get_element(index)
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn set_r(&mut self,r:&f32){
+    pub unsafe fn set_r(&mut self,r:f32){
         self._color.set_x(r)
     }
 
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn set_g(&mut self,g:&f32){
+    pub unsafe fn set_g(&mut self,g:f32){
         self._color.set_y(g)
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn set_b(&mut self,b:&f32){
+    pub unsafe fn set_b(&mut self,b:f32){
         self._color.set_z(b)
     }
 
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn set_a(&mut self,a:&f32){
+    pub unsafe fn set_a(&mut self,a:f32){
         self._color.set_w(a)
     }
 
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn set_f32(&mut self,x:&f32){
+    pub unsafe fn set_f32(&mut self,x:f32){
         self._color.set_f32(x);
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn set_rgba_f32(&mut self,r:&f32,g:&f32,b:&f32,a:&f32){
+    pub unsafe fn set_rgba_f32(&mut self,r:f32,g:f32,b:f32,a:f32){
         self._color.set_x_y_z_w(r,g,b,a);
     }
 
@@ -384,13 +384,13 @@ impl  Color{
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn set_vec3_f32(&mut self,v:&Vector3,a:&f32){
+    pub unsafe fn set_vec3_f32(&mut self,v:&Vector3,a:f32){
         self._color.set_vec3_f32(v,a);
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn set_element(&mut self,index:&i32,v:&f32){
+    pub unsafe fn set_element(&mut self,index:i32,v:f32){
         self._color.set_element(index,v);
     }
 
@@ -408,10 +408,10 @@ impl  Color{
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn set_from_hsvradians(&mut self, mut hue_radians:&f32, mut saturation:&f32, mut value:&f32){
+    pub unsafe fn set_from_hsvradians(&mut self, mut hue_radians:f32, mut saturation:f32, mut value:f32){
         let alpha = self.get_a();
-        saturation = constants::get_clamp(saturation,0.0.borrow(),1.0.borrow());
-        value = constants::get_clamp(value,0.0.borrow(),1.0.borrow());
+        saturation = constants::get_clamp(saturation,0.0,1.0);
+        value = constants::get_clamp(value,0.0,1.0);
         hue_radians = hue_radians.fmodf(constants::TWO_PI);
         if (hue_radians.to_owned() < 0f32)
         {
@@ -449,13 +449,13 @@ impl  Color{
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn is_close(&self, v:&Color, tolerance:&f32)->bool{
+    pub unsafe fn is_close(&self, v:&Color, tolerance:f32)->bool{
         return self._color.is_close(v.get_as_vector4().borrow(),tolerance);
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn is_zero(&self,tolerance:&f32)->bool{
+    pub unsafe fn is_zero(&self,tolerance:f32)->bool{
         return self.is_close(Color::create_zero().borrow(),tolerance);
     }
 
@@ -485,11 +485,11 @@ impl  Color{
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn from_u32(&mut self, c:&u32){
-        self.set_a(&(((c.to_owned() >> 24) as f32) * (1.0 / 255.0) ));
-        self.set_b(&(((c.to_owned() >> 16) & 0xff)as f32 * (1.0 / 255.0)));
-        self.set_g(&(((c.to_owned() >> 8) & 0xff)as f32 * (1.0 / 255.0)));
-        self.set_r(&(((c.to_owned() & 0xff)as f32) * (1.0 / 255.0)));
+    pub unsafe fn from_u32(&mut self, c:u32){
+        self.set_a((((c.to_owned() >> 24) as f32) * (1.0 / 255.0) ));
+        self.set_b((((c.to_owned() >> 16) & 0xff)as f32 * (1.0 / 255.0)));
+        self.set_g((((c.to_owned() >> 8) & 0xff)as f32 * (1.0 / 255.0)));
+        self.set_r((((c.to_owned() & 0xff)as f32) * (1.0 / 255.0)));
     }
 
     #[inline]
@@ -500,14 +500,14 @@ impl  Color{
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn from_u32gamma_to_linear(&mut self,c:&u32){
+    pub unsafe fn from_u32gamma_to_linear(&mut self,c:u32){
         self.from_u32(c);
         self._color =  self.gamma_to_linear()._color;
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn convert_srgb_gamma_to_linear(x:&f32) ->f32{
+    pub unsafe fn convert_srgb_gamma_to_linear(x:f32) ->f32{
         if x.to_owned() <= 0.04045 {
             return x / 12.92;
         }
@@ -516,7 +516,7 @@ impl  Color{
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn convert_srgb_linear_to_gamma(x:&f32)->f32{
+    pub unsafe fn convert_srgb_linear_to_gamma(x:f32)->f32{
         if x.to_owned() <= 0.0031308 {
             return 12.92 * x
         }
@@ -529,10 +529,10 @@ impl  Color{
         let mut r = self.get_r();
         let mut g =  self.get_g();
         let mut b =  self.get_b();
-        r = Color::convert_srgb_linear_to_gamma(r.borrow());
-        g = Color::convert_srgb_linear_to_gamma(g.borrow());
-        b = Color::convert_srgb_linear_to_gamma(b.borrow());
-        return Color::new_rgba_f32(r.borrow(),g.borrow(),b.borrow(),self.get_a().borrow()) ;
+        r = Color::convert_srgb_linear_to_gamma(r);
+        g = Color::convert_srgb_linear_to_gamma(g);
+        b = Color::convert_srgb_linear_to_gamma(b);
+        return Color::new_rgba_f32(r,g,b,self.get_a()) ;
     }
 
     #[inline]
@@ -541,10 +541,10 @@ impl  Color{
         let mut r = self.get_r();
         let mut g =  self.get_g();
         let mut b =  self.get_b();
-        return Color::new_rgba_f32(Color::convert_srgb_gamma_to_linear(r.borrow()).borrow(),
-                                   Color::convert_srgb_gamma_to_linear(g.borrow()).borrow(),
-                                   Color::convert_srgb_gamma_to_linear(b.borrow()).borrow(),
-                                    self.get_a().borrow())
+        return Color::new_rgba_f32(Color::convert_srgb_gamma_to_linear(r),
+                                   Color::convert_srgb_gamma_to_linear(g),
+                                   Color::convert_srgb_gamma_to_linear(b),
+                                    self.get_a())
     }
 
     #[inline]
@@ -574,7 +574,7 @@ impl  Color{
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn lerp(self,dest:&Color,t:&f32)->Color{
+    pub unsafe fn lerp(self,dest:&Color,t:f32)->Color{
         return Color::new_vec4(self._color.lerp(dest._color.borrow(),t).borrow())
     }
 

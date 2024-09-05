@@ -227,7 +227,7 @@ impl Matrix4x4{
     #[allow(dead_code)]
     pub unsafe  fn create_from_rows(row0:&Vector4, row1:&Vector4, row2:&Vector4, row3:&Vector4)->Matrix4x4{
         let mut m= Matrix4x4::new();
-        m.set_rows_vec4(row0, row1, row2, row3);
+        m.set_rows(row0, row1, row2, row3);
         m
     }
 
@@ -295,7 +295,7 @@ impl Matrix4x4{
     pub unsafe  fn create_from_quaternion(q:&Quaternion) ->Matrix4x4{
         let mut result=Matrix4x4::new();
         result.set_rotation_part_from_quaternion(q);
-        result.set_translation(Vector3::new_float_type(Vec3::zero_float()));
+        result.set_translation_vec3(Vector3::new_float_type(Vec3::zero_float()).borrow());
         result._rows[3] = Vector4::new_float_type(Vec4::load_aligned(simd::G_VEC0001.borrow()));
         return result;
     }
@@ -306,7 +306,7 @@ impl Matrix4x4{
     pub unsafe  fn create_from_quaternion_and_translation(q :&Quaternion, p:& Vector3)->Matrix4x4{
         let mut result=Matrix4x4::new();
         result.set_rotation_part_from_quaternion(q);
-        result.set_translation(p);
+        result.set_translation_vec3(p);
         result._rows[3] = Vector4::new_float_type(Vec4::load_aligned(simd::G_VEC0001.borrow()));
         return result;
     }
@@ -315,9 +315,9 @@ impl Matrix4x4{
     #[allow(dead_code)]
     pub unsafe  fn create_from_matrix3x4(matrix3x4: &Matrix3x4) ->Matrix4x4{
         let mut result=Matrix4x4::new();
-        result.set_row_vec4(0, matrix3x4.get_row(0));
-        result.set_row_vec4(1, matrix3x4.get_row(1));
-        result.set_row_vec4(2, matrix3x4.get_row(2));
+        result.set_row_vec4(0, matrix3x4.get_row(0).borrow());
+        result.set_row_vec4(1, matrix3x4.get_row(1).borrow());
+        result.set_row_vec4(2, matrix3x4.get_row(2).borrow());
         result._rows[3] = Vector4::new_float_type(Vec4::load_aligned(simd::G_VEC0001.borrow()));
         return result;
     }

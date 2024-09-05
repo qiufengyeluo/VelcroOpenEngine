@@ -52,7 +52,7 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn store_aligned_i128(addr :*mut Int32Type,value:&Int32ArgType){
+    unsafe fn store_aligned_i128(addr :*mut Int32Type,value:Int32ArgType){
         sse::store_aligned_i128(addr as *mut Int32ArgType,value.to_owned())
     }
 
@@ -66,7 +66,7 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn store_unaligned_i128(addr:*mut Int32Type,value:&Int32ArgType){
+    unsafe fn store_unaligned_i128(addr:*mut Int32Type,value:Int32ArgType){
         sse::store_unaligned_i128(addr as *mut Int32Type,value.to_owned());
     }
 
@@ -80,7 +80,7 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn stream_aligned_i128(addr:*mut Int32Type,value:&Int32ArgType){
+    unsafe fn stream_aligned_i128(addr:*mut Int32Type,value:Int32ArgType){
         sse::stream_aligned_i128(addr as *mut Int32Type,value.to_owned());
     }
 
@@ -136,7 +136,7 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn div(arg1:&FloatType, arg2: &mut FloatType) ->FloatType{
+    unsafe fn div(arg1:FloatType, arg2: &mut FloatType) ->FloatType{
         *arg2 = sse::replace_third_f32(sse::replace_second_f32(arg2.to_owned(),1.0),1.0);
         return sse::div(arg1.to_owned(),arg2.to_owned())
     }
@@ -151,35 +151,35 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn add_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type{
+    unsafe fn add_i32(arg1:Int32ArgType,arg2:Int32ArgType)->Int32Type{
         return sse::add_i32(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn sub_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type{
+    unsafe fn sub_i32(arg1:Int32ArgType,arg2:Int32ArgType)->Int32Type{
         return sse::sub_i32(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn mul_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type{
+    unsafe fn mul_i32(arg1:Int32ArgType,arg2:Int32ArgType)->Int32Type{
         return sse::mul_i32(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn madd_i32(mul1:&Int32ArgType,mul2:Int32ArgType,add:&Int32ArgType)->Int32Type{
+    unsafe fn madd_i32(mul1:Int32ArgType,mul2:Int32ArgType,add:Int32ArgType)->Int32Type{
         return sse::madd_i32(mul1.to_owned(),mul2.to_owned(),add.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn abs_i32(value:&Int32ArgType)->Int32Type{
+    unsafe fn abs_i32(value:Int32ArgType)->Int32Type{
         return sse::abs_i32(value.to_owned());
     }
 
@@ -221,34 +221,34 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn not_i32(value:&Int32ArgType)->Int32Type{
+    unsafe fn not_i32(value:Int32ArgType)->Int32Type{
         return sse::not_i32(value.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn and_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type{
+    unsafe fn and_i32(arg1:Int32ArgType,arg2:Int32ArgType)->Int32Type{
         return sse::and_i32(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn or_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type{
+    unsafe fn or_i32(arg1:Int32ArgType,arg2:Int32ArgType)->Int32Type{
         return sse::or_i32(arg1.to_owned(),arg2.to_owned());
     }
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn xor_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type{
+    unsafe fn xor_i32(arg1:Int32ArgType,arg2:Int32ArgType)->Int32Type{
         return sse::xor_i32(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn and_not_i32(arg1:&Int32ArgType,arg2:&Int32ArgType)->Int32Type{
+    unsafe fn and_not_i32(arg1:Int32ArgType,arg2:Int32ArgType)->Int32Type{
         return sse::and_not_i32(arg1.to_owned(),arg2.to_owned());
     }
 
@@ -304,21 +304,21 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn min_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type{
+    unsafe fn min_i32(arg1:Int32ArgType,arg2:Int32ArgType) ->Int32Type{
         return sse::min_i32(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn max_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type{
+    unsafe fn max_i32(arg1:Int32ArgType,arg2:Int32ArgType) ->Int32Type{
         return sse::max_i32(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn clamp_i32(value:&Int32ArgType,min:&Int32ArgType,max:&Int32ArgType) ->Int32Type{
+    unsafe fn clamp_i32(value:Int32ArgType,min:Int32ArgType,max:Int32ArgType) ->Int32Type{
         return sse::clamp_i32(value.to_owned(),min.to_owned(),max.to_owned());
     }
 
@@ -402,49 +402,49 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn cmp_eq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type{
+    unsafe fn cmp_eq_i32(arg1:Int32ArgType,arg2:Int32ArgType) ->Int32Type{
         return sse::cmp_eq_i32(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn cmp_neq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type{
+    unsafe fn cmp_neq_i32(arg1:Int32ArgType,arg2:Int32ArgType) ->Int32Type{
         return sse::cmp_neq_i32(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn cmp_gt_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type{
+    unsafe fn cmp_gt_i32(arg1:Int32ArgType,arg2:Int32ArgType) ->Int32Type{
         return sse::cmp_gt_i32(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn cmp_gt_eq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type{
+    unsafe fn cmp_gt_eq_i32(arg1:Int32ArgType,arg2:Int32ArgType) ->Int32Type{
         return sse::cmp_gt_eq_i32(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn cmp_lt_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type{
+    unsafe fn cmp_lt_i32(arg1:Int32ArgType,arg2:Int32ArgType) ->Int32Type{
         return sse::cmp_lt_i32(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn cmp_lt_eq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->Int32Type{
+    unsafe fn cmp_lt_eq_i32(arg1:Int32ArgType,arg2:Int32ArgType) ->Int32Type{
         return sse::cmp_lt_eq_i32(arg1.to_owned(),arg2.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn cmp_all_eq_i32(arg1:&Int32ArgType,arg2:&Int32ArgType) ->bool{
+    unsafe fn cmp_all_eq_i32(arg1:Int32ArgType,arg2:Int32ArgType) ->bool{
         return sse::cmp_all_eq_i32(arg1.to_owned(),arg2.to_owned(),0x000F);
     }
 
@@ -458,7 +458,7 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn select_i32(arg1:&Int32ArgType,arg2:&Int32ArgType,mask:&Int32ArgType)->Int32Type{
+    unsafe fn select_i32(arg1:Int32ArgType,arg2:Int32ArgType,mask:Int32ArgType)->Int32Type{
         return  sse::select_i32(arg1.to_owned(),arg2.to_owned(),mask.to_owned());
     }
 
@@ -579,7 +579,7 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn convert_to_float(value:&Int32ArgType)->FloatType{
+    unsafe fn convert_to_float(value:Int32ArgType)->FloatType{
         return sse::convert_to_float(value.to_owned());
     }
 
@@ -600,7 +600,7 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn cast_to_float(value:&Int32ArgType)->FloatType{
+    unsafe fn cast_to_float(value:Int32ArgType)->FloatType{
         return sse::cast_to_float(value.to_owned());
     }
 

@@ -32,6 +32,7 @@ mod sphere;
 mod frustum;
 mod matrix3x4;
 mod matrix4x4;
+mod crc;
 
 #[cfg(test)]
 mod tests {

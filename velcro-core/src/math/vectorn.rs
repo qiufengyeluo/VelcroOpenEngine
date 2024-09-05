@@ -8,50 +8,45 @@ use crate::math::vector4::Vector4;
 #[derive(Debug,Clone,Copy)]
 pub struct VectorN {
     _size:i32,
-    _value:[Vector4],
+    _value:[Vector4;16],
 }
 
 impl VectorN {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe  fn new()-> Box<VectorN> {
+    pub unsafe  fn new()-> VectorN {
         VectorN{
-            _size:1,
-            _value: *[Vector4],
+            _size:16,
+            _value: [Vector4;16],
         }
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn new_i32(num_elements:&i32) -> Box<VectorN> {
+    pub unsafe fn new_i32(num_elements:i32) -> VectorN {
         let mut result = VectorN::new();
         result._size = num_elements.to_owned();
         result.on_size_changed();
-
         result
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn new_i32_f32(num_elements:&i32,x:&f32) -> Box<VectorN> {
+    pub unsafe fn new_i32_f32(num_elements:i32,x:f32) -> VectorN {
        let mut result = VectorN::new_i32(num_elements);
         let x_vec = unsafe { Vec4::splat(x) };
         for element in &result._value {
-            unsafe { element.set_simd_value(x_vec.borrow()); }
+            unsafe { element.set_simd_value(x_vec); }
         }
         result.fix_last_vector_element();
         result
     }
 
-    AZ_MATH_INLINE VectorN::VectorN(VectorN&& v)
-    : m_numElements(v.m_numElements)
-    , m_values(AZStd::move(v.m_values))
-    {
-    }
+
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn new_n(v:&VectorN)->Box<VectorN>{
+    pub unsafe fn new_n(v:&VectorN)->VectorN{
         VectorN{
             _size:v._size,
             _value:v._value,
