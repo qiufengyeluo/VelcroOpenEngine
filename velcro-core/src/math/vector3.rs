@@ -223,7 +223,7 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  get_element(self,index:&i32)->f32{
+    pub unsafe fn  get_element(self,index:i32)->f32{
         let values = *self._value as *const f32;
         *values[index]
     }
@@ -237,21 +237,21 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  set_x(mut self, x :&f32){
+    pub unsafe fn  set_x(mut self, x :f32){
         let values = *self._value as *const f32;
         *values[0] = x
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  set_y(mut self, y:&f32){
+    pub unsafe fn  set_y(mut self, y:f32){
         let values = *self._value as *const f32;
         *values[1] = y
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  set_z(mut self, z:&f32){
+    pub unsafe fn  set_z(mut self, z:f32){
         let values = *self._value as *const f32;
         *values[2] = z
     }
@@ -264,7 +264,7 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  set_element(mut self,index:&i32,v:&f32){
+    pub unsafe fn  set_element(mut self,index:i32,v:f32){
         let values = *self._value as *const f32;
         *values[index] = v
     }
@@ -403,7 +403,7 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  normalize_safe_with_length_estimate(mut self, tolerance:&f32) ->f32{
+    pub unsafe fn  normalize_safe_with_length_estimate(mut self, tolerance:f32) ->f32{
         let length = Vec1::sqrt_estimate(Vec3::dot(self._value,self._value));
         if Vec1::select_index0(length) < tolerance.to_owned(){
             self._value = Vec3::zero_float();
@@ -416,20 +416,20 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  is_normalized(self,tolerance:&f32)->bool{
+    pub unsafe fn  is_normalized(self,tolerance:f32)->bool{
         return (simd::abs((self.get_length_sq() - 1.0)) <= tolerance.to_owned());
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  set_length(mut self, length:&f32){
+    pub unsafe fn  set_length(mut self, length:f32){
         let scale =   self.get_length_reciprocal() * length;
         self *= scale ;
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  set_length_estimate(mut self, length:&f32){
+    pub unsafe fn  set_length_estimate(mut self, length:f32){
         let scale = length* self.get_length_reciprocal_estimate();
         self *= scale;
     }
@@ -739,7 +739,7 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  is_perpendicular(self,v:&Vector3,tolerance:&f32)->bool{
+    pub unsafe fn  is_perpendicular(self,v:&Vector3,tolerance:f32)->bool{
         let abs_length_sq = Vec1::abs(Vec3::dot(self.get_simd_value(), v.get_simd_value()));
         return  Vec1::select_index0(abs_length_sq)< tolerance.to_owned();
     }

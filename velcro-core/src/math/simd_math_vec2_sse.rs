@@ -31,7 +31,7 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn load_unaligned(addr:&f32)->FloatType{
+    unsafe fn load_unaligned(addr:f32)->FloatType{
         return  sse::load_unaligned(addr);
     }
 
@@ -94,14 +94,14 @@ impl VecType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn splat(value:&f32)->FloatType{
+    unsafe fn splat(value:f32)->FloatType{
         return _mm_set_ps1(value.to_owned());
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn splat_i32(value:&i32)->Int32Type{
+    unsafe fn splat_i32(value:i32)->Int32Type{
         return sse::splat_i32(value.to_owned());
     }
 
@@ -665,7 +665,7 @@ impl VecTwoType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn replace_index0_f32(a:FloatArgType,b:&f32)->FloatType{
+    unsafe fn replace_index0_f32(a:FloatArgType,b:f32)->FloatType{
         return sse::replace_first_f32(a.to_owned(),b.to_owned());
     }
 
@@ -679,7 +679,7 @@ impl VecTwoType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn replace_index1_f32(a:FloatArgType,b:&f32)->FloatType{
+    unsafe fn replace_index1_f32(a:FloatArgType,b:f32)->FloatType{
         return sse::replace_second_f32(a.to_owned(),b.to_owned());
     }
 
@@ -712,13 +712,13 @@ impl VecTwoType for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn normalize_safe(value:FloatArgType,tolerance:&f32)->FloatType{
+    unsafe fn normalize_safe(value:FloatArgType,tolerance:f32)->FloatType{
         return Common::normalize_safe(value,tolerance);
     }
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn normalize_safe_estimate(value:FloatArgType,tolerance:&f32)->FloatType{
+    unsafe fn normalize_safe_estimate(value:FloatArgType,tolerance:f32)->FloatType{
         return Common::normalize_safe_estimate(value,tolerance);
     }
 }
@@ -743,7 +743,7 @@ impl Vec2Type for Vec2 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn load_immediate_i32(x:&i32,y:&i32)->Int32Type{
+    unsafe fn load_immediate_i32(x:i32,y:i32)->Int32Type{
         return sse::load_immediate_i32(x.to_owned(),y.to_owned(),0,0);
     }
 

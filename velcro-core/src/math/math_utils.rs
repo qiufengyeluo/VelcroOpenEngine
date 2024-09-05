@@ -73,19 +73,19 @@ pub mod constants {
         }
     }
 
-    pub fn is_close_f32(a:&f32,b:&f32,tolerance:&f32)->bool{
+    pub fn is_close_f32(a:f32,b:f32,tolerance:f32)->bool{
         return (a - b).abs() <= tolerance.to_owned()
     }
 
-    pub fn is_close_f32_default(a:&f32,b:&f32)->bool{
+    pub fn is_close_f32_default(a:f32,b:f32)->bool{
         return (a - b).abs() <= TOLERANCE
     }
 
-    pub fn is_close_f64(a:&f64,b:&f64,tolerance:&f64)->bool{
+    pub fn is_close_f64(a:&f64,b:f64,tolerance:f64)->bool{
         return (a - b).abs() <= tolerance.to_owned()
     }
 
-    pub fn is_close_f64_default(a:&f64,b:&f64)->bool{
+    pub fn is_close_f64_default(a:f64,b:f64)->bool{
         return (a - b).abs() <= (TOLERANCE as f64).to_owned()
     }
 
@@ -93,11 +93,11 @@ pub mod constants {
         return rad*180.0/PI
     }
 
-    pub fn deg_to_rad(deg:&f32)->f32{
+    pub fn deg_to_rad(deg:f32)->f32{
         return deg*PI /180.0;
     }
 
-    fn is_normalized(x: &f64) -> bool {
+    fn is_normalized(x: f64) -> bool {
         (x.abs() - 1.0).abs() < f64::EPSILON
     }
 

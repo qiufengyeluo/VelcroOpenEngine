@@ -56,17 +56,17 @@ impl Vector2 {
             _value:Vec2::zero_float(),
         }
     }
-    pub unsafe  fn new_x(x:&f32)->Vector2{
+    pub unsafe  fn new_x(x:f32)->Vector2{
         Vector2{
             _value: Vec2::splat(x),
         }
     }
-    pub unsafe fn new_xy(x:&f32,y:&f32)->Vector2{
+    pub unsafe fn new_xy(x:f32,y:f32)->Vector2{
         Vector2{
             _value:Vec2::load_immediate(x,y),
         }
     }
-    pub unsafe fn new_float_type(value:&FloatType)->Vector2{
+    pub unsafe fn new_float_type(value:FloatType)->Vector2{
         Vector2{
             _value:value.to_owned(),
         }
@@ -92,12 +92,12 @@ impl Vector2 {
         return Vector2::new_x(1.0.borrow());
     }
 
-    pub unsafe fn create_axis_x(length:&f32)->Vector2{
+    pub unsafe fn create_axis_x(length:f32)->Vector2{
        let result = Vector2::new_xy(length,0.0.borrow());
         result
     }
 
-    pub unsafe fn create_axis_y(length:&f32)->Vector2{
+    pub unsafe fn create_axis_y(length:f32)->Vector2{
         let result = Vector2::new_xy(0.0.borrow(),length);
         result
     }
@@ -109,7 +109,7 @@ impl Vector2 {
         result
     }
 
-    pub unsafe fn create_from_angle(angle:&f32) ->Vector2{
+    pub unsafe fn create_from_angle(angle:f32) ->Vector2{
         let mut sin : f32;
         let mut cos : f32;
         simd::sin_cos(angle.borrow(),sin.borrow_mut(),cos.borrow_mut());
@@ -150,32 +150,32 @@ impl Vector2 {
         let values = *self._value as *const f32;
         *values[1]
     }
-    pub fn set_x(mut self,x:&f32){
+    pub fn set_x(mut self,x:f32){
         let values = *self._value as *const f32;
         *values[0] = x
     }
 
-    pub fn set_y(mut self,y :&f32){
+    pub fn set_y(mut self,y :f32){
         let values = *self._value as *const f32;
         *values[1] = y
     }
 
-    pub fn get_element(self, index :&i32) ->f32{
+    pub fn get_element(self, index :i32) ->f32{
         let values = *self._value as *const f32;
         values[index]
     }
 
 
-    pub fn set_element(mut self,index:&i32,value:&f32){
+    pub fn set_element(mut self,index:i32,value:f32){
         let values = *self._value as *const f32;
         *values[index] = value
     }
 
-    pub unsafe  fn set_splat_x(mut self,x:&f32){
+    pub unsafe  fn set_splat_x(mut self,x:f32){
         self._value = Vec2::splat(x);
     }
 
-    pub unsafe fn set_load_immediate(mut self,x:&f32,y:&f32){
+    pub unsafe fn set_load_immediate(mut self,x:f32,y:f32){
         self._value = Vec2::load_immediate(x,y);
     }
 
@@ -227,23 +227,23 @@ impl Vector2 {
         return length
     }
 
-    pub unsafe fn get_normalized_safe(self, tolerance:&f32) ->Vector2{
+    pub unsafe fn get_normalized_safe(self, tolerance:f32) ->Vector2{
         return Vector2::new_float_type(Vec2::normalize_safe(self._value.borrow(),tolerance).borrow());
     }
 
-    pub  unsafe fn get_normalized_safe_estimate(self, tolerance:&f32) ->Vector2{
+    pub  unsafe fn get_normalized_safe_estimate(self, tolerance:f32) ->Vector2{
         return  Vector2::new_float_type(Vec2::normalize_safe_estimate(self._value.borrow(),tolerance).borrow())
     }
 
-    pub unsafe fn normalize_safe(mut self, tolerance:&f32){
+    pub unsafe fn normalize_safe(mut self, tolerance:f32){
         self._value = Vec2::normalize_safe(self._value.borrow(),tolerance);
     }
 
-    pub unsafe fn normalize_safe_estimate(mut self, tolerance:&f32){
+    pub unsafe fn normalize_safe_estimate(mut self, tolerance:f32){
         self._value = Vec2::normalize_safe_estimate(self._value.borrow(),tolerance);
     }
 
-    pub unsafe fn normalize_safe_with_length(mut self, tolerance:&f32) ->f32{
+    pub unsafe fn normalize_safe_with_length(mut self, tolerance:f32) ->f32{
         let length = Vec1::sqrt(Vec2::dot(self._value.borrow(),self._value.borrow()).borrow());
         if Vec1::select_index0(length.borrow()) < tolerance.to_owned(){
             self._value = Vec2::zero_float();
@@ -255,7 +255,7 @@ impl Vector2 {
 
     }
 
-    pub unsafe fn normalize_safe_with_length_estimate(mut self, tolerance:&f32) ->f32{
+    pub unsafe fn normalize_safe_with_length_estimate(mut self, tolerance:f32) ->f32{
         let length = Vec1::sqrt_estimate(Vec2::dot(self._value.borrow(),self._value.borrow()).borrow());
         if Vec1::select_index0(length.borrow()) < tolerance.to_owned(){
             self._value = Vec2::zero_float();
@@ -267,16 +267,16 @@ impl Vector2 {
 
     }
 
-    pub unsafe fn is_normalized(self, tolerance:&f32) ->bool{
+    pub unsafe fn is_normalized(self, tolerance:f32) ->bool{
         return simd::abs((self.get_length_sq()-1.0).borrow())<=tolerance.to_owned();
     }
 
-    pub unsafe fn set_length(mut self, length:&f32){
+    pub unsafe fn set_length(mut self, length:f32){
         let scale = length/self.get_length();
         self._value = Vec2::mul(self._value.borrow(),Vec2::splat(scale.borrow()).borrow());
     }
 
-    pub unsafe fn set_length_estimate(mut self,length:&f32){
+    pub unsafe fn set_length_estimate(mut self,length:f32){
         let scale = length / self.get_length_estimate();
         self._value = Vec2::mul(self._value.borrow(),Vec2::splat(scale.borrow()).borrow());
     }
@@ -293,12 +293,12 @@ impl Vector2 {
         return  (*self - v).get_length_estimate();
     }
 
-    pub unsafe fn lerp(self,dest:&Vector2,t:&f32)->Vector2{
+    pub unsafe fn lerp(self,dest:&Vector2,t:f32)->Vector2{
         return Vector2::new_float_type(Vec2::madd(Vec2::sub(dest._value.borrow(),self._value.borrow()).borrow(),Vec2::splat(t).borrow(),self._value.borrow()).borrow());
 
     }
 
-    pub unsafe fn slerp(self,dest:&Vector2,t:&f32)->Vector2{
+    pub unsafe fn slerp(self,dest:&Vector2,t:f32)->Vector2{
         let dot = Vec1::clamp(Vec2::dot(self._value.borrow(),dest._value.borrow()).borrow(),Vec1::splat(-1.0.borrow()).borrow(),Vec1::splat(1.0.borrow()).borrow());
         let theta = Vec1::mul(Vec1::acos(dot.borrow()).borrow(),Vec1::splat(t).borrow());
         let relative_vec = Vec2::sub(dest.get_simd_vaue().borrow(), Vec2::mul(self.get_simd_value().borrow(), Vec2::from_vec1(dot.borrow())));
@@ -309,7 +309,7 @@ impl Vector2 {
 
     }
 
-    pub unsafe fn nlerp(self,dest:&Vector2,t:&f32)->Vector2{
+    pub unsafe fn nlerp(self,dest:&Vector2,t:f32)->Vector2{
         return self.lerp(dest,t).get_normalized_safe(constants::TOLERANCE.borrow());
     }
 
@@ -317,12 +317,12 @@ impl Vector2 {
         return Vector2::new_xy((-self.get_y()).borrow(), self.get_x().borrow());
     }
 
-    pub unsafe fn is_close(self,v:&Vector2,tolerance:&f32)->bool{
+    pub unsafe fn is_close(self,v:&Vector2,tolerance:f32)->bool{
         let dist = (v - (*self)).get_abs();
         return dist.is_less_equal_than(Vector2::new_x(tolerance).borrow());
     }
 
-    pub unsafe fn is_zero(self, tolerance:&f32) ->bool{
+    pub unsafe fn is_zero(self, tolerance:f32) ->bool{
         let dist = self.get_abs();
         return  dist.is_less_equal_than(Vector2::new_x(tolerance).borrow());
     }
