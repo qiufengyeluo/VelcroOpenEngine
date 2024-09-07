@@ -1,13 +1,66 @@
 #![warn(clip::pedantic)]
 #![allow(clip::many_single_char_names)]
 
-use std::cmp::{Ordering, PartialOrd};
-use crate::math::common_sse::VecType;
-use crate::math::plane::Plane;
+use std::cmp::{Ordering, PartialEq, PartialOrd};
+use crate::math::aabb::Aabb;
+use crate::math::common_sse::{VecFourthType, VecTwoType, VecType};
+use crate::math::frustum::CornerIndices::{FarBottomLeft, FarBottomRight, FarTopLeft, FarTopRight, NearBottomLeft, NearBottomRight, NearTopLeft, NearTopRight};
+use crate::math::frustum::PlaneId::{Bottom, Far, Left, Near, Right, Top};
+use crate::math::math_utils::constants::TOLERANCE;
+use crate::math::matrix3x3::Matrix3x3;
+use crate::math::matrix4x4::Matrix4x4;
+use crate::math::plane::{IntersectResult, Plane};
+use crate::math::shape_intersection::ShapeIntersection;
 use crate::math::simd_math_vec1_sse::Vec1;
+use crate::math::simd_math_vec3_sse::Vec3;
+use crate::math::simd_math_vec4_sse::Vec4;
+use crate::math::sphere::Sphere;
+use crate::math::transform::Transform;
+use crate::math::vector3::Vector3;
 use crate::math::vector4::Vector4;
 use crate::math::vsimd::FloatType;
+use num_enum::TryFromPrimitive;
+use std::convert::TryFrom;
 
+#[derive(Debug, Copy, Clone)]
+pub struct ViewFrustumAttributes
+{
+    _world_transform:Transform,
+     _aspect_ratio: f32,
+     _vertical_fov_radians:f32,
+     _near_clip:f32,
+     _far_clip:f32
+}
+impl ViewFrustumAttributes{
+
+    #[inline]
+    #[allow(dead_code)]
+    pub fn new()->ViewFrustumAttributes{
+        unsafe {
+            ViewFrustumAttributes {
+                _world_transform: Transform::create_identity(),
+                _aspect_ratio: 0.0,
+                _vertical_fov_radians: 0.0,
+                _near_clip: 0.0,
+                _far_clip: 0.0,
+            }
+        }
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub fn new_transform_and4f32(world_transform:&Transform, aspect_ratio:f32, vertical_fov_radians:f32, near_clip:f32, far_clip:f32) ->ViewFrustumAttributes{
+        ViewFrustumAttributes{
+            _world_transform: world_transform.to_owned(),
+            _aspect_ratio: aspect_ratio,
+            _vertical_fov_radians: vertical_fov_radians,
+            _near_clip: near_clip,
+            _far_clip: far_clip,
+
+        }
+    }
+}
+#[derive(Clone, Copy)]
 enum PlaneId
 {
     Near,
@@ -19,12 +72,18 @@ enum PlaneId
     MAX,
 }
 
+#[derive(TryFromPrimitive)]
+#[repr(u32)]
 enum ReverseDepth
 {
     True,
     False,
 }
-
+impl PartialEq<ReverseDepth> for &ReverseDepth {
+    fn eq(&self, other: &ReverseDepth) -> bool {
+        ReverseDepth::try_from(self) == ReverseDepth::try_from(other)
+    }
+}
 enum CornerIndices
 {
     NearTopLeft,
@@ -44,6 +103,8 @@ pub struct Frustum {
     _serialized_planes: [Plane;PlaneId::MAX as usize],
 }
 
+
+
 impl Frustum{
 
     #[inline]
@@ -59,30 +120,28 @@ impl Frustum{
 
     #[inline]
     #[allow(dead_code)]
-    pub fn new_view_frustum_attributes(viewFrustumAttributes:&ViewFrustumAttributes)->Frustum{
-
-    }
-    Frustum::Frustum(const ViewFrustumAttributes& viewFrustumAttributes)
-    {
-    ConstructPlanes(viewFrustumAttributes);
-    }
-
-    #[inline]
-    #[allow(dead_code)]
-    pub fn new_plane(near_plane:&Plane, far_plane:&Plane, left_plane:&Plane, right_plane:&Plane, top_plane:&Plane, bottom_plane:&Plane) ->Frustum{
+    pub unsafe  fn new_view_frustum_attributes(view_frustum_attributes:&ViewFrustumAttributes) ->Frustum{
         let mut result = Frustum::new();
-        result.set_plane(PlaneId::Near.borrow(), near_plane);
-        result.set_plane(PlaneId::Far.borrow(), far_plane);
-        result.set_plane(PlaneId::Left.borrow(), left_plane);
-        result.set_plane(PlaneId::Right.borrow(), right_plane);
-        result.set_plane(PlaneId::Top.borrow(), top_plane);
-        result.set_plane(PlaneId::Bottom.borrow(), bottom_plane);
+        result.construct_planes(view_frustum_attributes);
         result
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub fn create_from_matrix_row_major(matrix:&Matrix4x4, reverse_depth:&ReverseDepth)->Frustum{
+    pub unsafe  fn new_plane(near_plane:&Plane, far_plane:&Plane, left_plane:&Plane, right_plane:&Plane, top_plane:&Plane, bottom_plane:&Plane) ->Frustum{
+        let mut result = Frustum::new();
+        result.set_plane(PlaneId::Near, near_plane);
+        result.set_plane(PlaneId::Far, far_plane);
+        result.set_plane(PlaneId::Left, left_plane);
+        result.set_plane(PlaneId::Right, right_plane);
+        result.set_plane(PlaneId::Top, top_plane);
+        result.set_plane(PlaneId::Bottom, bottom_plane);
+        result
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn create_from_matrix_row_major(matrix:&Matrix4x4, reverse_depth:&ReverseDepth)->Frustum{
         let mut near_plane_id = PlaneId::Far;
         if reverse_depth == ReverseDepth::True{
             near_plane_id = PlaneId::Near;
@@ -92,19 +151,19 @@ impl Frustum{
             far_plane_id = PlaneId::Far;
         }
 
-        let frustum = Frustum::new();
-        frustum.set_plane(near_plane_id.borrow(), Plane::create_from_vector_coefficients(matrix.get_column(2).borrow()));
-        frustum.set_plane(far_plane_id.borrow(), Plane::create_from_vector_coefficients((matrix.get_column(3) - matrix.get_column(2)).borrow()));
-        frustum.set_plane(PlaneId::Left.borrow(),   Plane::create_from_vector_coefficients((matrix.get_column(3) + matrix.get_column(0)).borrow()));
-        frustum.set_plane(PlaneId::Right.borrow(),  Plane::create_from_vector_coefficients((matrix.get_column(3) - matrix.get_column(0)).borrow()));
-        frustum.set_plane(PlaneId::Top.borrow(),    Plane::create_from_vector_coefficients((matrix.get_column(3) - matrix.get_column(1)).borrow()));
-        frustum.set_plane(PlaneId::Bottom.borrow(), Plane::create_from_vector_coefficients((matrix.get_column(3) + matrix.get_column(1)).borrow()));
+        let mut frustum = Frustum::new();
+        frustum.set_plane(near_plane_id, Plane::create_from_vector_coefficients(matrix.get_column(2).borrow()).borrow());
+        frustum.set_plane(far_plane_id, Plane::create_from_vector_coefficients((matrix.get_column(3) - matrix.get_column(2)).borrow()).borrow());
+        frustum.set_plane(PlaneId::Left,   Plane::create_from_vector_coefficients((matrix.get_column(3) + matrix.get_column(0)).borrow()).borrow());
+        frustum.set_plane(PlaneId::Right,  Plane::create_from_vector_coefficients((matrix.get_column(3) - matrix.get_column(0)).borrow()).borrow());
+        frustum.set_plane(PlaneId::Top,    Plane::create_from_vector_coefficients((matrix.get_column(3) - matrix.get_column(1)).borrow()).borrow());
+        frustum.set_plane(PlaneId::Bottom, Plane::create_from_vector_coefficients((matrix.get_column(3) + matrix.get_column(1)).borrow()).borrow());
         frustum
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub fn create_from_matrix_column_major(matrix:&Matrix4x4, reverse_depth:&ReverseDepth)->Frustum{
+    pub unsafe  fn create_from_matrix_column_major(matrix:&Matrix4x4, reverse_depth:&ReverseDepth)->Frustum{
         let mut near_plane_id = PlaneId::Far;
         if reverse_depth == ReverseDepth::True{
             near_plane_id = PlaneId::Near;
@@ -115,19 +174,19 @@ impl Frustum{
         }
 
 
-        let frustum = Frustum::new();
-        frustum.set_plane(near_plane_id.borrow(),     Plane::create_from_vector_coefficients(matrix.get_row(2)));
-        frustum.set_plane(far_plane_id.borrow(),      Plane::create_from_vector_coefficients(matrix.get_row(3) - matrix.get_row(2)));
-        frustum.set_plane(PlaneId::Left.borrow(),   Plane::create_from_vector_coefficients(matrix.get_row(3) + matrix.get_row(0)));
-        frustum.set_plane(PlaneId::Right.borrow(),  Plane::create_from_vector_coefficients(matrix.get_row(3) - matrix.get_row(0)));
-        frustum.set_plane(PlaneId::Top.borrow(),    Plane::create_from_vector_coefficients(matrix.get_row(3) - matrix.get_row(1)));
-        frustum.set_plane(PlaneId::Bottom.borrow(), Plane::create_from_vector_coefficients(matrix.get_row(3) + matrix.get_row(1)));
+        let mut frustum = Frustum::new();
+        frustum.set_plane(near_plane_id,     Plane::create_from_vector_coefficients(matrix.get_row(2).borrow()).borrow());
+        frustum.set_plane(far_plane_id,      Plane::create_from_vector_coefficients((matrix.get_row(3) - matrix.get_row(2)).borrow()).borrow());
+        frustum.set_plane(PlaneId::Left,   Plane::create_from_vector_coefficients((matrix.get_row(3) + matrix.get_row(0)).borrow()).borrow());
+        frustum.set_plane(PlaneId::Right,  Plane::create_from_vector_coefficients((matrix.get_row(3) - matrix.get_row(0)).borrow()).borrow());
+        frustum.set_plane(PlaneId::Top,    Plane::create_from_vector_coefficients((matrix.get_row(3) - matrix.get_row(1)).borrow()).borrow());
+        frustum.set_plane(PlaneId::Bottom, Plane::create_from_vector_coefficients((matrix.get_row(3) + matrix.get_row(1)).borrow()).borrow());
         frustum
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub fn create_from_matrix_row_major_symmetric_z(matrix:&Matrix4x4,reverse_depth:&ReverseDepth)->Frustum{
+    pub unsafe  fn create_from_matrix_row_major_symmetric_z(matrix:&Matrix4x4,reverse_depth:&ReverseDepth)->Frustum{
         let mut near_plane_id = PlaneId::Far;
         if reverse_depth == ReverseDepth::True{
             near_plane_id = PlaneId::Near;
@@ -137,265 +196,241 @@ impl Frustum{
             far_plane_id = PlaneId::Far;
         }
 
-        let frustum = Frustum::new();
-        frustum.set_plane(near_plane_id.borrow(),     Plane::create_from_vector_coefficients(matrix.get_column(3) + matrix.get_column(2)));
-        frustum.set_plane(far_plane_id.borrow(),      Plane::create_from_vector_coefficients(matrix.get_column(3) - matrix.get_column(2)));
-        frustum.set_plane(PlaneId::Left.borrow(),   Plane::create_from_vector_coefficients(matrix.get_column(3) + matrix.get_column(0)));
-        frustum.set_plane(PlaneId::Right.borrow(),  Plane::create_from_vector_coefficients(matrix.get_column(3) - matrix.get_column(0)));
-        frustum.set_plane(PlaneId::Top.borrow(),    Plane::create_from_vector_coefficients(matrix.get_column(3) - matrix.get_column(1)));
-        frustum.set_plane(PlaneId::Bottom.borrow(), Plane::create_from_vector_coefficients(matrix.get_column(3) + matrix.get_column(1)));
+        let mut frustum = Frustum::new();
+        frustum.set_plane(near_plane_id,     Plane::create_from_vector_coefficients((matrix.get_column(3) + matrix.get_column(2)).borrow()).borrow());
+        frustum.set_plane(far_plane_id,      Plane::create_from_vector_coefficients((matrix.get_column(3) - matrix.get_column(2)).borrow()).borrow());
+        frustum.set_plane(PlaneId::Left,   Plane::create_from_vector_coefficients((matrix.get_column(3) + matrix.get_column(0)).borrow()).borrow());
+        frustum.set_plane(PlaneId::Right,  Plane::create_from_vector_coefficients((matrix.get_column(3) - matrix.get_column(0)).borrow()).borrow());
+        frustum.set_plane(PlaneId::Top,    Plane::create_from_vector_coefficients((matrix.get_column(3) - matrix.get_column(1)).borrow()).borrow());
+        frustum.set_plane(PlaneId::Bottom, Plane::create_from_vector_coefficients((matrix.get_column(3) + matrix.get_column(1)).borrow()).borrow());
         frustum
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub fn create_from_matrix_column_major_symmetric_z(matrix:&Matrix4x4,reverseDepth:&ReverseDepth)->Frustum{
-        const PlaneId nearPlaneId = (reverseDepth == ReverseDepth::True) ? PlaneId::Far  : PlaneId::Near;
-        const PlaneId farPlaneId  = (reverseDepth == ReverseDepth::True) ? PlaneId::Near : PlaneId::Far;
+    pub unsafe  fn create_from_matrix_column_major_symmetric_z(matrix:&Matrix4x4,reverse_depth:&ReverseDepth)->Frustum{
+        let mut near_plane_id = PlaneId::Far;
+        if reverse_depth == ReverseDepth::True{
+            near_plane_id = PlaneId::Near;
+        }
+        let mut far_plane_id =PlaneId::Near;
+        if reverse_depth == ReverseDepth::True{
+            far_plane_id = PlaneId::Far;
+        }
 
-        Frustum frustum;
-        frustum.SetPlane(nearPlaneId,     Plane::CreateFromVectorCoefficients(matrix.GetRow(3) + matrix.GetRow(2)));
-        frustum.SetPlane(farPlaneId,      Plane::CreateFromVectorCoefficients(matrix.GetRow(3) - matrix.GetRow(2)));
-        frustum.SetPlane(PlaneId::Left,   Plane::CreateFromVectorCoefficients(matrix.GetRow(3) + matrix.GetRow(0)));
-        frustum.SetPlane(PlaneId::Right,  Plane::CreateFromVectorCoefficients(matrix.GetRow(3) - matrix.GetRow(0)));
-        frustum.SetPlane(PlaneId::Top,    Plane::CreateFromVectorCoefficients(matrix.GetRow(3) - matrix.GetRow(1)));
-        frustum.SetPlane(PlaneId::Bottom, Plane::CreateFromVectorCoefficients(matrix.GetRow(3) - matrix.GetRow(1)));
+        let mut frustum = Frustum::new();
+        frustum.set_plane(near_plane_id,     Plane::create_from_vector_coefficients((matrix.get_row(3) + matrix.get_row(2)).borrow()).borrow());
+        frustum.set_plane(far_plane_id,      Plane::create_from_vector_coefficients((matrix.get_row(3) - matrix.get_row(2)).borrow()).borrow());
+        frustum.set_plane(PlaneId::Left,   Plane::create_from_vector_coefficients((matrix.get_row(3) + matrix.get_row(0)).borrow()).borrow());
+        frustum.set_plane(PlaneId::Right,  Plane::create_from_vector_coefficients((matrix.get_row(3) - matrix.get_row(0)).borrow()).borrow());
+        frustum.set_plane(PlaneId::Top,    Plane::create_from_vector_coefficients((matrix.get_row(3) - matrix.get_row(1)).borrow()).borrow());
+        frustum.set_plane(PlaneId::Bottom, Plane::create_from_vector_coefficients((matrix.get_row(3) - matrix.get_row(1)).borrow()).borrow());
         return frustum;
     }
-    Frustum Frustum::CreateFromMatrixColumnMajorSymmetricZ(const Matrix4x4& matrix, ReverseDepth reverseDepth)
-    {
-    const PlaneId nearPlaneId = (reverseDepth == ReverseDepth::True) ? PlaneId::Far  : PlaneId::Near;
-    const PlaneId farPlaneId  = (reverseDepth == ReverseDepth::True) ? PlaneId::Near : PlaneId::Far;
 
-    Frustum frustum;
-    frustum.SetPlane(nearPlaneId,     Plane::CreateFromVectorCoefficients(matrix.GetRow(3) + matrix.GetRow(2)));
-    frustum.SetPlane(farPlaneId,      Plane::CreateFromVectorCoefficients(matrix.GetRow(3) - matrix.GetRow(2)));
-    frustum.SetPlane(PlaneId::Left,   Plane::CreateFromVectorCoefficients(matrix.GetRow(3) + matrix.GetRow(0)));
-    frustum.SetPlane(PlaneId::Right,  Plane::CreateFromVectorCoefficients(matrix.GetRow(3) - matrix.GetRow(0)));
-    frustum.SetPlane(PlaneId::Top,    Plane::CreateFromVectorCoefficients(matrix.GetRow(3) - matrix.GetRow(1)));
-    frustum.SetPlane(PlaneId::Bottom, Plane::CreateFromVectorCoefficients(matrix.GetRow(3) - matrix.GetRow(1)));
-    return frustum;
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn get_plane(self, plane_id:PlaneId) ->Plane{
+        return Plane::new_float_type(self._planes[plane_id])
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe  fn set_plane(&mut self, plane_id: PlaneId, plane:&Plane){
+        self._serialized_planes[plane_id] = plane;
+
+        let length_squared = Vec4::from_vec1(Vec3::dot(plane.get_normal().get_simd_value(), plane.get_normal().get_simd_value()));
+        let length = Vec4::sqrt(length_squared);
+        self._planes[plane_id] = Vec4::div(plane.get_simd_value(), length);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn intersect_sphere_vec3_f32(self,center:&Vector3,radius:f32)->IntersectResult{
+        let mut intersect = false;
+        for i in PlaneId::Near .. PlaneId::MAX{
+            let distance = Vec1::select_index0(Vec4::plane_distance(self._planes[i], center.get_simd_value()));
+
+            if (distance < -radius)
+            {
+                return IntersectResult::Exterior;
+            }
+
+            intersect |= (f32::fabsf(distance) < radius);
+        }
+        if intersect{
+            IntersectResult::Overlaps
+        }else {
+            IntersectResult::Interior
+        }
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn intersect_sphere(self,sphere:&Sphere)->IntersectResult{
+        return self.intersect_sphere_vec3_f32(sphere.get_center().borrow(),sphere.get_radius());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn intersect_aabb_2vec3(self,minimum:&Vector3,maximum:&Vector3)->IntersectResult{
+        return  self.intersect_aabb(Aabb::create_from_min_max(minimum, maximum).borrow())
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn intersect_aabb(self,aabb:&Aabb)->IntersectResult{
+        let mut num_interior = 0u32;
+
+        for  i in PlaneId::Near .. PlaneId::MAX
+        {
+            let disjoint_support = aabb.get_support(-Vector3::new_float_type(Vec4::value_to_vec3(self._planes[i])));
+            let disjoint_distance = Vec1::select_index0(Vec4::plane_distance(self._planes[i], disjoint_support.get_simd_value()));
+
+            if (disjoint_distance < 0.0)
+            {
+                return IntersectResult::Exterior;
+            }
+
+            let intersect_support = aabb.get_support(Vector3::new_float_type(Vec4::value_to_vec3(self._planes[i])).borrow());
+            let intersect_distance = Vec1::select_index0(Vec4::plane_distance(self._planes[i], intersect_support.get_simd_value()));
+
+            if (intersect_distance >= 0.)
+            {
+                // If the whole AABB passes the plane check, increment the number of planes the AABB is 'interior' to
+                num_interior += 1;
+            }
+        }
+
+        if num_interior < PlaneId::MAX as u32{
+            IntersectResult::Overlaps
+        }else {
+            IntersectResult::Interior
+        }
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn is_close_default(self,rhs:&Frustum)->bool{
+        return self.is_close(rhs,TOLERANCE)
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn is_close(self,rhs:&Frustum,tolerance:f32)->bool{
+        return Vector4::new_float_type(self._planes[PlaneId::Near  ]).is_close(Vector4::new_float_type(rhs._planes[PlaneId::Near  ]).borrow(), tolerance)
+            && Vector4::new_float_type(self._planes[PlaneId::Far   ]).is_close(Vector4::new_float_type(rhs._planes[PlaneId::Far   ]).borrow(), tolerance)
+            && Vector4::new_float_type(self._planes[PlaneId::Left  ]).is_close(Vector4::new_float_type(rhs._planes[PlaneId::Left  ]).borrow(), tolerance)
+            && Vector4::new_float_type(self._planes[PlaneId::Right ]).is_close(Vector4::new_float_type(rhs._planes[PlaneId::Right ]).borrow(), tolerance)
+            && Vector4::new_float_type(self._planes[PlaneId::Top   ]).is_close(Vector4::new_float_type(rhs._planes[PlaneId::Top   ]).borrow(), tolerance)
+            && Vector4::new_float_type(self._planes[PlaneId::Bottom]).is_close(Vector4::new_float_type(rhs._planes[PlaneId::Bottom]).borrow(), tolerance);
     }
 
     #[inline]
     #[allow(dead_code)]
     pub fn set(&mut self,frustum:&Frustum){
-        let mut planeId = PlaneId::Near;
-        while planeId < PlaneId::MAX {
-
+        for plane_id in PlaneId::Near .. PlaneId::MAX {
+            unsafe { self.set_plane(plane_id, frustum._serialized_planes[plane_id]); }
         }
     }
-    void Frustum::Set(const Frustum& frustum)
-    {
-    for (PlaneId planeId = PlaneId::Near; planeId < PlaneId::MAX; ++planeId)
-    {
-    SetPlane(planeId, frustum.m_serializedPlanes[planeId]);
-    }
-    }
 
-
-    void Frustum::ConstructPlanes(const ViewFrustumAttributes& viewFrustumAttributes)
-    {
-    const float tanHalfFov = std::tan(viewFrustumAttributes.m_verticalFovRadians * 0.5f);
-    const float nearPlaneHalfHeight = tanHalfFov * viewFrustumAttributes.m_nearClip;
-    const float nearPlaneHalfWidth = nearPlaneHalfHeight * viewFrustumAttributes.m_aspectRatio;
-
-    const Vector3 translation = viewFrustumAttributes.m_worldTransform.GetTranslation();
-    const Vector3 forward = viewFrustumAttributes.m_worldTransform.GetBasisY();
-    const Vector3 right = viewFrustumAttributes.m_worldTransform.GetBasisX();
-    const Vector3 up = viewFrustumAttributes.m_worldTransform.GetBasisZ();
-
-    SetPlane(
-    PlaneId::Near,
-    Plane::CreateFromNormalAndPoint(forward, translation + (forward * viewFrustumAttributes.m_nearClip)));
-    SetPlane(
-    PlaneId::Far,
-    Plane::CreateFromNormalAndPoint(-forward, translation + (forward * viewFrustumAttributes.m_farClip)));
-
-    const Vector3 leftNormal =
-    (right + forward * (nearPlaneHalfWidth / viewFrustumAttributes.m_nearClip)).GetNormalized();
-    const Vector3 rightNormal =
-    (-right + forward * (nearPlaneHalfWidth / viewFrustumAttributes.m_nearClip)).GetNormalized();
-
-    SetPlane(PlaneId::Left, Plane::CreateFromNormalAndPoint(leftNormal, translation));
-    SetPlane(PlaneId::Right, Plane::CreateFromNormalAndPoint(rightNormal, translation));
-
-    const Vector3 topNormal =
-    (-up + forward * (nearPlaneHalfHeight / viewFrustumAttributes.m_nearClip)).GetNormalized();
-    const Vector3 bottomNormal =
-    (up + forward * (nearPlaneHalfHeight / viewFrustumAttributes.m_nearClip)).GetNormalized();
-
-    SetPlane(PlaneId::Top, Plane::CreateFromNormalAndPoint(topNormal, translation));
-    SetPlane(PlaneId::Bottom, Plane::CreateFromNormalAndPoint(bottomNormal, translation));
-    }
-
-
-    ViewFrustumAttributes Frustum::CalculateViewFrustumAttributes() const
-    {
-    using Simd::Vec4;
-
-    ViewFrustumAttributes viewFrustumAttributes;
-
-    const Vector3 forward = Vector4(m_planes[PlaneId::Near]).GetAsVector3().GetNormalized();
-    const Vector3 right =
-    Vector4(Vec4::Sub(m_planes[PlaneId::Left], m_planes[PlaneId::Right])).GetAsVector3().GetNormalized();
-    const Vector3 up =
-    Vector4(Vec4::Sub(m_planes[PlaneId::Bottom], m_planes[PlaneId::Top])).GetAsVector3().GetNormalized();
-
-    const Matrix3x3 orientation = Matrix3x3::CreateFromColumns(right, forward, up);
-    const Plane bottom(m_planes[PlaneId::Bottom]);
-    const Plane top(m_planes[PlaneId::Top]);
-    const Plane left(m_planes[PlaneId::Left]);
-
-    // solve a set of simultaneous equations to find the point that is contained within all planes
-    // (note: this is not a transformation, it is simply using Matrix3x3 to perform some linear algebra)
-    const Vector3 origin =
-    -Matrix3x3::CreateFromRows(bottom.GetNormal(), top.GetNormal(), left.GetNormal()).GetInverseFull() *
-    Vector3(bottom.GetDistance(), top.GetDistance(), left.GetDistance());
-
-    viewFrustumAttributes.m_worldTransform = Transform::CreateFromMatrix3x3AndTranslation(orientation, origin);
-
-    const float originDotForward = origin.Dot(forward);
-    const float nearClip = -Vec4::SelectIndex3(m_planes[PlaneId::Near]) - originDotForward;
-
-    viewFrustumAttributes.m_nearClip = nearClip;
-    viewFrustumAttributes.m_farClip = Vec4::SelectIndex3(m_planes[PlaneId::Far]) - originDotForward;
-
-    const float leftNormalDotForward = left.GetNormal().Dot(forward);
-    const float frustumNearHeight =
-    2.0f * nearClip * leftNormalDotForward / std::sqrt(1.0f - leftNormalDotForward * leftNormalDotForward);
-    const float bottomNormalDotForward = bottom.GetNormal().Dot(forward);
-    const float tanHalfFov =
-    bottomNormalDotForward / std::sqrt(1.0f - bottomNormalDotForward * bottomNormalDotForward);
-    const float frustumNearWidth = 2.0f * nearClip * tanHalfFov;
-
-    viewFrustumAttributes.m_aspectRatio = frustumNearHeight / frustumNearWidth;
-    viewFrustumAttributes.m_verticalFovRadians = 2.0f * std::atan(tanHalfFov);
-
-    return viewFrustumAttributes;
-}
-
-bool Frustum::GetCorners(CornerVertexArray& corners) const
-{
-using ShapeIntersection::IntersectThreePlanes;
-
-return
-IntersectThreePlanes(GetPlane(Near), GetPlane(Top), GetPlane(Left), corners[NearTopLeft]) &&
-IntersectThreePlanes(GetPlane(Near), GetPlane(Top), GetPlane(Right), corners[NearTopRight]) &&
-IntersectThreePlanes(GetPlane(Near), GetPlane(Bottom), GetPlane(Left), corners[NearBottomLeft]) &&
-IntersectThreePlanes(GetPlane(Near), GetPlane(Bottom), GetPlane(Right), corners[NearBottomRight]) &&
-IntersectThreePlanes(GetPlane(Far), GetPlane(Top), GetPlane(Left), corners[FarTopLeft]) &&
-IntersectThreePlanes(GetPlane(Far), GetPlane(Top), GetPlane(Right), corners[FarTopRight]) &&
-IntersectThreePlanes(GetPlane(Far), GetPlane(Bottom), GetPlane(Left), corners[FarBottomLeft]) &&
-IntersectThreePlanes(GetPlane(Far), GetPlane(Bottom), GetPlane(Right), corners[FarBottomRight])
-;
-}
-
-inline Frustum::PlaneId operator++(Frustum::PlaneId& planeId)
-{
-planeId = (Frustum::PlaneId)(planeId + 1);
-return planeId;
-}
-
-AZ_MATH_INLINE Frustum::Frustum()
-{
-#ifdef AZ_DEBUG_BUILD
-for (PlaneId i = PlaneId::Near; i < PlaneId::MAX; ++i)
-{
-m_planes[i] = Simd::Vec4::Splat(std::numeric_limits<float>::signaling_NaN());
-}
-#endif
-}
-
-AZ_MATH_INLINE Plane Frustum::GetPlane(PlaneId planeId) const
-{
-return Plane(m_planes[planeId]);
-}
-
-AZ_MATH_INLINE void Frustum::SetPlane(PlaneId planeId, const Plane& plane)
-{
-using namespace Simd;
-m_serializedPlanes[planeId] = plane;
-
-//normalize the plane by dividing each element by the length of the normal
-const Vec4::FloatType lengthSquared = Vec4::FromVec1(Vec3::Dot(plane.GetNormal().GetSimdValue(), plane.GetNormal().GetSimdValue()));
-const Vec4::FloatType length = Vec4::Sqrt(lengthSquared);
-m_planes[planeId] = Vec4::Div(plane.GetSimdValue(), length);
-}
-
-AZ_MATH_INLINE IntersectResult Frustum::IntersectSphere(const Vector3& center, float radius) const
-{
-bool intersect = false;
-
-for (PlaneId i = PlaneId::Near; i < PlaneId::MAX; ++i)
-{
-const float distance = Simd::Vec1::SelectIndex0(Simd::Vec4::PlaneDistance(m_planes[i], center.GetSimdValue()));
-
-if (distance < -radius)
-{
-return IntersectResult::Exterior;
-}
-
-intersect |= (fabsf(distance) < radius);
-}
-
-return intersect ? IntersectResult::Overlaps : IntersectResult::Interior;
-}
-
-AZ_MATH_INLINE IntersectResult Frustum::IntersectSphere(const Sphere& sphere) const
-{
-return IntersectSphere(sphere.GetCenter(), sphere.GetRadius());
-}
-
-AZ_MATH_INLINE IntersectResult Frustum::IntersectAabb(const Vector3& minimum, const Vector3& maximum) const
-{
-return IntersectAabb(Aabb::CreateFromMinMax(minimum, maximum));
-}
-
-AZ_MATH_INLINE IntersectResult Frustum::IntersectAabb(const Aabb& aabb) const
-{
-// Count the number of planes where the AABB is inside
-uint32_t numInterior = 0;
-
-for (PlaneId i = PlaneId::Near; i < PlaneId::MAX; ++i)
-{
-const Vector3 disjointSupport = aabb.GetSupport(-Vector3(Simd::Vec4::ToVec3(m_planes[i])));
-const float   disjointDistance = Simd::Vec1::SelectIndex0(Simd::Vec4::PlaneDistance(m_planes[i], disjointSupport.GetSimdValue()));
-
-if (disjointDistance < 0.0f)
-{
-return IntersectResult::Exterior;
-}
-
-// We now know the interior point we just checked passes the plane check..
-// Check an exterior support point to determine whether or not the whole AABB is contained or if this is an intersection
-const Vector3 intersectSupport = aabb.GetSupport(Vector3(Simd::Vec4::ToVec3(m_planes[i])));
-const float   intersectDistance = Simd::Vec1::SelectIndex0(Simd::Vec4::PlaneDistance(m_planes[i], intersectSupport.GetSimdValue()));
-
-if (intersectDistance >= 0.0f)
-{
-// If the whole AABB passes the plane check, increment the number of planes the AABB is 'interior' to
-++numInterior;
-}
-}
-
-// If the AABB is interior to all planes, we're contained, else we intersect
-return (numInterior < PlaneId::MAX) ? IntersectResult::Overlaps : IntersectResult::Interior;
-}
 
     #[inline]
     #[allow(dead_code)]
-    pub fn is_close(self, rhs:&Frustum,tolerance:&f32)->bool{
+    pub unsafe  fn construct_planes(&mut self, view_frustum_attributes:&ViewFrustumAttributes){
+        let tan_half_fov = f32::tan(view_frustum_attributes._vertical_fov_radians * 0.5);
+        let near_plane_half_height = tan_half_fov * view_frustum_attributes._near_clip;
+        let near_plane_half_width = near_plane_half_height * view_frustum_attributes._aspect_ratio;
+
+        let translation = unsafe { view_frustum_attributes._world_transform.get_translation() };
+        let forward = unsafe { view_frustum_attributes._world_transform.get_basis_y() };
+        let right = unsafe { view_frustum_attributes._world_transform.get_basis_x() };
+        let up = unsafe { view_frustum_attributes._world_transform.get_basis_z() };
+
         unsafe {
-            return Vector4::new_float_type(self._planes[PlaneId::Near].borrow()).is_close(Vector4::new_float_type(rhs._planes[PlaneId::Near].borrow()).borrow(), tolerance)
-                && Vector4::new_float_type(self._planes[PlaneId::Far].borrow()).is_close(Vector4::new_float_type(rhs._planes[PlaneId::Far].borrow()).borrow(), tolerance)
-                && Vector4::new_float_type(self._planes[PlaneId::Left].borrow()).is_close(Vector4::new_float_type(rhs._planes[PlaneId::Left].borrow()).borrow(), tolerance)
-                && Vector4::new_float_type(self._planes[PlaneId::Right].borrow()).is_close(Vector4::new_float_type(rhs._planes[PlaneId::Right].borrow()).borrow(), tolerance)
-                && Vector4::new_float_type(self._planes[PlaneId::Top].borrow()).is_close(Vector4::new_float_type(rhs._planes[PlaneId::Top].borrow()).borrow(), tolerance)
-                && Vector4::new_float_type(self._planes[PlaneId::Bottom].borrow()).is_close(Vector4::new_float_type(rhs._planes[PlaneId::Bottom].borrow()).borrow(), tolerance);
+            self.set_plane(
+                PlaneId::Near,
+                Plane::create_from_normal_and_point(forward.borrow(), (translation + (forward * view_frustum_attributes._near_clip)).borrow()).borrow());
         }
+        unsafe {
+            self.set_plane(
+                PlaneId::Far,
+                Plane::create_from_normal_and_point((-forward).borrow(), (translation + (forward * view_frustum_attributes._far_clip)).borrow()).borrow());
+        }
+
+        let left_normal =
+            unsafe { (right + forward * (near_plane_half_width / view_frustum_attributes._near_clip)).get_normalized() };
+        let right_normal =
+            (-right + forward * (near_plane_half_width / view_frustum_attributes._near_clip)).get_normalized();
+
+        self.set_plane(PlaneId::Left, Plane::create_from_normal_and_point(left_normal, translation));
+        self.set_plane(PlaneId::Right, Plane::create_from_normal_and_point(right_normal, translation));
+
+        let top_normal =
+            (-up + forward * (near_plane_half_height / view_frustum_attributes._near_clip)).get_normalized();
+        let bottom_normal =
+            unsafe { (up + forward * (near_plane_half_height / view_frustum_attributes._near_clip)).get_normalized() };
+
+        self.set_plane(PlaneId::Top, Plane::CreateFromNormalAndPoint(top_normal, translation));
+        self.set_plane(PlaneId::Bottom, Plane::CreateFromNormalAndPoint(bottom_normal, translation));
     }
 
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn calculate_view_frustum_attributes(self)->ViewFrustumAttributes{
+
+        let mut view_frustum_attributes = ViewFrustumAttributes::new();
+
+        let forward =  Vector4::new_float_type(self._planes[PlaneId::Near]).get_as_vector3().get_normalized();
+        let right =
+            Vector4::new_float_type(Vec4::sub(self._planes[PlaneId::Left], self._planes[PlaneId::Right])).get_as_vector3().get_normalized();
+        let up =
+            Vector4::new_float_type(Vec4::sub(self._planes[PlaneId::Bottom], self._planes[PlaneId::Top])).get_as_vector3().get_normalized();
+
+        let orientation = Matrix3x3::create_from_columns(right.borrow(), forward.borrow(), up.borrow());
+        let bottom =Plane::new_float_type(self._planes[PlaneId::Bottom]) ;
+        let top = Plane::new_float_type(self._planes[PlaneId::Top]);
+        let left = Plane::new_float_type(self._planes[PlaneId::Left]);
+        let origin = (-Matrix3x3::create_from_rows(bottom.get_normal().borrow(), top.get_normal().borrow(), left.get_normal().borrow()).get_inverse_full()) * Vector3::new_xyz(bottom.get_distance(), top.get_distance(), left.get_distance()).borrow();
+
+
+        view_frustum_attributes._world_transform = Transform::create_from_matrix3x3and_translation(orientation.borrow(), origin.borrow());
+
+        let origin_dot_forward = origin.dot3(forward.borrow());
+        let near_clip = -Vec4::select_index3(self._planes[PlaneId::Near]) - origin_dot_forward;
+
+        view_frustum_attributes._near_clip = near_clip;
+        view_frustum_attributes._far_clip = Vec4::SelectIndex3(self._planes[PlaneId::Far]) - origin_dot_forward;
+
+        let left_normal_dot_forward = left.get_normal().dot3(forward.borrow());
+        let frustum_near_height =
+            2.0 * near_clip * left_normal_dot_forward / f32::sqrt(1.0 - left_normal_dot_forward * left_normal_dot_forward);
+        let bottom_normal_dot_forward = bottom.get_normal().dot3(forward);
+        let tan_half_fov =
+            bottom_normal_dot_forward / f32::sqrt(1.0 - bottom_normal_dot_forward * bottom_normal_dot_forward);
+        let frustum_near_width = 2.0 * near_clip * tan_half_fov;
+
+        view_frustum_attributes._aspect_ratio = frustum_near_height / frustum_near_width;
+        view_frustum_attributes._vertical_fov_radians = 2.0 * f32::atan(tan_half_fov);
+
+        return view_frustum_attributes;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_corners(self,corners:&CornerVertexArray)->bool{
+        return
+        ShapeIntersection::intersect_three_planes(self.get_plane(Near).borrow(), self.get_plane(Top).borrow(), self.get_plane(Left).borrow(), corners[NearTopLeft]) &&
+            ShapeIntersection::intersect_three_planes(self.get_plane(Near).borrow(), self.get_plane(Top).borrow(), self.get_plane(Right).borrow(), corners[NearTopRight]) &&
+            ShapeIntersection::intersect_three_planes(self.get_plane(Near).borrow(), self.get_plane(Bottom).borrow(), self.get_plane(Left).borrow(), corners[NearBottomLeft]) &&
+            ShapeIntersection::intersect_three_planes(self.get_plane(Near).borrow(), self.get_plane(Bottom).borrow(), self.get_plane(Right).borrow(), corners[NearBottomRight]) &&
+            ShapeIntersection::intersect_three_planes(self.get_plane(Far).borrow(), self.get_plane(Top).borrow(), self.get_plane(Left).borrow(), corners[FarTopLeft]) &&
+            ShapeIntersection::intersect_three_planes(self.get_plane(Far).borrow(), self.get_plane(Top).borrow(), self.get_plane(Right).borrow(), corners[FarTopRight]) &&
+            ShapeIntersection::intersect_three_planes(self.get_plane(Far).borrow(), self.get_plane(Bottom).borrow(), self.get_plane(Left).borrow(), corners[FarBottomLeft]) &&
+            ShapeIntersection::intersect_three_planes(self.get_plane(Far).borrow(), self.get_plane(Bottom).borrow(), self.get_plane(Right).borrow(), corners[FarBottomRight])
+        ;
+    }
 }
 
 

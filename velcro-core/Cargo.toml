@@ -23,6 +23,6 @@ parking_lot = "0.12.0"
 byteorder = "1.4.3"
 bitflags = "2.2.1"
 serde = { version = "1", features = ["derive"] }
-
+num_enum = "0.5.1"
 [features]
 

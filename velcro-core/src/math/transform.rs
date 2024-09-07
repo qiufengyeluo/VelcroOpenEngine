@@ -3,7 +3,11 @@
 
 use std::ops::{Mul, MulAssign};
 use crate::math::math_utils::constants;
+use crate::math::math_utils::constants::Axis;
+use crate::math::matrix3x3::Matrix3x3;
+use crate::math::matrix3x4::Matrix3x4;
 use crate::math::quaternion::Quaternion;
+use crate::math::simd_math::simd;
 use crate::math::vector3::Vector3;
 use crate::math::vector4::Vector4;
 
@@ -76,19 +80,19 @@ impl Transform {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn create_rotation_x(angle:&f32)->Transform{
+    pub unsafe fn create_rotation_x(angle:f32)->Transform{
         return Transform::create_from_quaternion(Quaternion::create_rotation_x(angle).borrow());
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn create_rotation_y(angle:&f32)->Transform{
+    pub unsafe fn create_rotation_y(angle:f32)->Transform{
         return Transform::create_from_quaternion(Quaternion::create_rotation_y(angle).borrow());
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn create_rotation_z(angle:&f32)->Transform{
+    pub unsafe fn create_rotation_z(angle:f32)->Transform{
         return Transform::create_from_quaternion(Quaternion::create_rotation_z(angle).borrow());
     }
 
@@ -154,19 +158,19 @@ impl Transform {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn get_basis_x(self)->Vector3{
-        return self._rotation.transform_vector(Vector3::create_axis_x(self._scale.borrow()).borrow());
+        return self._rotation.transform_vector(Vector3::create_axis_x(self._scale).borrow());
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn get_basis_y(self)->Vector3{
-        return self._rotation.transform_vector(Vector3::create_axis_y(self._scale.borrow()).borrow());
+        return self._rotation.transform_vector(Vector3::create_axis_y(self._scale).borrow());
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn get_basis_z(self)->Vector3{
-        return self._rotation.transform_vector(Vector3::create_axis_z(self._scale.borrow()).borrow());
+        return self._rotation.transform_vector(Vector3::create_axis_z(self._scale).borrow());
     }
 
     #[inline]
@@ -187,7 +191,7 @@ impl Transform {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn set_translation(&mut self, x:&f32,y:&f32,z:&f32){
+    pub unsafe fn set_translation(&mut self, x:f32,y:f32,z:f32){
         self.set_translation_vec3(Vector3::new_xyz(x,y,z).borrow());
     }
 
@@ -272,8 +276,8 @@ impl Transform {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn is_orthogonal(self,tolerance:&f32)->bool{
-        return constants::is_close_f32(self._scale.borrow(),1.0.borrow(),tolerance)
+    pub unsafe fn is_orthogonal(self,tolerance:f32)->bool{
+        return constants::is_close_f32(self._scale,1.0,tolerance)
     }
 
     #[inline]
@@ -294,9 +298,9 @@ impl Transform {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn is_close(self,rhs:&Transform,tolerance:&f32)->bool{
+    pub unsafe fn is_close(self,rhs:&Transform,tolerance:f32)->bool{
         return self._rotation.is_close(rhs._rotation.borrow(),tolerance)
-            && constants::is_close_f32(self._scale.borrow(),rhs._scale.borrow(),tolerance)
+            && constants::is_close_f32(self._scale,rhs._scale,tolerance)
             && self._translation.is_close(rhs._translation.borrow(),tolerance)
     }
 
@@ -331,7 +335,7 @@ impl Transform {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn is_finite(self)->bool{
-        return self._rotation.is_finite() && constants::is_finite_float(self._scale.borrow()) && self._translation.is_finite()
+        return self._rotation.is_finite() && constants::is_finite_float(self._scale) && self._translation.is_finite()
     }
 
     #[inline]
@@ -360,6 +364,94 @@ impl Transform {
         let mut final_rotation:Transform = Transform::new();
         final_rotation.set_from_euler_radians(euler_radians);
         final_rotation
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_from_matrix3x3(value:&Matrix3x3)->Transform{
+        let mut result= Transform::new();
+        let mut tmp = value.to_owned();
+        result._scale = tmp.extract_scale().get_max_element();
+        result._rotation = Quaternion::create_from_matrix3x3(tmp.borrow());
+        result._translation = Vector3::create_zero();
+        return result;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_from_matrix3x3and_translation(value:&Matrix3x3,p:&Vector3)->Transform{
+        let mut result= Transform::new();
+        let mut tmp = value.to_owned();
+        result._scale = tmp.extract_scale().get_max_element();
+        result._rotation = Quaternion::create_from_matrix3x3(tmp.borrow());
+        result._translation = p.to_owned();
+        return result;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_from_matrix3x4(value:&Matrix3x4)->Transform{
+        let mut result= Transform::new();
+        let mut tmp = value.to_owned();
+        result._scale = tmp.extract_scale().get_max_element();
+        result._rotation = Quaternion::create_from_matrix3x4(tmp.borrow());
+        result._translation = value.get_translation();
+        return result;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn create_look_at(from:&Vector3, to :&Vector3, forward_axis:Transform::Axis) ->Transform{
+        let mut result =Transform::create_identity();
+
+        let target_forward = to - from;
+
+        if (target_forward.is_zero_default())
+        {
+            return result;
+        }
+
+        target_forward.normalize();
+
+        let mut up = Vector3::create_axis_z(1.0);
+
+        let abs_dot =simd::abs(target_forward.dot3(up.borrow()));
+        if (abs_dot > 1.0 - 0.001)
+        {
+            up = target_forward.cross_y_axis();
+        }
+
+        let mut right = target_forward.cross(up.borrow());
+        right.normalize();
+        up = right.cross(target_forward.borrow());
+        up.normalize();
+
+        match forward_axis {
+            Axis::XPositive=>{
+                result._rotation = Quaternion::create_from_basis(target_forward.borrow(), (-right).borrow(), up.borrow());
+            }
+            Axis::XNegative=>{
+                result._rotation = Quaternion::create_from_basis((-target_forward).borrow(), right.borrow(), up.borrow());
+            }
+            Axis::YPositive=>{
+                result._rotation = Quaternion::create_from_basis(right.borrow(), target_forward.borrow(), up.borrow());
+            }
+            Axis::YNegative=>{
+                result._rotation = Quaternion::create_from_basis((-right).borrow(), -target_forward, up.borrow());
+            }
+            Axis::ZPositive=> {
+                result._rotation = Quaternion::create_from_basis(right.borrow(), (-up).borrow(), target_forward.borrow());
+            }
+               Axis::ZNegative=> {
+                   result._rotation = Quaternion::create_from_basis(right.borrow(), up.borrow(), (-target_forward).borrow());
+               }
+            _=>{
+                result._rotation = Quaternion::create_from_basis(right.borrow(), target_forward.borrow(), up.borrow());
+            }
+        }
+
+        result.set_translation_vec3(from);
+        return result;
     }
 
 }

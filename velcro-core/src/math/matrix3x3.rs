@@ -2,7 +2,7 @@
 #![allow(clip::many_single_char_names)]
 
 use std::fmt::Debug;
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 use crate::math::common_sse::{Vec3Type, VecTwoType, VecType};
 use crate::math::math_utils::constants;
@@ -107,6 +107,14 @@ impl MulAssign<f32> for Matrix3x3{
     }
 }
 
+impl Mul<&Vector3> for Matrix3x3 {
+    type Output = Vector3;
+
+    fn mul(self, rhs: &Vector3) -> Self::Output {
+        unsafe { return Vector3::new_float_type(Vec3::mat3x3transform_vector(self.get_simd_values_const(), rhs.get_simd_value())); }
+    }
+}
+
 impl Div<f32> for Matrix3x3 {
     type Output = Matrix3x3;
 
@@ -149,6 +157,21 @@ impl PartialEq<Self> for Matrix3x3 {
     }
     unsafe fn ne(&self, rhs: &Self) -> bool {
         unsafe { return !(self == rhs); }
+    }
+}
+impl Neg for Matrix3x3 {
+    type Output = Matrix3x3;
+
+    fn neg(self) -> Self::Output {
+        let zero_vec = unsafe { Vec3::zero_float() };
+        unsafe {
+            return Matrix3x3::new_3float_type
+                (
+                    Vec3::sub(zero_vec, self._rows[0].get_simd_value()),
+                    Vec3::sub(zero_vec, self._rows[1].get_simd_value()),
+                    Vec3::sub(zero_vec, self._rows[2].get_simd_value())
+                );
+        }
     }
 }
 

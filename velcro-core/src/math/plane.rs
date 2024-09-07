@@ -45,7 +45,7 @@ impl Plane {
 
     #[inline]
     #[allow(dead_code)]
-    pub fn new_float_type(plane:&FloatArgType)->Plane{
+    pub fn new_float_type(plane:FloatArgType)->Plane{
         unsafe {
             Plane {
                 _plane: Vector4::new_float_type(plane),
@@ -58,14 +58,14 @@ impl Plane {
     pub fn create_from_normal_and_point(normal:&Vector3,point:&Vector3)->Plane{
         unsafe {
             Plane {
-                _plane:  Vector4::new_float_type(Vec4::construct_plane(normal.get_simd_value().borrow(), point.get_simd_value().borrow()).borrow())
+                _plane:  Vector4::new_float_type(Vec4::construct_plane(normal.get_simd_value(), point.get_simd_value()))
             }
         }
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub fn create_from_normal_and_distance(normal:&Vector3,dist:&f32)->Plane{
+    pub fn create_from_normal_and_distance(normal:&Vector3,dist:f32)->Plane{
         let mut result = Plane::new();
         result.set_normal_and_distance(normal, dist);
         result
@@ -73,7 +73,7 @@ impl Plane {
 
     #[inline]
     #[allow(dead_code)]
-    pub fn create_from_coefficients(a:&f32,b:&f32,c:&f32,d:&f32)->Plane{
+    pub fn create_from_coefficients(a:f32,b:f32,c:f32,d:f32)->Plane{
         let mut result = Plane::new();
         result.set_coefficients(a,b,c,d);
         result
@@ -85,7 +85,7 @@ impl Plane {
         let mut result = Plane::new();
         let normal = unsafe { ((v1 - v0).cross((v2 - v0).borrow())).get_normalized() };
         let dist = -(unsafe { normal.dot3(v0) });
-        result.set_normal_and_distance(normal.borrow(), dist.borrow());
+        result.set_normal_and_distance(normal.borrow(), dist);
         result
     }
 
@@ -105,13 +105,13 @@ impl Plane {
 
     #[inline]
     #[allow(dead_code)]
-    pub fn set_normal_and_distance(&mut self,normal:&Vector3,d:&f32){
+    pub fn set_normal_and_distance(&mut self,normal:&Vector3,d:f32){
         unsafe { self._plane.set_vec3_f32(normal, d); }
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub fn set_coefficients(&mut self,a:&f32,b:&f32,c:&f32,d:&f32){
+    pub fn set_coefficients(&mut self,a:f32,b:f32,c:f32,d:f32){
         unsafe { self._plane.set_x_y_z_w(a, b, c, d) }
     }
 
@@ -119,14 +119,14 @@ impl Plane {
     #[inline]
     #[allow(dead_code)]
     pub unsafe  fn set_normal(&mut self,normal:&Vector3){
-        self._plane.set_x(normal.get_x().borrow());
-        self._plane.set_y(normal.get_y().borrow());
-        self._plane.set_z(normal.get_z().borrow());
+        self._plane.set_x(normal.get_x());
+        self._plane.set_y(normal.get_y());
+        self._plane.set_z(normal.get_z());
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe  fn set_distance(&mut self,d:&f32){
+    pub unsafe  fn set_distance(&mut self,d:f32){
         self._plane.set_w(d);
     }
 
@@ -139,7 +139,7 @@ impl Plane {
         new_dist +=  self._plane.get_z() * (tm.get_basis_z().dot3(tm.get_translation().borrow()));
         let mut normal = self.get_normal();
         normal = tm.transform_vector(normal.borrow());
-        return Plane::create_from_normal_and_distance(normal.borrow(), (-new_dist).borrow());
+        return Plane::create_from_normal_and_distance(normal.borrow(), (-new_dist));
     }
 
     #[inline]
@@ -169,7 +169,7 @@ impl Plane {
     #[inline]
     #[allow(dead_code)]
     pub unsafe  fn get_point_dist(self,pos:&Vector3)->f32{
-        return  Vec1::select_index0(Vec4::plane_distance(self._plane.get_simd_value().borrow(),pos.get_simd_value().borrow()).borrow());
+        return  Vec1::select_index0(Vec4::plane_distance(self._plane.get_simd_value(),pos.get_simd_value()));
     }
 
     #[inline]
@@ -194,7 +194,7 @@ impl Plane {
     #[allow(dead_code)]
     pub unsafe  fn cast_ray_2vec3_f32(self, start:&Vector3, dir:&Vector3, mut hit_time:&f32) ->bool{
         let n_dot_dir =self._plane.dot3(dir);
-        if ( constants::is_close_f32(n_dot_dir.borrow(), 0.0.borrow(), constants::FLOAT_EPSILON.borrow()))
+        if ( constants::is_close_f32(n_dot_dir, 0.0, constants::FLOAT_EPSILON))
         {
             return false;
         }
