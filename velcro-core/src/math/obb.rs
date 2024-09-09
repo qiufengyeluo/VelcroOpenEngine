@@ -2,9 +2,9 @@
 #![allow(clip::many_single_char_names)]
 
 use std::ops::Mul;
+
 use crate::math::aabb::Aabb;
 use crate::math::quaternion::Quaternion;
-use crate::math::simd_math_vec3_sse::Vec3;
 use crate::math::transform::Transform;
 use crate::math::vector3::Vector3;
 
@@ -60,29 +60,29 @@ impl Obb {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn get_axis_x(self)->Vector3{
-        return self._rotation.transform_vector(Vector3::create_axis_x(1.0.borrow()).borrow())
+        return self._rotation.transform_vector(Vector3::create_axis_x(1.0).borrow())
     }
 
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn get_axis_y(self)->Vector3{
-        return self._rotation.transform_vector(Vector3::create_axis_y(1.0.borrow()).borrow())
+        return self._rotation.transform_vector(Vector3::create_axis_y(1.0).borrow())
     }
 
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn get_axis_z(self)->Vector3{
-        return self._rotation.transform_vector(Vector3::create_axis_z(1.0.borrow()).borrow())
+        return self._rotation.transform_vector(Vector3::create_axis_z(1.0).borrow())
     }
 
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn get_axis(self,index:&i32) ->Vector3{
+    pub unsafe fn get_axis(self,index:i32) ->Vector3{
         let mut axis = Vector3::create_zero();
-        axis.set_element(index,1.0.borrow());
+        axis.set_element(index,1.0);
         return self._rotation.transform_vector(axis.borrow());
     }
 
@@ -106,7 +106,7 @@ impl Obb {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn get_half_length(self,index:&i32) ->f32{
+    pub unsafe fn get_half_length(self,index:i32) ->f32{
         return self._half_lengths.get_element(index);
     }
 
@@ -118,25 +118,25 @@ impl Obb {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn set_half_length_x(&mut self, half_length:&f32){
+    pub unsafe fn set_half_length_x(&mut self, half_length:f32){
         self._half_lengths.set_x(half_length);
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn set_half_length_y(&mut self, half_length:&f32){
+    pub unsafe fn set_half_length_y(&mut self, half_length:f32){
         self._half_lengths.set_y(half_length);
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn set_half_length_z(&mut self, half_length:&f32){
+    pub unsafe fn set_half_length_z(&mut self, half_length:f32){
         self._half_lengths.set_z(half_length);
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn set_half_length(&mut self, index:&i32, half_length:&f32){
+    pub unsafe fn set_half_length(&mut self, index:i32, half_length:f32){
         self._half_lengths.set_element(index, half_length)
     }
 
