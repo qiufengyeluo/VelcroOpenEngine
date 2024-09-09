@@ -12,12 +12,15 @@ use vsimd::neon::*;
 use vsimd::sse::FloatType;
 
 use crate::math::*;
-use crate::math::common_sse::{Vec2Type, Vec3Type, VecThirdType, VecTwoType, VecType};
+use crate::math::common_sse::{Vec2Type, Vec3Type, VecFourthType, VecThirdType, VecTwoType, VecType};
 use crate::math::math_utils::*;
 use crate::math::simd_math::*;
 use crate::math::simd_math_vec1_sse::Vec1;
 use crate::math::simd_math_vec2_sse::Vec2;
 use crate::math::simd_math_vec3_sse::Vec3;
+use crate::math::simd_math_vec4_sse::Vec4;
+use crate::math::vector2::Vector2;
+use crate::math::vector4::Vector4;
 use crate::math::vsimd::FloatArgType;
 
 // PartialEq 是否相等
@@ -107,6 +110,30 @@ impl Vector3 {
     pub unsafe fn new_xyz(x:f32, y:f32, z:f32) ->Vector3{
         Vector3{
             _value:Vec3::load_immediate(x,y,z),
+        }
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn new_vec2(source:&Vector2)->Vector3{
+       return Vector3::new_vec2_f32(source,0.0);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn new_vec2_f32(source:&Vector2,z:f32)->Vector3{
+        let mut result =  Vector3{
+            _value: Vec3::value_to_vec2(source.get_simd_value())
+        };
+        result.set_z(z);
+        result
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn new_vec4(source:&Vector4)->Vector3{
+        Vector3{
+            _value:Vec4::value_to_vec3(source.get_simd_value()),
         }
     }
 

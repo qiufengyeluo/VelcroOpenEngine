@@ -31,7 +31,7 @@ impl Sphere{
 
     #[inline]
     #[allow(dead_code)]
-    pub fn new_vec3_f32(center:&Vector3,radius:&f32)->Sphere{
+    pub fn new_vec3_f32(center:&Vector3,radius:f32)->Sphere{
         Sphere{
             _radius:radius.to_owned(),
             _center:center.to_owned(),
@@ -41,7 +41,7 @@ impl Sphere{
     #[inline]
     #[allow(dead_code)]
     pub fn create_unit_sphere()->Sphere{
-        unsafe { return Sphere::new_vec3_f32(Vector3::create_zero().borrow(), 1.0.borrow()); }
+        unsafe { return Sphere::new_vec3_f32(Vector3::create_zero().borrow(), 1.0); }
     }
 
     #[inline]
@@ -50,7 +50,7 @@ impl Sphere{
         let half_extent = (aabb.get_max() - aabb.get_min()) *  0.5;
         let center = aabb.get_min() + half_extent;
         let radius = half_extent.get_max_element();
-        return  Sphere::new_vec3_f32(center.borrow(), radius.borrow());
+        return  Sphere::new_vec3_f32(center.borrow(), radius);
     }
 
     #[inline]

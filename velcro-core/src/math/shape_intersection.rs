@@ -4,8 +4,9 @@
 use crate::math::aabb::Aabb;
 use crate::math::capsule::Capsule;
 use crate::math::frustum::Frustum;
+use crate::math::hemisphere::Hemisphere;
 use crate::math::intersect;
-use crate::math::math_utils::{constants};
+use crate::math::math_utils::constants;
 use crate::math::math_utils::constants::FLOAT_EPSILON;
 use crate::math::obb::Obb;
 use crate::math::plane::{IntersectResult, Plane};
@@ -140,12 +141,12 @@ impl ShapeIntersection{
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn overlaps_hemisphere_and_sphere(hemisphere:&Hemisphere,sphere:&Sphere)->bool{
-        let sphere_distance_to_plane = hemisphere.get_direction().Dot(sphere.get_center() - hemisphere.get_center());
+        let sphere_distance_to_plane = hemisphere.get_direction().dot3((sphere.get_center() - hemisphere.get_center()).borrow());
 
         if (sphere_distance_to_plane >= 0.0)
         {
             // Sphere is in front of hemisphere, so treat the hemisphere as a sphere
-            return ShapeIntersection::overlaps_sphere_and_sphere(Sphere::new_vec3_f32(hemisphere.get_center(), hemisphere.get_radius()), sphere);
+            return ShapeIntersection::overlaps_sphere_and_sphere(Sphere::new_vec3_f32(hemisphere.get_center().borrow(), hemisphere.get_radius()).borrow(), sphere);
         }
         else if (sphere_distance_to_plane > -sphere.get_radius())
         {
@@ -153,7 +154,7 @@ impl ShapeIntersection{
             let projected_sphere_center = sphere.get_center() + hemisphere.get_direction() * -sphere_distance_to_plane;
             let circle_radius = simd::sqrt(sphere.get_radius() * sphere.get_radius() - sphere_distance_to_plane * sphere_distance_to_plane);
             let radius_sum = hemisphere.get_radius() + circle_radius;
-            return hemisphere.get_center().get_distance_sq(projected_sphere_center) < (radius_sum * radius_sum);
+            return hemisphere.get_center().get_distance_sq(projected_sphere_center.borrow()) < (radius_sum * radius_sum);
         }
         return false; // too far behind hemisphere to intersect
     }
@@ -161,7 +162,7 @@ impl ShapeIntersection{
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn overlaps_hemisphere_and_aabb(hemisphere:&Hemisphere,aabb:&Aabb)->bool{
-        let dist_sq = aabb.get_distance_sq(hemisphere.get_center());
+        let dist_sq = aabb.get_distance_sq(hemisphere.get_center().borrow());
         let radius_sq = hemisphere.get_radius() * hemisphere.get_radius();
         if (dist_sq > radius_sq)
         {
@@ -174,7 +175,7 @@ impl ShapeIntersection{
         }
 
         let nearest_point_to_plane = aabb.get_support(-hemisphere.get_direction());
-        let above_plane = hemisphere.get_direction().Dot(hemisphere.get_center() - nearest_point_to_plane) > 0.0;
+        let above_plane = hemisphere.get_direction().dot3((hemisphere.get_center() - nearest_point_to_plane).borrow()) > 0.0;
         return !above_plane; // This has false positives but is reasonably tight.
     }
 
@@ -270,7 +271,7 @@ impl ShapeIntersection{
             return false;
         }
 
-        let capsuleAxis = (capsulePoint2 - capsulePoint1).GetNormalized();
+        let capsuleAxis = (capsulePoint2 - capsulePoint1).get_normalized();
         let overlapsAxis =  [&capsulePoint1, &capsulePoint2, &radius, &halfLengths](const Vector3& axis)
         {
             let capsulePoint1Projected = capsulePoint1.Dot(axis);
