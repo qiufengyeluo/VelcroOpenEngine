@@ -6,6 +6,7 @@ use crate::math::capsule::Capsule;
 use crate::math::frustum::Frustum;
 use crate::math::hemisphere::Hemisphere;
 use crate::math::intersect;
+use crate::math::intersect::intersect_point::Intersect;
 use crate::math::math_utils::constants;
 use crate::math::math_utils::constants::FLOAT_EPSILON;
 use crate::math::obb::Obb;
@@ -243,810 +244,361 @@ impl ShapeIntersection{
     pub unsafe fn overlaps_capsule_and_obb(capsule:&Capsule,obb:&Obb)->bool{
         if (capsule.get_cylinder_height() < FLOAT_EPSILON * capsule.get_radius())
         {
-            return ShapeIntersection::overlaps_sphere_and_obb(Sphere::new_vec3_f32(capsule.get_center().borrow(), capsule.get_radius().borrow()).borrow(), obb);
+            return ShapeIntersection::overlaps_sphere_and_obb(Sphere::new_vec3_f32(capsule.get_center().borrow(), capsule.get_radius()).borrow(), obb);
         }
 
-        let capsulePoint1 =
+        let capsule_point1 =
             obb.get_rotation().get_inverse_fast().transform_vector((capsule.get_first_hemisphere_center() - obb.get_position()).borrow());
-        let capsulePoint2 =
+        let capsule_point2 =
             obb.get_rotation().get_inverse_fast().transform_vector((capsule.get_second_hemisphere_center() - obb.get_position()).borrow());
         let radius = capsule.get_radius();
-        let& halfLengths = obb.GetHalfLengths();
+        let half_lengths = obb.get_half_lengths();
 
-        for  capsulePoint in capsulePoint1.. capsulePoint2
+        for  capsulePoint in capsule_point1..capsule_point2
         {
-            let closest = capsulePoint.get_clamp(-halfLengths, halfLengths);
-            if (capsulePoint.get_distance_sq(closest) < radius * radius)
+            let closest = capsulePoint.get_clamp(-half_lengths, half_lengths.borrow());
+            if (capsulePoint.get_distance_sq(closest.borrow()) < radius * radius)
             {
                 return true;
             }
         }
 
-        let capsulePointMinValues = capsulePoint1.get_min(capsulePoint2) - Vector3(radius);
-        let capsulePointMaxValues = capsulePoint1.get_max(capsulePoint2) + Vector3(radius);
-        let overlapsXYZ = capsulePointMaxValues.is_greater_equal_than(-halfLengths) &&
-            capsulePointMinValues.is_less_equal_than(halfLengths);
-        if (!overlapsXYZ)
+        let capsule_point_min_values = capsule_point1.get_min(capsule_point2.borrow()) - Vector3::new_x(radius);
+        let capsule_point_max_values = capsule_point1.get_max(capsule_point2.borrow()) + Vector3::new_x(radius);
+        let overlaps_xyz = capsule_point_max_values.is_greater_equal_than(-half_lengths) &&
+            capsule_point_min_values.is_less_equal_than(half_lengths.borrow());
+        if (!overlaps_xyz)
         {
             return false;
         }
 
-        let capsuleAxis = (capsulePoint2 - capsulePoint1).get_normalized();
-        let overlapsAxis =  [&capsulePoint1, &capsulePoint2, &radius, &halfLengths](const Vector3& axis)
-        {
-            let capsulePoint1Projected = capsulePoint1.Dot(axis);
-            let capsulePoint2Projected = capsulePoint2.Dot(axis);
-            let capsuleProjectedMin = AZ::GetMin(capsulePoint1Projected, capsulePoint2Projected) - radius;
-            let capsuleProjectedMax = AZ::GetMax(capsulePoint1Projected, capsulePoint2Projected) + radius;
-            let obbProjectedHalfExtent = halfLengths.Dot(axis.GetAbs());
-            return capsuleProjectedMax > -obbProjectedHalfExtent && capsuleProjectedMin < obbProjectedHalfExtent;
+        let capsule_axis = (capsule_point2 - capsule_point1).get_normalized();
+        let overlaps_axis = |axis:&Vector3 |{
+            let capsule_point1projected = capsule_point1.dot3(axis);
+            let capsule_point2projected = capsule_point2.dot3(axis);
+            let capsule_projected_min = constants::get_min(capsule_point1projected, capsule_point2projected) - radius;
+            let capsule_projected_max = constants::get_max(capsule_point1projected, capsule_point2projected) + radius;
+            let obb_projected_half_extent = half_lengths.dot3(axis.get_abs().borrow());
+            return capsule_projected_max > -obb_projected_half_extent && capsule_projected_min < obb_projected_half_extent;
+        };
+        for testAxis in   &[capsule_axis.cross_x_axis(), capsule_axis.cross_y_axis(), capsule_axis.cross_z_axis() ]{
+            if (!overlaps_axis(testAxis))
+            {
+                return false;
+            }
+        }
+
+        for point in &[capsule_point1, capsule_point2]{
+            let closest_point_in_obb = point.get_clamp(-half_lengths, half_lengths.borrow());
+            let test_axis = (point - closest_point_in_obb).get_normalized();
+            if (!overlaps_axis(test_axis.borrow()))
+            {
+                return false;
+            }
+        }
+
+        let get_half_length = |ib:i32,a:f32,b:f32|->f32{
+            if ib{
+                a
+            }else {
+                b
+            }
         };
 
-        for (const Vector3& testAxis : { capsuleAxis.CrossXAxis(), capsuleAxis.CrossYAxis(), capsuleAxis.CrossZAxis() })
-        {
-            if (!overlapsAxis(testAxis))
+        for vertexIndex in 0..8 {
+            let vertex = Vector3::new_xyz(get_half_length(vertexIndex & 4,obb.get_half_length_x(),-obb.get_half_length_x()),
+                                          get_half_length(vertexIndex & 2,obb.get_half_length_y(),-obb.get_half_length_y()),
+                                          get_half_length(vertexIndex & 1,obb.get_half_length_z(),-obb.get_half_length_z())
+            );
+
+            let vertex_relative = vertex - capsule_point1;
+            let test_axis = (vertex_relative - capsule_axis* vertex_relative.dot3(capsule_axis.borrow())).get_normalized();
+            if (!overlaps_axis(test_axis.borrow()))
             {
                 return false;
             }
         }
 
-        // test the directions from the two capsule hemispheres to their closest points on the box
-        for (const Vector3& point : { capsulePoint1, capsulePoint2 })
-        {
-            const Vector3 closestPointInObb = point.GetClamp(-halfLengths, halfLengths);
-            const Vector3 testAxis = (point - closestPointInObb).GetNormalized();
-            if (!overlapsAxis(testAxis))
-            {
-                return false;
-            }
-        }
-
-        // test the 8 directions from the capsule axis to the box vertices, orthogonal to the capsule axis
-        for (int vertexIndex = 0; vertexIndex < 8; vertexIndex++)
-        {
-            const Vector3 vertex(
-            (vertexIndex & 4) ? obb.GetHalfLengthX() : -obb.GetHalfLengthX(),
-            (vertexIndex & 2) ? obb.GetHalfLengthY() : -obb.GetHalfLengthY(),
-            (vertexIndex & 1) ? obb.GetHalfLengthZ() : -obb.GetHalfLengthZ());
-            // get a vector from the capsule axis to the vertex
-            const Vector3 vertexRelative = vertex - capsulePoint1;
-            // subtract the part parallel to the axis to get an axis orthogonal to the axis
-            const Vector3 testAxis = (vertexRelative - vertexRelative.Dot(capsuleAxis) * capsuleAxis).GetNormalized();
-
-            if (!overlapsAxis(testAxis))
-            {
-                return false;
-            }
-        }
-
-        // none of the tested axes were separating axes, the shapes must overlap
         return true;
     }
-    bool Overlaps(const Capsule& capsule, const Obb& obb)
-    {
-    // if the capsule is sufficiently close to being a sphere, just test a sphere against the OBB
-    if (capsule.GetCylinderHeight() < AZ::Constants::FloatEpsilon * capsule.get_radius())
-    {
-    return Overlaps(Sphere(capsule.get_center(), capsule.get_radius()), obb);
-    }
-
-    // transform capsule points into a space where the obb is centred at the origin with identity rotation
-    const Vector3 capsulePoint1 =
-    obb.GetRotation().GetInverseFast().TransformVector(capsule.GetFirstHemisphereCenter() - obb.GetPosition());
-    const Vector3 capsulePoint2 =
-    obb.GetRotation().GetInverseFast().TransformVector(capsule.GetSecondHemisphereCenter() - obb.GetPosition());
-    const float radius = capsule.get_radius();
-    const Vector3& halfLengths = obb.GetHalfLengths();
-
-    // early out if the distance from either of the capsule hemisphere centers is less than radius
-    for (const Vector3& capsulePoint : { capsulePoint1, capsulePoint2 })
-    {
-    const Vector3 closest = capsulePoint.GetClamp(-halfLengths, halfLengths);
-    if (capsulePoint.get_distance_sq(closest) < radius * radius)
-    {
-    return true;
-    }
-    }
-
-    // use separating axis theorem
-    // up to 16 axes need to be tested:
-    // - the 3 face normals of the box (x, y, and z)
-    // - the 3 cross products of those directions with the capsule axis
-    // - the 2 directions from the two capsule hemispheres to their closest points on the box
-    // - the 8 directions from the capsule axis to the box vertices, orthogonal to the capsule axis
-    // if the projections of the two shapes onto any of those axes do not overlap then the shapes do not overlap
-
-    // test the x, y and z axes
-    const Vector3 capsulePointMinValues = capsulePoint1.GetMin(capsulePoint2) - Vector3(radius);
-    const Vector3 capsulePointMaxValues = capsulePoint1.GetMax(capsulePoint2) + Vector3(radius);
-    const bool overlapsXYZ = capsulePointMaxValues.IsGreaterEqualThan(-halfLengths) &&
-    capsulePointMinValues.IsLessEqualThan(halfLengths);
-    if (!overlapsXYZ)
-    {
-    return false;
-    }
-
-    // test the axes formed by the cross product of the capsule axis with x, y and z
-    const Vector3 capsuleAxis = (capsulePoint2 - capsulePoint1).GetNormalized();
-    auto overlapsAxis = [&capsulePoint1, &capsulePoint2, &radius, &halfLengths](const Vector3& axis)
-    {
-    const float capsulePoint1Projected = capsulePoint1.Dot(axis);
-    const float capsulePoint2Projected = capsulePoint2.Dot(axis);
-    const float capsuleProjectedMin = AZ::GetMin(capsulePoint1Projected, capsulePoint2Projected) - radius;
-    const float capsuleProjectedMax = AZ::GetMax(capsulePoint1Projected, capsulePoint2Projected) + radius;
-    const float obbProjectedHalfExtent = halfLengths.Dot(axis.GetAbs());
-    return capsuleProjectedMax > -obbProjectedHalfExtent && capsuleProjectedMin < obbProjectedHalfExtent;
-    };
-
-    for (const Vector3& testAxis : { capsuleAxis.CrossXAxis(), capsuleAxis.CrossYAxis(), capsuleAxis.CrossZAxis() })
-    {
-    if (!overlapsAxis(testAxis))
-    {
-    return false;
-    }
-    }
-
-    // test the directions from the two capsule hemispheres to their closest points on the box
-    for (const Vector3& point : { capsulePoint1, capsulePoint2 })
-    {
-    const Vector3 closestPointInObb = point.GetClamp(-halfLengths, halfLengths);
-    const Vector3 testAxis = (point - closestPointInObb).GetNormalized();
-    if (!overlapsAxis(testAxis))
-    {
-    return false;
-    }
-    }
-
-    // test the 8 directions from the capsule axis to the box vertices, orthogonal to the capsule axis
-    for (int vertexIndex = 0; vertexIndex < 8; vertexIndex++)
-    {
-    const Vector3 vertex(
-    (vertexIndex & 4) ? obb.GetHalfLengthX() : -obb.GetHalfLengthX(),
-    (vertexIndex & 2) ? obb.GetHalfLengthY() : -obb.GetHalfLengthY(),
-    (vertexIndex & 1) ? obb.GetHalfLengthZ() : -obb.GetHalfLengthZ());
-    // get a vector from the capsule axis to the vertex
-    const Vector3 vertexRelative = vertex - capsulePoint1;
-    // subtract the part parallel to the axis to get an axis orthogonal to the axis
-    const Vector3 testAxis = (vertexRelative - vertexRelative.Dot(capsuleAxis) * capsuleAxis).GetNormalized();
-
-    if (!overlapsAxis(testAxis))
-    {
-    return false;
-    }
-    }
-
-    // none of the tested axes were separating axes, the shapes must overlap
-    return true;
-    }
-    AZ_MATH_INLINE bool Overlaps(const Capsule& capsule, const Sphere& sphere)
-    {
-    float proportion;
-    Vector3 closestPointOnCapsuleAxis;
-    Intersect::ClosestPointSegment(sphere.get_center(), capsule.GetFirstHemisphereCenter(), capsule.GetSecondHemisphereCenter(), proportion, closestPointOnCapsuleAxis);
-    const float radiusSum = sphere.get_radius() + capsule.get_radius();
-    return closestPointOnCapsuleAxis.get_distance_sq(sphere.get_center()) <= radiusSum * radiusSum;
-    }
-    AZ_MATH_INLINE bool Overlaps(const Capsule& capsule, const Aabb& aabb)
-    {
-    // First attempt a cheap rejection by comparing to the aabb's sphere.
-    Vector3 aabbSphereCenter;
-    float aabbSphereRadius;
-    aabb.GetAsSphere(aabbSphereCenter, aabbSphereRadius);
-    Sphere aabbSphere(aabbSphereCenter, aabbSphereRadius);
-    if (!Overlaps(capsule, aabbSphere))
-    {
-    return false;
-    }
-
-    // Now do the more expensive test. The idea is to start with the end points of the capsule then
-    // - Clamp the points with the aabb
-    // - Find the closest points on the line segment to the clamped points.
-    // - If the distance between the clamped point and the line segment point is less than the radius, then we know it intersects.
-    // - Generate new clamped points from the points on the line segment for next iteration.
-    // - If the two clamped points are equal to each other, or either of the new clamped points is equivalent to the previous clamped points,
-    //   then we know we've already found the closest point possible on the aabb, so fail because previous distance check failed.
-    // - Loop with new clamped points.
-
-    float capsuleRadiusSq = capsule.get_radius() * capsule.get_radius();
-    const Vector3& capsuleStart = capsule.GetFirstHemisphereCenter();
-    const Vector3& capsuleEnd = capsule.GetSecondHemisphereCenter();
-    const Vector3 capsuleSegment = capsuleEnd - capsuleStart;
-    if (capsuleSegment.IsClose(AZ::Vector3::CreateZero()))
-    {
-    // capsule is nearly a sphere, and already failed sphere check above.
-    return false;
-    }
-    const float segmentLengthSquared = capsuleSegment.Dot(capsuleSegment);
-    const float rcpSegmentLengthSquared = 1.0f / segmentLengthSquared;
-
-    Vector3 clampedPoint1 = capsuleStart.GetClamp(aabb.GetMin(), aabb.GetMax());
-    Vector3 clampedPoint2 = capsuleEnd.GetClamp(aabb.GetMin(), aabb.GetMax());
-
-    // Simplified from Intersect::ClosestPointSegment with certain parts pre-calculated, no need to return proportion.
-    auto getClosestPointOnCapsule = [&](const Vector3& point) -> Vector3
-    {
-    float proportion = (point - capsuleStart).Dot(capsuleSegment);
-    if (proportion <= 0.0f)
-    {
-    return capsuleStart;
-    }
-    if (proportion >= segmentLengthSquared)
-    {
-    return capsuleEnd;
-    }
-    return capsuleStart + (proportion * capsuleSegment * rcpSegmentLengthSquared);
-    };
-
-    constexpr uint32_t MaxIterations = 16;
-    for (uint32_t i = 0; i < MaxIterations; ++i)
-    {
-    // Check point 1
-    Vector3 closestPointOnCapsuleAxis1 = getClosestPointOnCapsule(clampedPoint1);
-    if (clampedPoint1.get_distance_sq(closestPointOnCapsuleAxis1) < capsuleRadiusSq)
-    {
-    return true;
-    }
-
-    // Check point 2
-    Vector3 closestPointOnCapsuleAxis2 = getClosestPointOnCapsule(clampedPoint2);
-    if (clampedPoint2.get_distance_sq(closestPointOnCapsuleAxis2) < capsuleRadiusSq)
-    {
-    return true;
-    }
-
-    // If the points are the same, and previous tests failed, then this is the best point, but it's too far away.
-    if (clampedPoint1.IsClose(clampedPoint2))
-    {
-    return false;
-    }
-
-    // Choose better points.
-    Vector3 newclampedPoint1 = closestPointOnCapsuleAxis1.GetClamp(aabb.GetMin(), aabb.GetMax());
-    Vector3 newclampedPoint2 = closestPointOnCapsuleAxis2.GetClamp(aabb.GetMin(), aabb.GetMax());
-
-    if (newclampedPoint1.IsClose(clampedPoint1) || newclampedPoint2.IsClose(clampedPoint2))
-    {
-    // Capsule is parallel to AABB or beyond the end points and failing above tests, so it must be outside the capsule.
-    return false;
-    }
-
-    clampedPoint1 = newclampedPoint1;
-    clampedPoint2 = newclampedPoint2;
-    }
-
-    return true; // prefer false positive
-    }
-    bool Overlaps(const Capsule& capsule, const Obb& obb)
-    {
-    // if the capsule is sufficiently close to being a sphere, just test a sphere against the OBB
-    if (capsule.GetCylinderHeight() < AZ::Constants::FloatEpsilon * capsule.get_radius())
-    {
-    return Overlaps(Sphere(capsule.get_center(), capsule.get_radius()), obb);
-    }
-
-    // transform capsule points into a space where the obb is centred at the origin with identity rotation
-    const Vector3 capsulePoint1 =
-    obb.GetRotation().GetInverseFast().TransformVector(capsule.GetFirstHemisphereCenter() - obb.GetPosition());
-    const Vector3 capsulePoint2 =
-    obb.GetRotation().GetInverseFast().TransformVector(capsule.GetSecondHemisphereCenter() - obb.GetPosition());
-    const float radius = capsule.get_radius();
-    const Vector3& halfLengths = obb.GetHalfLengths();
-
-    // early out if the distance from either of the capsule hemisphere centers is less than radius
-    for (const Vector3& capsulePoint : { capsulePoint1, capsulePoint2 })
-    {
-    const Vector3 closest = capsulePoint.GetClamp(-halfLengths, halfLengths);
-    if (capsulePoint.get_distance_sq(closest) < radius * radius)
-    {
-    return true;
-    }
-    }
-
-    // use separating axis theorem
-    // up to 16 axes need to be tested:
-    // - the 3 face normals of the box (x, y, and z)
-    // - the 3 cross products of those directions with the capsule axis
-    // - the 2 directions from the two capsule hemispheres to their closest points on the box
-    // - the 8 directions from the capsule axis to the box vertices, orthogonal to the capsule axis
-    // if the projections of the two shapes onto any of those axes do not overlap then the shapes do not overlap
-
-    // test the x, y and z axes
-    const Vector3 capsulePointMinValues = capsulePoint1.GetMin(capsulePoint2) - Vector3(radius);
-    const Vector3 capsulePointMaxValues = capsulePoint1.GetMax(capsulePoint2) + Vector3(radius);
-    const bool overlapsXYZ = capsulePointMaxValues.IsGreaterEqualThan(-halfLengths) &&
-    capsulePointMinValues.IsLessEqualThan(halfLengths);
-    if (!overlapsXYZ)
-    {
-    return false;
-    }
-
-    // test the axes formed by the cross product of the capsule axis with x, y and z
-    const Vector3 capsuleAxis = (capsulePoint2 - capsulePoint1).GetNormalized();
-    auto overlapsAxis = [&capsulePoint1, &capsulePoint2, &radius, &halfLengths](const Vector3& axis)
-    {
-    const float capsulePoint1Projected = capsulePoint1.Dot(axis);
-    const float capsulePoint2Projected = capsulePoint2.Dot(axis);
-    const float capsuleProjectedMin = AZ::GetMin(capsulePoint1Projected, capsulePoint2Projected) - radius;
-    const float capsuleProjectedMax = AZ::GetMax(capsulePoint1Projected, capsulePoint2Projected) + radius;
-    const float obbProjectedHalfExtent = halfLengths.Dot(axis.GetAbs());
-    return capsuleProjectedMax > -obbProjectedHalfExtent && capsuleProjectedMin < obbProjectedHalfExtent;
-    };
-
-    for (const Vector3& testAxis : { capsuleAxis.CrossXAxis(), capsuleAxis.CrossYAxis(), capsuleAxis.CrossZAxis() })
-    {
-    if (!overlapsAxis(testAxis))
-    {
-    return false;
-    }
-    }
-
-    // test the directions from the two capsule hemispheres to their closest points on the box
-    for (const Vector3& point : { capsulePoint1, capsulePoint2 })
-    {
-    const Vector3 closestPointInObb = point.GetClamp(-halfLengths, halfLengths);
-    const Vector3 testAxis = (point - closestPointInObb).GetNormalized();
-    if (!overlapsAxis(testAxis))
-    {
-    return false;
-    }
-    }
-
-    // test the 8 directions from the capsule axis to the box vertices, orthogonal to the capsule axis
-    for (int vertexIndex = 0; vertexIndex < 8; vertexIndex++)
-    {
-    const Vector3 vertex(
-    (vertexIndex & 4) ? obb.GetHalfLengthX() : -obb.GetHalfLengthX(),
-    (vertexIndex & 2) ? obb.GetHalfLengthY() : -obb.GetHalfLengthY(),
-    (vertexIndex & 1) ? obb.GetHalfLengthZ() : -obb.GetHalfLengthZ());
-    // get a vector from the capsule axis to the vertex
-    const Vector3 vertexRelative = vertex - capsulePoint1;
-    // subtract the part parallel to the axis to get an axis orthogonal to the axis
-    const Vector3 testAxis = (vertexRelative - vertexRelative.Dot(capsuleAxis) * capsuleAxis).GetNormalized();
-
-    if (!overlapsAxis(testAxis))
-    {
-    return false;
-    }
-    }
-
-    // none of the tested axes were separating axes, the shapes must overlap
-    return true;
-    }
-
-    bool Overlaps(const Obb& obb1, const Obb& obb2)
-    {
-    // the separating axis theorem
-    // there are up to 15 axes to test:
-    // - the 6 axes of the 2 OBBs
-    // - the 9 directions formed by taking cross products of the 3 axes of the first OBB with the 3 axes of the second OBB
-    // if the projections of the two shapes onto any of those axes do not overlap then the shapes do not overlap
-
-    auto overlapsAxis = [&obb1, &obb2](const Vector3& axis)
-    {
-    const Vector3 transformedAxis1 = obb1.GetRotation().GetInverseFast().TransformVector(axis);
-    const float obb1ProjectedPosition = obb1.GetPosition().Dot(axis);
-    const float obb1ProjectedHalfExtent = obb1.GetHalfLengths().Dot(transformedAxis1.GetAbs());
-    const float obb1ProjectedMin = obb1ProjectedPosition - obb1ProjectedHalfExtent;
-    const float obb1ProjectedMax = obb1ProjectedPosition + obb1ProjectedHalfExtent;
-    const Vector3 transformedAxis2 = obb2.GetRotation().GetInverseFast().TransformVector(axis);
-    const float obb2ProjectedPosition = obb2.GetPosition().Dot(axis);
-    const float obb2ProjectedHalfExtent = obb2.GetHalfLengths().Dot(transformedAxis2.GetAbs());
-    const float obb2ProjectedMin = obb2ProjectedPosition - obb2ProjectedHalfExtent;
-    const float obb2ProjectedMax = obb2ProjectedPosition + obb2ProjectedHalfExtent;
-    return obb1ProjectedMax >= obb2ProjectedMin && obb1ProjectedMin <= obb2ProjectedMax;
-    };
-
-    const Vector3 xAxis1 = obb1.GetRotation().TransformVector(AZ::Vector3::CreateAxisX());
-    const Vector3 yAxis1 = obb1.GetRotation().TransformVector(AZ::Vector3::CreateAxisY());
-    const Vector3 zAxis1 = obb1.GetRotation().TransformVector(AZ::Vector3::CreateAxisZ());
-    const Vector3 xAxis2 = obb2.GetRotation().TransformVector(AZ::Vector3::CreateAxisX());
-    const Vector3 yAxis2 = obb2.GetRotation().TransformVector(AZ::Vector3::CreateAxisY());
-    const Vector3 zAxis2 = obb2.GetRotation().TransformVector(AZ::Vector3::CreateAxisZ());
-
-    return
-    overlapsAxis(xAxis1) &&
-    overlapsAxis(yAxis1) &&
-    overlapsAxis(zAxis1) &&
-    overlapsAxis(xAxis2) &&
-    overlapsAxis(yAxis2) &&
-    overlapsAxis(zAxis2) &&
-    overlapsAxis(xAxis1.Cross(xAxis2)) &&
-    overlapsAxis(xAxis1.Cross(yAxis2)) &&
-    overlapsAxis(xAxis1.Cross(zAxis2)) &&
-    overlapsAxis(yAxis1.Cross(xAxis2)) &&
-    overlapsAxis(yAxis1.Cross(yAxis2)) &&
-    overlapsAxis(yAxis1.Cross(zAxis2)) &&
-    overlapsAxis(zAxis1.Cross(xAxis2)) &&
-    overlapsAxis(zAxis1.Cross(yAxis2)) &&
-    overlapsAxis(zAxis1.Cross(zAxis2));
-    }
-
-    bool Overlaps(const Obb& obb, const Capsule& capsule)
-    {
-    return Overlaps(capsule, obb);
-    }
-
-    bool Overlaps(const Obb& obb, const Sphere& sphere)
-    {
-    return Overlaps(sphere, obb);
-    }
-    AZ_MATH_INLINE bool Overlaps(const Aabb& aabb1, const Aabb& aabb2)
-    {
-    return aabb1.Overlaps(aabb2);
-    }
-
-    AZ_MATH_INLINE bool Overlaps(const Aabb& aabb, const Sphere& sphere)
-    {
-    return Overlaps(sphere, aabb);
-    }
-
-    AZ_MATH_INLINE bool Overlaps(const Sphere& sphere, const Aabb& aabb)
-    {
-    float distSq = aabb.get_distance_sq(sphere.get_center());
-    float radiusSq = sphere.get_radius() * sphere.get_radius();
-    return distSq <= radiusSq;
-    }
-
-    AZ_MATH_INLINE bool Overlaps(const Sphere& sphere, const Frustum& frustum)
-    {
-    return Overlaps(frustum, sphere);
-    }
-
-    AZ_MATH_INLINE bool Overlaps(const Sphere& sphere, const Plane& plane)
-    {
-    const float dist = plane.get_point_dist(sphere.get_center());
-    return dist * dist <= sphere.get_radius() * sphere.get_radius();
-    }
-
-    AZ_MATH_INLINE bool Overlaps(const Sphere& sphere1, const Sphere& sphere2)
-    {
-    const float radiusSum = sphere1.get_radius() + sphere2.get_radius();
-    return sphere1.get_center().get_distance_sq(sphere2.get_center()) <= (radiusSum * radiusSum);
-    }
-
-    AZ_MATH_INLINE bool Overlaps(const Sphere& sphere, const Obb& obb)
-    {
-    const float radius = sphere.get_radius();
-    return obb.get_distance_sq(sphere.get_center()) < radius * radius;
-    }
-
-    AZ_MATH_INLINE bool Overlaps(const Sphere& sphere, const Capsule& capsule)
-    {
-    return Overlaps(capsule, sphere);
-    }
-
-    AZ_MATH_INLINE bool Overlaps(const Hemisphere& hemisphere, const Sphere& sphere)
-    {
-    float sphereDistanceToPlane = hemisphere.get_direction().Dot(sphere.get_center() - hemisphere.get_center());
-
-    if (sphereDistanceToPlane >= 0.0f)
-    {
-    // Sphere is in front of hemisphere, so treat the hemisphere as a sphere
-    return Overlaps(Sphere(hemisphere.get_center(), hemisphere.get_radius()), sphere);
-    }
-    else if (sphereDistanceToPlane > -sphere.get_radius())
-    {
-    // Sphere is behind hemisphere, project the sphere onto the plane, then check radius of circle.
-    Vector3 projectedSphereCenter = sphere.get_center() + hemisphere.get_direction() * -sphereDistanceToPlane;
-    float circleRadius = AZStd::sqrt(sphere.get_radius() * sphere.get_radius() - sphereDistanceToPlane * sphereDistanceToPlane);
-    const float radiusSum = hemisphere.get_radius() + circleRadius;
-    return hemisphere.get_center().get_distance_sq(projectedSphereCenter) < (radiusSum * radiusSum);
-    }
-    return false; // too far behind hemisphere to intersect
-    }
-
-    AZ_MATH_INLINE bool Overlaps(const Hemisphere& hemisphere, const Aabb& aabb)
-    {
-    float distSq = aabb.get_distance_sq(hemisphere.get_center());
-    float radiusSq = hemisphere.get_radius() * hemisphere.get_radius();
-    if (distSq > radiusSq)
-    {
-    return false;
-    }
-
-    if (aabb.Contains(hemisphere.get_center()))
-    {
-    return true;
-    }
-
-    Vector3 nearestPointToPlane = aabb.get_support(-hemisphere.get_direction());
-    bool abovePlane = hemisphere.get_direction().Dot(hemisphere.get_center() - nearestPointToPlane) > 0.0f;
-    return !abovePlane; // This has false positives but is reasonably tight.
-    }
-
-    AZ_MATH_INLINE bool Overlaps(const Frustum& frustum, const Sphere& sphere)
-    {
-    for (Frustum::PlaneId planeId = Frustum::PlaneId::Near; planeId < Frustum::PlaneId::MAX; ++planeId)
-    {
-    if (frustum.get_plane(planeId).get_point_dist(sphere.get_center()) + sphere.get_radius() < 0.0f)
-    {
-    return false;
-    }
-    }
-    return true;
-    }
-
-    AZ_MATH_INLINE bool Overlaps(const Frustum& frustum, const Aabb& aabb)
-    {
-    //For an AABB, extents.Dot(planeAbs) computes the projection interval radius of the AABB onto the plane normal.
-    //So for each plane, we can test compare the center-to-plane distance to this interval to see which side of the plane the AABB is on.
-    //The AABB is not overlapping if it is fully behind any of the planes, otherwise it is overlapping.
-    const Vector3 center = aabb.get_center();
-
-    //If the AABB contains FLT_MAX at either (or both) extremes, it would be easy to overflow here by using "0.5f * GetExtents()"
-    //or "0.5f * (GetMax() - GetMin())".  By separating into two separate multiplies before the subtraction, we can ensure
-    //that we don't overflow.
-    const Vector3 extents = (0.5f * aabb.GetMax()) - (0.5f * aabb.GetMin());
-
-    for (Frustum::PlaneId planeId = Frustum::PlaneId::Near; planeId < Frustum::PlaneId::MAX; ++planeId)
-    {
-    const Plane plane = frustum.get_plane(planeId);
-    if (plane.get_point_dist(center) + extents.Dot(plane.GetNormal().GetAbs()) <= 0.0f)
-    {
-    return false;
-    }
-    }
-    return true;
-    }
-
-    AZ_MATH_INLINE bool Overlaps(const Frustum& frustum, const Obb& obb)
-    {
-    for (Frustum::PlaneId planeId = Frustum::PlaneId::Near; planeId < Frustum::PlaneId::MAX; ++planeId)
-    {
-    if (Classify(frustum.get_plane(planeId), obb) == IntersectResult::Exterior)
-    {
-    return false;
-    }
-    }
-
-    return true;
-    }
-
-    AZ_MATH_INLINE bool Overlaps(const Capsule& capsule1, const Capsule& capsule2)
-    {
-    Vector3 closestPointSegment1;
-    Vector3 closestPointSegment2;
-    float segment1Proportion;
-    float segment2Proportion;
-    Intersect::ClosestSegmentSegment(
-    capsule1.GetFirstHemisphereCenter(), capsule1.GetSecondHemisphereCenter(), capsule2.GetFirstHemisphereCenter(),
-    capsule2.GetSecondHemisphereCenter(), segment1Proportion, segment2Proportion, closestPointSegment1, closestPointSegment2);
-    const float radiusSum = capsule1.get_radius() + capsule2.get_radius();
-    return closestPointSegment1.get_distance_sq(closestPointSegment2) <= radiusSum * radiusSum;
-    }
-
-    AZ_MATH_INLINE bool Overlaps(const Capsule& capsule, const Sphere& sphere)
-    {
-    float proportion;
-    Vector3 closestPointOnCapsuleAxis;
-    Intersect::ClosestPointSegment(sphere.get_center(), capsule.GetFirstHemisphereCenter(), capsule.GetSecondHemisphereCenter(), proportion, closestPointOnCapsuleAxis);
-    const float radiusSum = sphere.get_radius() + capsule.get_radius();
-    return closestPointOnCapsuleAxis.get_distance_sq(sphere.get_center()) <= radiusSum * radiusSum;
-    }
-
-    AZ_MATH_INLINE bool Overlaps(const Aabb& aabb, const Capsule& capsule)
-    {
-    return Overlaps(capsule, aabb);
-    }
-
-    AZ_MATH_INLINE bool Overlaps(const Capsule& capsule, const Aabb& aabb)
-    {
-    // First attempt a cheap rejection by comparing to the aabb's sphere.
-    Vector3 aabbSphereCenter;
-    float aabbSphereRadius;
-    aabb.GetAsSphere(aabbSphereCenter, aabbSphereRadius);
-    Sphere aabbSphere(aabbSphereCenter, aabbSphereRadius);
-    if (!Overlaps(capsule, aabbSphere))
-    {
-    return false;
-    }
-
-    // Now do the more expensive test. The idea is to start with the end points of the capsule then
-    // - Clamp the points with the aabb
-    // - Find the closest points on the line segment to the clamped points.
-    // - If the distance between the clamped point and the line segment point is less than the radius, then we know it intersects.
-    // - Generate new clamped points from the points on the line segment for next iteration.
-    // - If the two clamped points are equal to each other, or either of the new clamped points is equivalent to the previous clamped points,
-    //   then we know we've already found the closest point possible on the aabb, so fail because previous distance check failed.
-    // - Loop with new clamped points.
-
-    float capsuleRadiusSq = capsule.get_radius() * capsule.get_radius();
-    const Vector3& capsuleStart = capsule.GetFirstHemisphereCenter();
-    const Vector3& capsuleEnd = capsule.GetSecondHemisphereCenter();
-    const Vector3 capsuleSegment = capsuleEnd - capsuleStart;
-    if (capsuleSegment.IsClose(AZ::Vector3::CreateZero()))
-    {
-    // capsule is nearly a sphere, and already failed sphere check above.
-    return false;
-    }
-    const float segmentLengthSquared = capsuleSegment.Dot(capsuleSegment);
-    const float rcpSegmentLengthSquared = 1.0f / segmentLengthSquared;
-
-    Vector3 clampedPoint1 = capsuleStart.GetClamp(aabb.GetMin(), aabb.GetMax());
-    Vector3 clampedPoint2 = capsuleEnd.GetClamp(aabb.GetMin(), aabb.GetMax());
-
-    // Simplified from Intersect::ClosestPointSegment with certain parts pre-calculated, no need to return proportion.
-    auto getClosestPointOnCapsule = [&](const Vector3& point) -> Vector3
-    {
-    float proportion = (point - capsuleStart).Dot(capsuleSegment);
-    if (proportion <= 0.0f)
-    {
-    return capsuleStart;
-    }
-    if (proportion >= segmentLengthSquared)
-    {
-    return capsuleEnd;
-    }
-    return capsuleStart + (proportion * capsuleSegment * rcpSegmentLengthSquared);
-    };
-
-    constexpr uint32_t MaxIterations = 16;
-    for (uint32_t i = 0; i < MaxIterations; ++i)
-    {
-    // Check point 1
-    Vector3 closestPointOnCapsuleAxis1 = getClosestPointOnCapsule(clampedPoint1);
-    if (clampedPoint1.get_distance_sq(closestPointOnCapsuleAxis1) < capsuleRadiusSq)
-    {
-    return true;
-    }
-
-    // Check point 2
-    Vector3 closestPointOnCapsuleAxis2 = getClosestPointOnCapsule(clampedPoint2);
-    if (clampedPoint2.get_distance_sq(closestPointOnCapsuleAxis2) < capsuleRadiusSq)
-    {
-    return true;
-    }
-
-    // If the points are the same, and previous tests failed, then this is the best point, but it's too far away.
-    if (clampedPoint1.IsClose(clampedPoint2))
-    {
-    return false;
-    }
-
-    // Choose better points.
-    Vector3 newclampedPoint1 = closestPointOnCapsuleAxis1.GetClamp(aabb.GetMin(), aabb.GetMax());
-    Vector3 newclampedPoint2 = closestPointOnCapsuleAxis2.GetClamp(aabb.GetMin(), aabb.GetMax());
-
-    if (newclampedPoint1.IsClose(clampedPoint1) || newclampedPoint2.IsClose(clampedPoint2))
-    {
-    // Capsule is parallel to AABB or beyond the end points and failing above tests, so it must be outside the capsule.
-    return false;
-    }
-
-    clampedPoint1 = newclampedPoint1;
-    clampedPoint2 = newclampedPoint2;
-    }
-
-    return true; // prefer false positive
-    }
-
-    AZ_MATH_INLINE bool Contains(const Aabb& aabb1, const Aabb& aabb2)
-    {
-    return aabb1.Contains(aabb2);
-    }
-
-    AZ_MATH_INLINE bool Contains(const Aabb& aabb, const Sphere& sphere)
-    {
-    // Convert the sphere to an aabb
-    return Contains(aabb, AZ::Aabb::CreateCenterRadius(sphere.get_center(), sphere.get_radius()));
-    }
-
-    AZ_MATH_INLINE bool Contains(const Sphere& sphere, const Aabb& aabb)
-    {
-    const float radiusSq = sphere.get_radius() * sphere.get_radius();
-    return aabb.GetMaxDistanceSq(sphere.get_center()) <= radiusSq;
-    }
-
-    AZ_MATH_INLINE bool Contains(const Sphere& sphere, const Vector3& point)
-    {
-    const float distSq = sphere.get_center().get_distance_sq(point);
-    const float radiusSq = sphere.get_radius() * sphere.get_radius();
-    return distSq <= radiusSq;
-    }
-
-    AZ_MATH_INLINE bool Contains(const Sphere& sphere1, const Sphere& sphere2)
-    {
-    const float radiusDiff = sphere1.get_radius() - sphere2.get_radius();
-    return sphere1.get_center().get_distance_sq(sphere2.get_center()) <= (radiusDiff * radiusDiff) * AZ::GetSign(radiusDiff);
-    }
-
-    AZ_MATH_INLINE bool Contains(const Hemisphere& hemisphere, const Aabb& aabb)
-    {
-    const float radiusSq = hemisphere.get_radius() * hemisphere.get_radius();
-    if (aabb.GetMaxDistanceSq(hemisphere.get_center()) <= radiusSq)
-    {
-    // points are inside sphere, check to make sure it's on the right side of the hemisphere plane
-    Vector3 nearestPointToPlane = aabb.get_support(hemisphere.get_direction());
-    return hemisphere.get_direction().Dot(nearestPointToPlane - hemisphere.get_center()) >= 0.0f;
-    }
-    return false;
-    }
-
-    AZ_MATH_INLINE bool Contains(const Frustum& frustum, const Aabb& aabb)
-    {
-    // For an AABB, extents.Dot(planeAbs) computes the projection interval radius of the AABB onto the plane normal.
-    // So for each plane, we can test compare the center-to-plane distance to this interval to see which side of the plane the AABB is on.
-    // The AABB is contained if it is fully in front of all of the planes.
-    const Vector3 center = aabb.get_center();
-    const Vector3 extents = 0.5f * aabb.GetExtents();
-
-    for (Frustum::PlaneId planeId = Frustum::PlaneId::Near; planeId < Frustum::PlaneId::MAX; ++planeId)
-    {
-    const Plane plane = frustum.get_plane(planeId);
-    if (plane.get_point_dist(center) - extents.Dot(plane.GetNormal().GetAbs()) < 0.0f)
-    {
-    return false;
-    }
-    }
-    return true;
-    }
-
-    AZ_MATH_INLINE bool Contains(const Frustum& frustum, const Sphere& sphere)
-    {
-    for (Frustum::PlaneId planeId = Frustum::PlaneId::Near; planeId < Frustum::PlaneId::MAX; ++planeId)
-    {
-    if (frustum.get_plane(planeId).get_point_dist(sphere.get_center()) - sphere.get_radius() < 0.0f)
-    {
-    return false;
-    }
-    }
-    return true;
-    }
 
-    AZ_MATH_INLINE bool Contains(const Frustum& frustum, const Vector3& point)
-    {
-    for (Frustum::PlaneId planeId = Frustum::PlaneId::Near; planeId < Frustum::PlaneId::MAX; ++planeId)
-    {
-    if (frustum.get_plane(planeId).get_point_dist(point) < 0.0f)
-    {
-    return false;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn overlaps_capsule_and_sphere(capsule:&Capsule,sphere:&Sphere)->bool{
+        let proportion :f32 = 0.0;
+        let closest_point_on_capsule_axis = Vector3::new();
+        Intersect::closest_point_segment(sphere.get_center(), capsule.get_first_hemisphere_center(), capsule.get_second_hemisphere_center(), proportion, closest_point_on_capsule_axis);
+        let radius_sum = sphere.get_radius() + capsule.get_radius();
+        return closest_point_on_capsule_axis.get_distance_sq(sphere.get_center().borrow()) <= radius_sum * radius_sum;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn overlaps_capsule_and_aabb(capsule:&Capsule,aabb:&Aabb)->bool{
+        let mut aabb_sphere_center = Vector3::new();
+        let mut aabb_sphere_radius:f32 = 0.0;
+        aabb.get_as_sphere(aabb_sphere_center.borrow_mut(), aabb_sphere_radius.borrow_mut());
+        let aabb_sphere = Sphere::new_vec3_f32(aabb_sphere_center.borrow(), aabb_sphere_radius);
+        if !Self::overlaps_capsule_and_sphere(capsule, aabb_sphere.borrow())
+        {
+            return false;
+        }
+
+        let capsule_radius_sq = capsule.get_radius() * capsule.get_radius();
+        let capsule_start = capsule.get_first_hemisphere_center();
+        let capsule_end = capsule.get_second_hemisphere_center();
+        let capsule_segment = capsule_end - capsule_start;
+        if capsule_segment.is_close_default(Vector3::create_zero().borrow())
+        {
+            return false;
+        }
+        let segment_length_squared = capsule_segment.dot3(capsule_segment.borrow());
+        let rcp_segment_length_squared = 1.0 / segment_length_squared;
+
+        let mut clamped_point1 = capsule_start.get_clamp(aabb.get_min().borrow(), aabb.get_max().borrow());
+        let mut clamped_point2 = capsule_end.get_clamp(aabb.get_min().borrow(), aabb.get_max().borrow());
+
+        let get_closest_point_on_capsule = |point:&Vector3| ->Vector3{
+            let proportion = (point - capsule_start).dot3(capsule_segment.borrow());
+            if (proportion <= 0.0)
+            {
+                return capsule_start;
+            }
+            if (proportion >= segment_length_squared)
+            {
+                return capsule_end;
+            }
+            return capsule_start + (capsule_segment * rcp_segment_length_squared * proportion);
+        };
+
+
+        let max_iterations:u32 = 16;
+        for  i in 0..max_iterations
+        {
+            let closest_point_on_capsule_axis1 = get_closest_point_on_capsule(clamped_point1.borrow());
+            if (clamped_point1.get_distance_sq(closest_point_on_capsule_axis1.borrow()) < capsule_radius_sq)
+            {
+                return true;
+            }
+
+            let closest_point_on_capsule_axis2 = get_closest_point_on_capsule(clamped_point2.borrow());
+            if (clamped_point2.get_distance_sq(closest_point_on_capsule_axis2.borrow()) < capsule_radius_sq)
+            {
+                return true;
+            }
+
+            if (clamped_point1.is_close_default(clamped_point2.borrow()))
+            {
+                return false;
+            }
+
+            let newclamped_point1 = closest_point_on_capsule_axis1.get_clamp(aabb.get_min().borrow(), aabb.get_max().borrow());
+            let newclamped_point2 = closest_point_on_capsule_axis2.get_clamp(aabb.get_min().borrow(), aabb.get_max().borrow());
+
+            if (newclamped_point1.is_close_default(clamped_point1.borrow()) || newclamped_point2.is_close_default(clamped_point2.borrow()))
+            {
+                return false;
+            }
+
+            clamped_point1 = newclamped_point1;
+            clamped_point2 = newclamped_point2;
+        }
+
+        return true;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn overlaps_obb_and_obb(obb1:&Obb,obb2:&Obb)->bool{
+        let overlaps_axis = |axis:&Vector3| ->bool{
+            let transformed_axis1 = obb1.GetRotation().GetInverseFast().TransformVector(axis);
+            let obb1projected_position = obb1.GetPosition().Dot(axis);
+            let obb1projected_half_extent = obb1.GetHalfLengths().Dot(transformed_axis1.GetAbs());
+            let obb1projected_min = obb1projected_position - obb1projected_half_extent;
+            let obb1projected_max = obb1projected_position + obb1projected_half_extent;
+            let transformed_axis2 = obb2.GetRotation().GetInverseFast().TransformVector(axis);
+            let obb2projected_position = obb2.GetPosition().Dot(axis);
+            let obb2projected_half_extent = obb2.GetHalfLengths().Dot(transformed_axis2.GetAbs());
+            let obb2projected_min = obb2projected_position - obb2projected_half_extent;
+            let obb2projected_max = obb2projected_position + obb2projected_half_extent;
+            return obb1projected_max >= obb2projected_min && obb1projected_min <= obb2projected_max;
+        };
+
+        let x_axis1 = obb1.get_rotation().transform_vector(Vector3::create_axis_x(1.0));
+        let y_axis1 = obb1.get_rotation().transform_vector(Vector3::create_axis_y(1.0));
+        let z_axis1 = obb1.get_rotation().transform_vector(Vector3::create_axis_z(1.0));
+        let x_axis2 = obb2.get_rotation().transform_vector(Vector3::create_axis_x(1.0));
+        let y_axis2 = obb2.get_rotation().transform_vector(Vector3::create_axis_y(1.0));
+        let z_axis2 = obb2.get_rotation().transform_vector(Vector3::create_axis_z(1.0));
+
+        return
+        overlaps_axis(x_axis1) &&
+            overlaps_axis(y_axis1) &&
+            overlaps_axis(z_axis1) &&
+            overlaps_axis(x_axis2) &&
+            overlaps_axis(y_axis2) &&
+            overlaps_axis(z_axis2) &&
+            overlaps_axis(x_axis1.cross(x_axis2)) &&
+            overlaps_axis(x_axis1.cross(y_axis2)) &&
+            overlaps_axis(x_axis1.cross(z_axis2)) &&
+            overlaps_axis(y_axis1.cross(x_axis2)) &&
+            overlaps_axis(y_axis1.cross(y_axis2)) &&
+            overlaps_axis(y_axis1.cross(z_axis2)) &&
+            overlaps_axis(z_axis1.cross(x_axis2)) &&
+            overlaps_axis(z_axis1.cross(y_axis2)) &&
+            overlaps_axis(z_axis1.cross(z_axis2));
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn overlaps_obb_and_capsule(obb:&Obb,capsule:&Capsule)->bool{
+        return Self::overlaps_capsule_and_obb(capsule, obb);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn overlaps_obb_and_sphere(obb:&Obb,sphere:&Sphere)->bool{
+        return Self::overlaps_sphere_and_obb(sphere, obb);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn overlaps_aabb_and_capsule(aabb:&Aabb,capsule:&Capsule)->bool{
+        return Self::overlaps_capsule_and_aabb(capsule, aabb);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn contains_aabb_and_aabb(aabb1:&Aabb,aabb2:&Aabb)->bool{
+        return aabb1.contains_aabb(aabb2);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn contains_aabb_and_sphere(aabb:&Aabb,sphere:&Sphere)->bool{
+        return Self::contains_aabb_and_aabb(aabb, Aabb::create_center_radius(sphere.get_center().borrow(), sphere.get_radius().borrow()).borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn contains_sphere_and_aabb(sphere:&Sphere,aabb:&Aabb)->bool{
+        let radius_sq = sphere.get_radius() * sphere.get_radius();
+        return aabb.get_max_distance_sq(sphere.get_center().borrow()) <= radius_sq;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn contains_sphere_and_vec3(sphere:&Sphere,point:&Vector3)->bool{
+        let dist_sq = sphere.get_center().get_distance_sq(point);
+        let radius_sq = sphere.get_radius() * sphere.get_radius();
+        return dist_sq <= radius_sq;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn contains_sphere_and_sphere(sphere1:&Sphere,sphere2:&Sphere)->bool{
+        let radius_diff = sphere1.get_radius() - sphere2.get_radius();
+        return sphere1.get_center().get_distance_sq(sphere2.get_center().borrow()) <= (radius_diff * radius_diff) * constants::get_sign(radius_diff);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn contains_hemisphere_and_aabb(hemisphere:&Hemisphere,aabb:&Aabb)->bool{
+        let radius_sq = hemisphere.get_radius() * hemisphere.get_radius();
+        if (aabb.GetMaxDistanceSq(hemisphere.get_center()) <= radius_sq)
+        {
+            let nearest_point_to_plane = aabb.get_support(hemisphere.get_direction());
+            return hemisphere.get_direction().dot3(nearest_point_to_plane - hemisphere.get_center()) >= 0.0;
+        }
+        return false;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn contains_frustum_and_aabb(frustum:&Frustum,aabb:&Aabb)->bool{
+        let center = aabb.get_center();
+        let extents = 0.5 * aabb.GetExtents();
+
+        for planeId in Frustum::PlaneId::Near.. Frustum::PlaneId::MAX
+        {
+            let plane = frustum.get_plane(planeId);
+            if (plane.get_point_dist(center) - extents.Dot(plane.get_normal().get_abs()) < 0.0)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn contains_frustum_and_sphere(frustum:&Frustum,sphere:&Sphere)->bool{
+        for planeId in Frustum::PlaneId::Near.. Frustum::PlaneId::MAX
+        {
+            if frustum.get_plane(planeId).get_point_dist(sphere.get_center().borrow()) - sphere.get_radius() < 0.0
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn contains_frustum_and_vec3(frustum:&Frustum,point:&Vector3)->bool{
+        for planeId in Frustum::PlaneId::Near.. Frustum::PlaneId::MAX
+        {
+            if frustum.get_plane(planeId).get_point_dist(point) < 0.0
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn contains_capsule_and_sphere(capsule:&Capsule,sphere:&Sphere)->bool{
+        let proportion:f32 = 0.0;
+        let closest_point_on_capsule_axis = Vector3::new();
+        Intersect::closest_point_segment(sphere.get_center(), capsule.get_first_hemisphere_center(), capsule.get_second_hemisphere_center(), proportion, closest_point_on_capsule_axis);
+        return Self::contains_sphere_and_sphere(Sphere::new_vec3_f32(closest_point_on_capsule_axis.borrow(), capsule.get_radius()).borrow(), sphere);
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn contains_capsule_and_aabb(capsule:&Capsule,aabb:&Aabb)->bool{
+        let mut aabbSphereCenter =Vector3::new();
+        let mut aabbSphereRadius:f32 = 0.0;
+        aabb.get_as_sphere(aabbSphereCenter.borrow_mut(), aabbSphereRadius.borrow_mut());
+        let aabbSphere = Sphere::new_vec3_f32(aabbSphereCenter.borrow(), aabbSphereRadius);
+
+        if (Self::contains_capsule_and_sphere(capsule, aabbSphere.borrow()))
+        {
+            return true;
+        }
+        else if (!Self::overlaps_capsule_and_sphere(capsule, aabbSphere.borrow()))
+        {
+            return false;
+        }
+        for  aabbPoint in
+        &[
+            aabb.get_min(),
+            aabb.get_max(),
+            Vector3::new_xyz(aabb.get_min().get_x(), aabb.get_min().get_y(), aabb.get_max().get_z()),
+            Vector3::new_xyz(aabb.get_min().get_x(), aabb.get_max().get_y(), aabb.get_min().get_z()),
+            Vector3::new_xyz(aabb.get_min().get_x(), aabb.get_max().get_y(), aabb.get_max().get_z()),
+            Vector3::new_xyz(aabb.get_max().get_x(), aabb.get_min().get_y(), aabb.get_min().get_z()),
+            Vector3::new_xyz(aabb.get_max().get_x(), aabb.get_min().get_y(), aabb.get_max().get_z()),
+            Vector3::new_xyz(aabb.get_max().get_x(), aabb.get_max().get_y(), aabb.get_min().get_z()),
+        ]
+        {
+            if (!capsule.contains(aabbPoint))
+            {
+                return false;
+            }
+        }
+        return true;
     }
-    }
-    return true;
-    }
-
-    AZ_MATH_INLINE bool Contains(const Capsule& capsule, const Sphere& sphere)
-    {
-    float proportion;
-    Vector3 closestPointOnCapsuleAxis;
-    Intersect::ClosestPointSegment(sphere.get_center(), capsule.GetFirstHemisphereCenter(), capsule.GetSecondHemisphereCenter(), proportion, closestPointOnCapsuleAxis);
-    return Contains(Sphere(closestPointOnCapsuleAxis, capsule.get_radius()), sphere);
-    }
-
-    AZ_MATH_INLINE bool Contains(const Capsule& capsule, const Aabb& aabb)
-    {
-    AZ::Vector3 aabbSphereCenter;
-    float aabbSphereRadius;
-    aabb.GetAsSphere(aabbSphereCenter, aabbSphereRadius);
-    AZ::Sphere aabbSphere(aabbSphereCenter, aabbSphereRadius);
-
-    if (Contains(capsule, aabbSphere))
-    {
-    return true;
-    }
-    else if (!Overlaps(capsule, aabbSphere))
-    {
-    return false;
-    }
 
-    // Unable to determine with fast sphere based checks, so check each point in the aabb.
-    for (const AZ::Vector3& aabbPoint :
-    {
-    aabb.GetMin(),
-    aabb.GetMax(),
-    AZ::Vector3(aabb.GetMin().GetX(), aabb.GetMin().GetY(), aabb.GetMax().GetZ()),
-    AZ::Vector3(aabb.GetMin().GetX(), aabb.GetMax().GetY(), aabb.GetMin().GetZ()),
-    AZ::Vector3(aabb.GetMin().GetX(), aabb.GetMax().GetY(), aabb.GetMax().GetZ()),
-    AZ::Vector3(aabb.GetMax().GetX(), aabb.GetMin().GetY(), aabb.GetMin().GetZ()),
-    AZ::Vector3(aabb.GetMax().GetX(), aabb.GetMin().GetY(), aabb.GetMax().GetZ()),
-    AZ::Vector3(aabb.GetMax().GetX(), aabb.GetMax().GetY(), aabb.GetMin().GetZ()),
-    })
-    {
-    if (!capsule.Contains(aabbPoint))
-    {
-    return false;
-    }
-    }
-    return true;
-    }
 }

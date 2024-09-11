@@ -37,8 +37,8 @@ impl Capsule{
 
     #[inline]
     #[allow(dead_code)]
-    pub fn get_first_hemisphere_center(self)->Vector3{
-        return self._first_hemisphere_center
+    pub fn get_first_hemisphere_center(self)-> Vector3{
+        return self._first_hemisphere_center;
     }
 
     #[inline]
@@ -85,14 +85,14 @@ impl Capsule{
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn set_radius(&mut self,radius:&f32){
+    pub unsafe fn set_radius(&mut self,radius:f32){
         self._radius = radius.to_owned();
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn is_close(self,rhs:&Capsule,tolerance:&f32)->bool{
-        return constants::is_close_f32(self._radius.borrow(),rhs._radius.borrow(),tolerance)
+    pub unsafe fn is_close(self,rhs:&Capsule,tolerance:f32)->bool{
+        return constants::is_close_f32(self._radius,rhs._radius,tolerance)
         && ( (self._first_hemisphere_center.is_close(rhs._first_hemisphere_center.borrow(),tolerance) && self._second_hemisphere_center.is_close(rhs._second_hemisphere_center.borrow(),tolerance))
             || (self._first_hemisphere_center.is_close(rhs._second_hemisphere_center.borrow(),tolerance)&& self._second_hemisphere_center.is_close(rhs._first_hemisphere_center.borrow(),tolerance)) )
     }

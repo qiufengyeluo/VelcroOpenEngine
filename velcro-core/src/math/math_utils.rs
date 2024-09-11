@@ -122,6 +122,34 @@ pub mod constants {
     pub fn get_mod_f64(a :f64,b:f64)->f64{
         return a % b;
     }
+
+    pub fn get_min<T>(a:T,b:T)->T{
+        if a < b{
+            a
+        }else {
+            b
+        }
+    }
+
+    pub fn get_max<T>(a:T,b:T)->T{
+        if a > b{
+            a
+        }else {
+            b
+        }
+    }
+    pub unsafe fn  get_sign(x:f32) ->f32
+    {
+        union FloatInt
+        {
+            f:f32,
+            u:u32,
+        }
+        let mut fi = FloatInt{f:x};
+        fi.u &= 0x80000000; // preserve sign
+        fi.u |= 0x3f800000; // 1
+        return fi.f;
+    }
 }
 
 
