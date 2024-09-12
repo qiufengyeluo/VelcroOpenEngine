@@ -175,35 +175,35 @@ pub unsafe fn splat_i32(value: i32 ) -> Int32Type {
 #[inline]
 #[allow(dead_code)]
 pub unsafe fn splat_first(value: FloatType) -> FloatType {
-    return _mm_shuffle_ps(value, value, _mm_shuffle(0, 0, 0, 0));
+    return _mm_shuffle_ps::<{ _mm_shuffle(0, 0, 0, 0)}>(value, value);
 }
 
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
 #[inline]
 #[allow(dead_code)]
 pub unsafe fn splat_second(value: FloatType) -> FloatType {
-    return _mm_shuffle_ps(value, value, _mm_shuffle(1, 1, 1, 1));
+    return _mm_shuffle_ps::<{_mm_shuffle(1, 1, 1, 1)}>(value, value);
 }
 
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
 #[inline]
 #[allow(dead_code)]
 pub unsafe fn splat_third(value: FloatType) -> FloatType {
-    return _mm_shuffle_ps(value, value, _mm_shuffle(2, 2, 2, 2));
+    return _mm_shuffle_ps::<{_mm_shuffle(2, 2, 2, 2)}>(value, value);
 }
 
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
 #[inline]
 #[allow(dead_code)]
 pub unsafe fn splat_fourth(value: FloatType) -> FloatType {
-    return _mm_shuffle_ps(value, value, _mm_shuffle(3, 3, 3, 3));
+    return _mm_shuffle_ps::<{_mm_shuffle(3, 3, 3, 3)}>(value, value);
 }
 
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
 #[inline]
 #[allow(dead_code)]
 pub unsafe fn replace_first(a: FloatType, b: FloatType) -> FloatType {
-    return _mm_blend_ps(a, b, 0b0001);
+    return _mm_blend_ps::<{0b0001}>(a, b);
 }
 
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
@@ -217,7 +217,7 @@ pub unsafe fn replace_first_f32(a: FloatType, b: f32) -> FloatType {
 #[inline]
 #[allow(dead_code)]
 pub unsafe fn replace_second(a: FloatType, b: FloatType) -> FloatType {
-    return _mm_blend_ps(a, b, 0b0010);
+    return _mm_blend_ps::<{0b0010}>(a, b);
 }
 
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
@@ -231,7 +231,7 @@ pub unsafe fn replace_second_f32(a: FloatType, b: f32) -> FloatType {
 #[inline]
 #[allow(dead_code)]
 pub unsafe fn replace_third(a: FloatType, b: FloatType) -> FloatType {
-    return _mm_blend_ps(a, b, 0b0100);
+    return _mm_blend_ps::<{0b0100}>(a, b);
 }
 
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
@@ -245,7 +245,7 @@ pub unsafe fn replace_third_f32(a: FloatType, b: f32) -> FloatType {
 #[inline]
 #[allow(dead_code)]
 pub unsafe fn replace_fourth(a: FloatType, b: FloatType) -> FloatType {
-    return _mm_blend_ps(a, b, 0b1000);
+    return _mm_blend_ps::<{0b1000}>(a, b);
 }
 
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
@@ -358,14 +358,14 @@ pub unsafe fn ceil(value: FloatType) -> FloatType {
 #[inline]
 #[allow(dead_code)]
 pub unsafe fn round(value: FloatType) -> FloatType {
-    return _mm_round_ps(value, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+    return _mm_round_ps::<{_MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC}>(value);
 }
 
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
 #[inline]
 #[allow(dead_code)]
 pub unsafe fn truncate(value: FloatType) -> FloatType {
-    return _mm_round_ps(value, _MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC);
+    return _mm_round_ps::<{_MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC}>(value);
 }
 
 #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
@@ -718,5 +718,5 @@ pub unsafe fn sqrt_inv(value: FloatType) -> FloatType {
 #[inline]
 #[allow(dead_code)]
 pub unsafe fn mod_calculate(value: FloatType, divisor: FloatType) -> FloatType {
-    return sub(value, mul(_mm_round_ps(div(value, divisor), _MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC), divisor));
+    return sub(value, mul(_mm_round_ps::<{ _MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC }>(div(value, divisor)), divisor));
 }

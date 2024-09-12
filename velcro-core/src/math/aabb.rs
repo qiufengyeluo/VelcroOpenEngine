@@ -68,7 +68,7 @@ impl Aabb {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn create_from_min_max_values(min_x: &f32, min_y: &f32, min_z: &f32, max_x: &f32, max_y: &f32, max_z: &f32) -> Aabb {
+    pub unsafe fn create_from_min_max_values(min_x: f32, min_y: f32, min_z: f32, max_x: f32, max_y: f32, max_z: f32) -> Aabb {
         Aabb {
             _min: Vector3::new_xyz(min_x, min_y, min_z),
             _max: Vector3::new_xyz(max_x, max_y, max_z),
@@ -86,7 +86,7 @@ impl Aabb {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn create_center_radius(center: &Vector3, radius: &f32) -> Aabb {
+    pub unsafe fn create_center_radius(center: &Vector3, radius: f32) -> Aabb {
         return Aabb::create_center_half_extents(center, Vector3::new_x(radius).borrow())
     }
 
@@ -174,8 +174,8 @@ impl Aabb {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn get_support(self, normal: &Vector3) -> Vector3 {
-        let select_max_mask = Vec3::cmp_lt(normal.get_simd_value().borrow(), Vec3::zero_float().borrow());
-        return Vector3::new_float_type(Vec3::select(self._max.get_simd_value().borrow(), self._min.get_simd_value().borrow(), select_max_mask.borrow()).borrow());
+        let select_max_mask = Vec3::cmp_lt(normal.get_simd_value(), Vec3::zero_float());
+        return Vector3::new_float_type(Vec3::select(self._max.get_simd_value(), self._min.get_simd_value(), select_max_mask));
     }
 
     #[inline]
@@ -282,8 +282,8 @@ impl Aabb {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn set_null(mut self) {
-        self._min = Vector3::new_x(constants::FLOAT_MAX.borrow());
-        self._max = Vector3::new_x((-constants::FLOAT_MAX).borrow());
+        self._min = Vector3::new_x(constants::FLOAT_MAX);
+        self._max = Vector3::new_x((-constants::FLOAT_MAX));
     }
 
     #[inline]
@@ -334,15 +334,14 @@ impl Aabb {
 
     #[allow(dead_code)]
     pub unsafe fn apply_matrix3x4(&mut self, matrix3x4: &Matrix3x4) {
-        let new_min = matrix3x4;
-        let new_max = new_min;
-        let mut axis_index = 0;
+        let mut new_min = matrix3x4.get_translation();
+        let mut new_max = new_min;
         for axis_index in 3 {
             let axis_coeffs = matrix3x4.get_row_as_vector3(axis_index);
             let projected_contributions_from_min = axis_coeffs * self._min;
             let projected_contributions_from_max = axis_coeffs * self._max;
-            new_min.set_element(axis_index, new_min.get_element(axis_index) + projected_contributions_from_min.get_min(projected_contributions_from_max).dot(Vector3::create_one().borrow()));
-            new_max.set_element(axis_index, new_max.get_element(axis_index) + projected_contributions_from_min.get_max(projected_contributions_from_max).dot(Vector3::create_one().borrow()));
+            new_min.set_element(axis_index, new_min.get_element(axis_index) + projected_contributions_from_min.get_min(projected_contributions_from_max.borrow()).dot3(Vector3::create_one().borrow()));
+            new_max.set_element(axis_index, new_max.get_element(axis_index) + projected_contributions_from_min.get_max(projected_contributions_from_max.borrow()).dot3(Vector3::create_one().borrow()));
         }
         self._min = new_min;
         self._max = new_max;
@@ -350,7 +349,7 @@ impl Aabb {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn is_close(self, rhs: &Aabb, tolerance: &f32) -> bool
+    pub unsafe fn is_close(self, rhs: &Aabb, tolerance: f32) -> bool
     {
         return self._min.is_close(rhs._min.borrow(), tolerance) && self._max.is_close(rhs._max.borrow(), tolerance);
     }
@@ -403,9 +402,9 @@ impl Aabb {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn get_transformed_obb_matrix3x4(self, matrix3x4: &Matrix3x4)->Obb {
-        let matrix_no_scale = matrix3x4.to_owned();
+        let mut matrix_no_scale = matrix3x4.to_owned();
         let scale = matrix_no_scale.extract_scale();
-        let rotation = Quaternion::create_from_matrix3x4(matrix_no_scale);
+        let rotation = Quaternion::create_from_matrix3x4(matrix_no_scale.borrow());
 
         return Obb::create_from_position_rotation_and_half_lengths(
             (matrix3x4 *self.get_center()).borrow(),
@@ -420,7 +419,7 @@ impl Aabb {
         let mut new_max = new_min.to_owned();
         for axisIndex in 3 {
             let mut axis = Vector3::create_zero();
-            axis.set_element(axisIndex, 1.0.borrow());
+            axis.set_element(axisIndex, 1.0);
             let axis_coeffs = (transform.get_rotation().get_conjugate().transform_vector(axis.borrow())) * transform.get_uniform_scale();
             let projected_contributions_from_min = axis_coeffs * self._min;
             let projected_contributions_from_max = axis_coeffs * self._max;
@@ -428,11 +427,11 @@ impl Aabb {
             new_min.set_element(
                 axisIndex,
                 (new_min.get_element(axisIndex) +
-                    projected_contributions_from_min.get_min(projected_contributions_from_max.borrow()).dot3(Vector3::CreateOne())).borrow());
+                    projected_contributions_from_min.get_min(projected_contributions_from_max.borrow()).dot3(Vector3::create_one().borrow())));
             new_max.set_element(
                 axisIndex,
                 (new_max.get_element(axisIndex) +
-                    projected_contributions_from_min.get_max(projected_contributions_from_max.borrow()).dot3(Vector3::CreateOne())).borrow());
+                    projected_contributions_from_min.get_max(projected_contributions_from_max.borrow()).dot3(Vector3::create_one().borrow())));
         }
 
         self._min = new_min;

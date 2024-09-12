@@ -46,8 +46,8 @@ impl LineSegment{
 
     #[inline]
     #[allow(dead_code)]
-    pub fn get_point(self, t:&f32) ->Vector3{
-        unsafe { return self._start.lerp(self._end.borrow(), t); }
+    pub fn get_point(self, t:f32) ->Vector3{
+        unsafe { return self._start.lerp(self._end, t); }
     }
 
 }
