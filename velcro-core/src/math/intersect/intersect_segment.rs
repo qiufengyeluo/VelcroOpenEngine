@@ -100,101 +100,87 @@ impl SegmentTriangleHitTester{
 
     #[inline]
     #[allow(dead_code)]
-    unsafe fn intersect<const oneSided:bool>(self,a:&Vector3,b:&Vector3,c:&Vector3,normal:&Vector3,t:&f32)->bool{
+    unsafe fn intersect<const oneSided:bool>(self,a:&Vector3,b:&Vector3,c:&Vector3,mut normal:&Vector3,mut t:&f32)->bool{
 
-        let A = a - self._p;
-        let B = b - self._p;
-        let C = c - self._p;
-
-
-        let Ax = A.get_element(self._kx) - self._sx * A.get_element(self._kz);
-        let Ay = A.get_element(self._ky) - self._sy * A.get_element(self._kz);
-        let Bx = B.get_element(self._kx) - self._sx * B.get_element(self._kz);
-        let By = B.get_element(self._ky) - self._sy * B.get_element(self._kz);
-        let Cx = C.get_element(self._kx) - self._sx * C.get_element(self._kz);
-        let Cy = C.get_element(self._ky) - self._sy * C.get_element(self._kz);
-
-        let mut U = Cx * By - Cy * Bx;
-        let mut V = Ax * Cy - Ay * Cx;
-        let mut W = Bx * Ay - By * Ax;
+        let av = a - self._p;
+        let bv = b - self._p;
+        let cv = c - self._p;
 
 
-        if U == 0.0 || V == 0.0 || W == 0.0
+        let ax = av.get_element(self._kx) - self._sx * av.get_element(self._kz);
+        let ay = av.get_element(self._ky) - self._sy * av.get_element(self._kz);
+        let bx = bv.get_element(self._kx) - self._sx * bv.get_element(self._kz);
+        let by = bv.get_element(self._ky) - self._sy * bv.get_element(self._kz);
+        let cx = cv.get_element(self._kx) - self._sx * cv.get_element(self._kz);
+        let cy = cv.get_element(self._ky) - self._sy * cv.get_element(self._kz);
+
+        let mut uv = cx * by - cy * bx;
+        let mut vv = ax * cy - ay * cx;
+        let mut wv = bx * ay - by * ax;
+
+
+        if uv == 0.0 || vv == 0.0 || wv == 0.0
         {
-            let CxBy = aznumeric_cast<double>(Cx) * aznumeric_cast<double>(By);
-            let CyBx = aznumeric_cast<double>(Cy) * aznumeric_cast<double>(Bx);
-            U = aznumeric_cast<float>(CxBy - CyBx);
-            let AxCy = aznumeric_cast<double>(Ax) * aznumeric_cast<double>(Cy);
-            let AyCx = aznumeric_cast<double>(Ay) * aznumeric_cast<double>(Cx);
-            V = aznumeric_cast<float>(AxCy - AyCx);
-            let BxAy = aznumeric_cast<double>(Bx) * aznumeric_cast<double>(Ay);
-            let ByAx = aznumeric_cast<double>(By) * aznumeric_cast<double>(Ax);
-            W = aznumeric_cast<float>(BxAy - ByAx);
+            let cx_by =  cx as f64 * by as f64;
+            let cy_bx =  cy as f64 * bx as f64;
+            uv = (cx_by - cy_bx) as f32;
+            let ax_cy = ax as f64 * cy as f64;
+            let ay_cx = ay as f64 * cx as f64;
+            vv = (ax_cy - ay_cx) as f32;
+            let bx_ay = bx as f64 * ay as f64;
+            let by_ax = by as f64 * ax as f64;
+            wv = (bx_ay - by_ax) as f32;
         }
 
-        if (U < 0.0 || V < 0.0 || W < 0.0)
+        if (uv < 0.0 || vv < 0.0 || wv < 0.0)
         {
-            if constexpr(oneSided)
+            if oneSided
             {
                 return false;
             }
-            else if U > 0.0 || V > 0.0 || W > 0.0
+            else if uv > 0.0 || vv > 0.0 || wv > 0.0
             {
                 return false;
             }
         }
 
-        let det = U + V + W;
+        let det = uv + vv + wv;
 
         if (det == 0.0)
         {
             return false;
         }
 
-        let Az = self._sz * A.GetElement(m_kz);
-        let Bz = self._sz * B.GetElement(m_kz);
-        let Cz = self._sz * C.GetElement(m_kz);
-        let T = U * Az + V * Bz + W * Cz;
+        let az = self._sz * av.get_element(self._kz);
+        let bz = self._sz * bv.get_element(self._kz);
+        let cz = self._sz * cv.get_element(self._kz);
+        let tv = uv * az + vv * bz + wv * cz;
 
-        // Since we're testing a segment, not a ray, T/det needs to be in [0,1] to be considered a hit, as anything outside those
-        // bounds will fall beyond the endpoints of the segment.
-        if constexpr(oneSided)
+        if oneSided
         {
-            // For one-sided triangles, we need to have 0 <= T < = det, or else T is beyond the endpoints.
-            if (T < 0.0 || T > det)
+            if (tv < 0.0 || tv > det)
             {
                 return false;
             }
 
-            // We've determined it's a hit, so use the untransformed triangle vertices to calculate the normal of the triangle face
-            // in the original coordinate space to return back from the API.
-            normal = (b - a).cross((c - a)).GetNormalized();
+            normal = (b - a).cross((c - a).borrow()).get_normalized().borrow_mut();
         }
         else
         {
-            // For two-sided triangles, we either need to have 0 <= T <= det if det is positive,
-            // or 0 <= -T <= -det if det is negative. Otherwise, T is beyond the endpoints.
-            const float detSign = signbit(det) ? -1.0 : 1.0;
-            if ((T * detSign) < 0.0 || (T * detSign) > (det * detSign))
+            let mut det_sign =1.0;
+            if signbit(det) {
+                det_sign =  -1.0;
+            }
+            if ((tv * det_sign) < 0.0 || (tv * det_sign) > (det * det_sign))
             {
                 return false;
             }
 
-            // We've determined it's a hit, so use the untransformed triangle vertices to calculate the normal of the triangle face
-            // in the original coordinate space to return back from the API. For two-sided triangles, we use the sign of the determinant
-            // to potentially flip the normal in the case that the back side of the triangle had the intersection.
-            normal = detSign * (b - a).Cross((c - a)).GetNormalized();
+            normal =   ((b - a).cross((c - a).borrow()).get_normalized() * det_sign).borrow_mut();
         }
 
-        // Finally, normalize T into [0, 1] space so that it represents the hit distance along the segment.
-        const float detReciprocal = 1.0 / det;
-        t = T * detReciprocal;
-
-        // If the barycentric coordinates of the hit point are ever needed, they would need to be normalized into [0,1] space
-        // before getting returned:
-        // u = U * detReciprocal;
-        // v = V * detReciprocal;
-        // w = W * detReciprocal;
+        let det_reciprocal = 1.0 / det;
+        t = (tv * det_reciprocal).borrow_mut();
 
         return true;
     }
