@@ -37,7 +37,7 @@ impl SegmentTriangleHitTester{
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn segment_triangle_hit_tester(p:&Vector3,q:&Vector3)->SegmentTriangleHitTester{
+    pub unsafe fn new_2vec3(p:&Vector3,q:&Vector3)->SegmentTriangleHitTester{
        let mut result = SegmentTriangleHitTester::new();
         result._p = p.to_owned();
         result._pq = q-p;
@@ -82,7 +82,7 @@ impl SegmentTriangleHitTester{
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn intersect_segment_triangle_ccw(self, a:&Vector3,b:&Vector3,c:&Vector3,normal:&Vector3,t:&f32){
+    pub unsafe fn intersect_segment_triangle_ccw(self, a:&Vector3,b:&Vector3,c:&Vector3,normal:&Vector3,t:&f32)->bool{
         return self.intersect::<{true}>(a, b, c, normal, t);
     }
 
@@ -168,7 +168,7 @@ impl SegmentTriangleHitTester{
         else
         {
             let mut det_sign =1.0;
-            if signbit(det) {
+            if !det.is_nan() {
                 det_sign =  -1.0;
             }
             if ((tv * det_sign) < 0.0 || (tv * det_sign) > (det * det_sign))

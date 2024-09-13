@@ -5,7 +5,6 @@ use crate::math::aabb::Aabb;
 use crate::math::capsule::Capsule;
 use crate::math::frustum::Frustum;
 use crate::math::hemisphere::Hemisphere;
-use crate::math::intersect;
 use crate::math::intersect::intersect_point::Intersect;
 use crate::math::math_utils::constants;
 use crate::math::math_utils::constants::FLOAT_EPSILON;
@@ -232,7 +231,7 @@ impl ShapeIntersection{
         let closest_point_segment2:Vector3 = Vector3::new();;
         let segment1proportion:f32 = 0f32;
         let segment2proportion:f32 = 0f32;
-        intersect::closest_segment_segment(
+        Intersect::closest_segment_segment(
             capsule1.GetFirstHemisphereCenter(), capsule1.GetSecondHemisphereCenter(), capsule2.GetFirstHemisphereCenter(),
             capsule2.GetSecondHemisphereCenter(), segment1proportion, segment2proportion, closest_point_segment1, closest_point_segment2);
         let radius_sum = capsule1.get_radius() + capsule2.get_radius();
