@@ -103,8 +103,9 @@ impl VectorN {
         {
             element.set_simd_value(rand_gen.get_random_float4());
         }
-        return_value.fix_last_vector_element();
         return_value
+
+        // return_value.fix_last_vector_element();
     }
 
     #[inline]
@@ -127,14 +128,14 @@ impl VectorN {
     #[allow(dead_code)]
     pub unsafe fn get_element(self,index:i32)->f32{
         let element = index/4;
-        return  (self._values.get(element) as Vector4).get_element(index % 4);
+        return  self._values.get(element) .unwrap().get_element(index % 4);
     }
 
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn set_element(&mut self,index:i32,value:f32){
         let element = index/4;
-        (self._values.get_mut(element) as Vector4).set_element(index % 4, value);
+        self._values.get_mut(element).unwrap().set_element(index % 4, value);
     }
 
     #[inline]
@@ -181,6 +182,7 @@ impl VectorN {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn is_less_than(self,v :&VectorN)->bool{
+        assert_eq!(self._size, v._size);
         for i in 0..self._values.len()
         {
             if (!Vec4::cmp_all_lt(self._values[i].get_simd_value(), v._values[i].get_simd_value()))
@@ -194,6 +196,7 @@ impl VectorN {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn is_less_equal_than(self,v:&VectorN)->bool{
+        assert_eq!(self._size, v._size);
         for i in 0..self._values.len()
         {
             if (!Vec4::cmp_all_lt_eq(self._values[i].get_simd_value(), v._values[i].get_simd_value()))
@@ -207,6 +210,7 @@ impl VectorN {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn is_greater_than(self,v:&VectorN)->bool{
+        assert_eq!(self._size, v._size);
         for i in 0..self._values.len()
         {
             if (!Vec4::cmp_all_gt(self._values[i].get_simd_value(), v._values[i].get_simd_value()))
@@ -220,6 +224,7 @@ impl VectorN {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn is_greater_equal_than(self,v:&VectorN)->bool{
+        assert_eq!(self._size, v._size);
         for i in 0..self._values.len()
         {
             if (!Vec4::cmp_all_gt_eq(self._values[i].get_simd_value(), v._values[i].get_simd_value()))
@@ -266,6 +271,7 @@ impl VectorN {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn get_min(self,v:&VectorN)->VectorN{
+        assert_eq!(self._size, v._size);
         let mut return_value = VectorN::new_i32(self._size);
         for i in 0..self._values.len()
         {
@@ -277,6 +283,7 @@ impl VectorN {
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn get_max(self, v:&VectorN) ->VectorN{
+        assert_eq!(self._size, v._size);
         let mut return_value = VectorN::new_i32(self._size);
         for i in 0..self._values.len()
         {
@@ -287,18 +294,17 @@ impl VectorN {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn
-    AZ_MATH_INLINE VectorN VectorN::GetClamp(const VectorN& min, const VectorN& max) const
-{
-AZ_Assert(m_numElements == min.m_numElements, "Dimensionality must be equal");
-AZ_Assert(m_numElements == max.m_numElements, "Dimensionality must be equal");
-VectorN returnValue(m_numElements);
-for (AZStd::size_t i = 0; i < m_values.size(); ++i)
-{
-returnValue.m_values[i] = m_values[i].GetClamp(min.m_values[i], max.m_values[i]);
-}
-return returnValue;
-}
+    pub unsafe fn get_clamp(self,min:&VectorN,max:&VectorN)->VectorN{
+        assert!(self._size == min._size);
+        assert!(self._size == max._size);
+        let mut return_value = VectorN::new_i32(self._size);
+        for i in 0..self._values.len()
+        {
+            return_value._values[i] = self._values.get(i).unwrap().get_clamp(min._values.get(i).unwrap(), max._values.get(i).unwrap());
+        }
+        return return_value;
+    }
+
 
 AZ_MATH_INLINE float VectorN::L1Norm() const
 {
