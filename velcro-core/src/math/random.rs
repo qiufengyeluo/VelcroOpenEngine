@@ -1,8 +1,13 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
 
-use crypto_api_osrandom;
 use std::ptr::read_unaligned;
+
+use crypto_api_osrandom;
+
+use crate::math::common_sse::VecType;
+use crate::math::simd_math_vec4_sse::Vec4;
+use crate::math::vsimd::{FloatType, Int32ArgType, Int32Type};
 
 pub struct SimpleLcgRandom {
     _seed: u64
@@ -50,4 +55,34 @@ pub fn get_random<T>() -> Option<T> {
     }
 
     return Some(unsafe { read_unaligned(result.unwrap().as_ptr().cast::<T>()) });
+}
+pub struct SimpleLcgRandomVec4{
+    _seed:Int32Type,
+}
+impl SimpleLcgRandomVec4 {
+    pub fn new()->SimpleLcgRandomVec4{
+        SimpleLcgRandomVec4{
+            _seed
+        }
+    }
+
+    pub unsafe  fn set_seed(&mut self,seed:Int32ArgType){
+        let mask = Vec4::splat_i32(0x7FFFFFFF); // 2^31 - 1
+        self._seed = Vec4::and_i32(seed, mask);
+    }
+
+    pub unsafe  fn get_random_int4(&mut self) ->Int32Type{
+        let scalar = Vec4::splat_i32(1103515245);
+        let constant = Vec4::splat_i32(12345);
+        let mask = Vec4::splat_i32((0x7FFFFFFF));
+        self._seed = Vec4::and_i32(Vec4::madd_i32(self._seed, scalar, constant), mask);
+        self._seed
+    }
+
+    pub unsafe  fn get_random_float4(&mut self) ->FloatType{
+        let mut rand_val = self.get_random_int4();
+        rand_val = Vec4::and_i32(rand_val, Vec4::splat_i32(0x007fffff)); // Sets mantissa to random bits
+        rand_val = Vec4::or_i32(rand_val, Vec4::splat_i32(0x3f800000)); // Result is in [1,2), uniformly distributed
+        return Vec4::sub(Vec4::cast_to_float(rand_val), Vec4::splat(1.0));
+    }
 }

@@ -475,7 +475,7 @@ impl ShapeIntersection{
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn contains_aabb_and_sphere(aabb:&Aabb,sphere:&Sphere)->bool{
-        return Self::contains_aabb_and_aabb(aabb, Aabb::create_center_radius(sphere.get_center().borrow(), sphere.get_radius().borrow()).borrow());
+        return Self::contains_aabb_and_aabb(aabb, Aabb::create_center_radius(sphere.get_center().borrow(), sphere.get_radius()).borrow());
     }
 
     #[inline]

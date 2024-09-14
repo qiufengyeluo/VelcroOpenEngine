@@ -1,7 +1,6 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
-
-use std::arch::x86_64::{_mm_hadd_ps, _mm_shuffle_ps};
+use std::arch::x86_64::{_mm_hadd_ps, _MM_SHUFFLE, _mm_shuffle_ps};
 
 use crate::math::common_sse::*;
 use crate::math::math_utils::constants;
@@ -101,7 +100,7 @@ impl VecType for  Vec4 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-     unsafe fn splat_i32(value:&i32)->Int32Type{
+     unsafe fn splat_i32(value:i32)->Int32Type{
         return sse::splat_i32(value.to_owned());
     }
 
@@ -694,8 +693,8 @@ impl VecTwoType for Vec4 {
     #[allow(dead_code)]
     unsafe fn dot(arg1:FloatArgType,arg2:FloatArgType)->FloatType{
         let x2 = Vec4::mul(arg1,arg2);
-        let tmp = Vec4::add(x2,_mm_shuffle_ps(x2, x2, _MM_SHUFFLE(2, 3, 0, 1)).borrow());
-        return  Vec4::add(tmp,_mm_shuffle_ps(tmp, tmp, _MM_SHUFFLE(1, 0, 2, 3)).borrow());
+        let tmp = Vec4::add(x2,_mm_shuffle_ps::<{_MM_SHUFFLE(2, 3, 0, 1)}>(x2, x2));
+        return  Vec4::add(tmp,_mm_shuffle_ps::<{_MM_SHUFFLE(1, 0, 2, 3)}>(tmp, tmp));
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
@@ -822,14 +821,14 @@ impl VecFourthType for Vec4 {
     #[allow(dead_code)]
     unsafe fn quaternion_multiply(arg1:FloatArgType,arg2:FloatArgType)->FloatType{
         let flip_wsign = Common::fast_load_constant(G_NEGATE_MASK.borrow());
-        let val1 = _mm_shuffle_ps(arg1.to_owned(), arg1.to_owned(), _MM_SHUFFLE(3, 0, 2, 1));
-        let val2 = _mm_shuffle_ps(arg2.to_owned(), arg2.to_owned(), _MM_SHUFFLE(3, 1, 0, 2));
-        let val3 = _mm_shuffle_ps(arg1.to_owned(), arg1.to_owned(), _MM_SHUFFLE(0, 1, 0, 2));
-        let val4 = _mm_shuffle_ps(arg2.to_owned(), arg2.to_owned(), _MM_SHUFFLE(0, 0, 2, 1));
-        let val5 = _mm_shuffle_ps(arg1.to_owned(), arg1.to_owned(), _MM_SHUFFLE(1, 3, 3, 3));
-        let val6 = _mm_shuffle_ps(arg2.to_owned(), arg2.to_owned(), _MM_SHUFFLE(1, 2, 1, 0));
-        let val7 = _mm_shuffle_ps(arg1.to_owned(), arg1.to_owned(), _MM_SHUFFLE(2, 2, 1, 0));
-        let val8 = _mm_shuffle_ps(arg2.to_owned(), arg2.to_owned(), _MM_SHUFFLE(2, 3, 3, 3));
+        let val1 = _mm_shuffle_ps::<{_MM_SHUFFLE(3, 0, 2, 1)}>(arg1.to_owned(), arg1.to_owned());
+        let val2 = _mm_shuffle_ps::<{_MM_SHUFFLE(3, 1, 0, 2)}>(arg2.to_owned(), arg2.to_owned());
+        let val3 = _mm_shuffle_ps::<{_MM_SHUFFLE(0, 1, 0, 2)}>(arg1.to_owned(), arg1.to_owned());
+        let val4 = _mm_shuffle_ps::<{_MM_SHUFFLE(0, 0, 2, 1)}>(arg2.to_owned(), arg2.to_owned());
+        let val5 = _mm_shuffle_ps::<{_MM_SHUFFLE(1, 3, 3, 3)}>(arg1.to_owned(), arg1.to_owned());
+        let val6 = _mm_shuffle_ps::<{_MM_SHUFFLE(1, 2, 1, 0)}>(arg2.to_owned(), arg2.to_owned());
+        let val7 = _mm_shuffle_ps::<{_MM_SHUFFLE(2, 2, 1, 0)}>(arg1.to_owned(), arg1.to_owned());
+        let val8 = _mm_shuffle_ps::<{_MM_SHUFFLE(2, 3, 3, 3)}>(arg2.to_owned(), arg2.to_owned());
         let first_term = Vec4::mul(val1, val2);
         let second_term = Vec4::mul(val3, val4);
         let third_term = Vec4::mul(val5, val6);
@@ -891,13 +890,13 @@ impl Vec4Type for Vec4 {
     #[allow(dead_code)]
     unsafe fn mat3x4inverse_fast(rows:*const FloatType,mut out:&*const FloatType){
         let pos = Vec4::sub(Vec4::zero_float(), Vec4::madd(*rows[0], Vec4::splat_index3(*rows[0]), Vec4::madd(*rows[1], Vec4::splat_index3(*rows[1]), Vec4::mul(*rows[2], Vec4::splat_index3(*rows[2])))));
-        let tmp0 = _mm_shuffle_ps(rows[0], rows[1], 0x44);
-        let tmp2 = _mm_shuffle_ps(rows[0], rows[1], 0xEE);
-        let tmp1 = _mm_shuffle_ps(rows[2], pos, 0x44);
-        let tmp3 = _mm_shuffle_ps(rows[2], pos, 0xEE);
-        *out[0] = _mm_shuffle_ps(tmp0, tmp1, 0x88);
-        *out[1] = _mm_shuffle_ps(tmp0, tmp1, 0xDD);
-        *out[2] = _mm_shuffle_ps(tmp2, tmp3, 0x88);
+        let tmp0 = _mm_shuffle_ps::<{0x44}>(rows[0], rows[1]);
+        let tmp2 = _mm_shuffle_ps::<{0xEE}>(rows[0], rows[1]);
+        let tmp1 = _mm_shuffle_ps::<{0x44}>(rows[2], pos);
+        let tmp3 = _mm_shuffle_ps::<{0xEE}>(rows[2], pos);
+        *out[0] = _mm_shuffle_ps::<{0x88}>(tmp0, tmp1);
+        *out[1] = _mm_shuffle_ps::<{0xDD}>(tmp0, tmp1);
+        *out[2] = _mm_shuffle_ps::<{0x88}>(tmp2, tmp3);
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
@@ -905,13 +904,13 @@ impl Vec4Type for Vec4 {
     #[allow(dead_code)]
     unsafe fn mat3x4transpose(rows:*const FloatType,mut out:&*const FloatType){
         let fourth = Common::fast_load_constant(G_VEC1111.borrow());
-        let tmp0 = _mm_shuffle_ps(rows[0], rows[1], 0x44);
-        let tmp2 = _mm_shuffle_ps(rows[0], rows[1], 0xEE);
-        let tmp1 = _mm_shuffle_ps(rows[2], fourth, 0x44);
-        let tmp3 = _mm_shuffle_ps(rows[2], fourth, 0xEE);
-        *out[0] = _mm_shuffle_ps(tmp0, tmp1, 0x88);
-        *out[1] = _mm_shuffle_ps(tmp0, tmp1, 0xDD);
-        *out[2] = _mm_shuffle_ps(tmp2, tmp3, 0x88);
+        let tmp0 = _mm_shuffle_ps::<{0x44}>(rows[0], rows[1]);
+        let tmp2 = _mm_shuffle_ps::<{0xEE}>(rows[0], rows[1]);
+        let tmp1 = _mm_shuffle_ps::<{0x44}>(rows[2], fourth);
+        let tmp3 = _mm_shuffle_ps::<{0xEE}>(rows[2], fourth);
+        *out[0] = _mm_shuffle_ps::<{0x88}>(tmp0, tmp1);
+        *out[1] = _mm_shuffle_ps::<{0xDD}>(tmp0, tmp1);
+        *out[2] = _mm_shuffle_ps::<{0x88}>(tmp2, tmp3);
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
@@ -932,14 +931,14 @@ impl Vec4Type for Vec4 {
     #[inline]
     #[allow(dead_code)]
     unsafe fn mat4x4transpose(rows:*const FloatType,mut out :&*const FloatType){
-        let tmp0 = _mm_shuffle_ps(rows[0], rows[1], 0x44);
-        let tmp2 = _mm_shuffle_ps(rows[0], rows[1], 0xEE);
-        let tmp1 = _mm_shuffle_ps(rows[2], rows[3], 0x44);
-        let tmp3 = _mm_shuffle_ps(rows[2], rows[3], 0xEE);
-        *out[0] = _mm_shuffle_ps(tmp0, tmp1, 0x88);
-        *out[1] = _mm_shuffle_ps(tmp0, tmp1, 0xDD);
-        *out[2] = _mm_shuffle_ps(tmp2, tmp3, 0x88);
-        *out[3] = _mm_shuffle_ps(tmp2, tmp3, 0xDD);
+        let tmp0 = _mm_shuffle_ps::<{0x44}>(rows[0], rows[1]);
+        let tmp2 = _mm_shuffle_ps::<{0xEE}>(rows[0], rows[1]);
+        let tmp1 = _mm_shuffle_ps::<{0x44}>(rows[2], rows[3]);
+        let tmp3 = _mm_shuffle_ps::<{0xEE}>(rows[2], rows[3]);
+        *out[0] = _mm_shuffle_ps::<{0x88}>(tmp0, tmp1);
+        *out[1] = _mm_shuffle_ps::<{0xDD}>(tmp0, tmp1);
+        *out[2] = _mm_shuffle_ps::<{0x88}>(tmp2, tmp3);
+        *out[3] = _mm_shuffle_ps::<{0xDD}>(tmp2, tmp3);
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
