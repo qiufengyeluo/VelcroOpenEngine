@@ -33,6 +33,11 @@ impl MulAssign<f32> for Vector4 {
         unsafe { self = Vector4::new_float_type(Vec4::mul(self.get_simd_value(), Vec4::splat(rhs))).to_owned().borrow_mut(); }
     }
 }
+impl MulAssign<Vector4> for Vector4 {
+    fn mul_assign(&mut self, rhs: Vector4) {
+        unsafe { self._value = (self * rhs)._value; }
+    }
+}
 impl PartialEq<Self> for Vector4 {
     fn eq(&self, other: &Self) -> bool {
         unsafe { return Vec4::cmp_all_eq(self._value, other._value); }
@@ -61,7 +66,13 @@ impl Mul<f32> for &mut Vector4 {
         unsafe { return Vector4::new_float_type(Vec3::mul(self._value, Vec3::splat(multiplier))) }
     }
 }
+impl Mul<Vector4> for &mut Vector4 {
+    type Output = Vector4;
 
+    fn mul(self, rhs: Vector4) -> Self::Output {
+        unsafe { return Vector4::new_float_type(Vec4::mul(self._value, rhs._value));}
+    }
+}
 impl Mul<f32> for &Vector4 {
     type Output = Vector4;
 
@@ -73,7 +84,7 @@ impl Add<Vector4> for Vector4 {
     type Output = Vector4;
 
     fn add(self, rhs: Self) -> Self::Output {
-        unsafe {
+         {
             Vector4 {
                 _value: Vec4::add(self._value, rhs._value)
             }
@@ -187,7 +198,7 @@ impl Vector4 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn new_x(x:f32)->Vector4{
+    pub  fn new_x(x:f32)->Vector4{
         Vector4{
             _value:Vec4::splat(x),
         }
@@ -195,7 +206,7 @@ impl Vector4 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn new_xyzw(x:f32,y:f32,z:f32,w:f32)->Vector4{
+    pub  fn new_xyzw(x:f32,y:f32,z:f32,w:f32)->Vector4{
         Vector4{
             _value:Vec4::load_immediate(x,y,z,w),
         }
@@ -203,7 +214,7 @@ impl Vector4 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn new_float_type(value:FloatArgType)->Vector4{
+    pub  fn new_float_type(value:FloatArgType)->Vector4{
         Vector4{
             _value:value,
         }
@@ -350,7 +361,7 @@ impl Vector4 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn get_x(self)->f32{
+    pub  fn get_x(self)->f32{
         let values = *self._value as *const f32;
         *values[0]
     }
@@ -857,25 +868,25 @@ impl Vector4 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  get_reciprocal_estimate(self)->Vector4{
+    pub  fn  get_reciprocal_estimate(self)->Vector4{
         return Vector4::new_float_type(Vec4::reciprocal_estimate(self.get_simd_value()));
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  is_finite(self)->bool{
+    pub  fn  is_finite(self)->bool{
         return constants::is_finite_float(self.get_x())&&constants::is_finite_float(self.get_y())&&constants::is_finite_float(self.get_z());
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  get_simd_value(&self)->FloatType{
+    pub  fn  get_simd_value(&self)->FloatType{
         self._value
     }
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  set_simd_value(mut self, value :FloatArgType ){
+    pub  fn  set_simd_value(mut self, value :FloatArgType ){
         self._value = value.to_owned();
     }
 

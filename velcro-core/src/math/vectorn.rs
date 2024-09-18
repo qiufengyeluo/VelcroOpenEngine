@@ -1,8 +1,11 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
 
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
+
 use crate::math::common_sse::VecType;
 use crate::math::math_utils::constants::FLOAT_EPSILON;
+use crate::math::simd_math::simd;
 use crate::math::simd_math_vec4_sse::Vec4;
 use crate::math::vector4::Vector4;
 use crate::SimpleLcgRandomVec4;
@@ -13,11 +16,197 @@ pub struct VectorN {
     _values:Vec<Vector4>,
 }
 
+impl Clone for VectorN {
+    fn clone(&self) -> Self {
+        let mut result= unsafe { VectorN::new_i32(self._size) };
+        for i in self._values.len(){
+            result._values.get_mut(i).unwrap().set_simd_value(self._values.get(i).unwrap().get_simd_value());
+        }
+        result
+    }
+}
+
+impl Copy for VectorN {
+}
+impl AddAssign<&VectorN> for VectorN{
+    fn add_assign(&mut self, rhs: &VectorN) {
+        for i in self._values.len()
+        {
+            self._values[i] += rhs._values[i];
+        }
+        self.fix_last_vector_element();
+    }
+}
+
+impl SubAssign<&VectorN> for VectorN{
+    fn sub_assign(&mut self, rhs: &VectorN) {
+        for i in self._values.len()
+        {
+            self._values[i] -= rhs._values[i];
+        }
+        self.fix_last_vector_element();
+    }
+}
+
+impl MulAssign<&VectorN> for VectorN{
+    fn mul_assign(&mut self, rhs: &VectorN) {
+        for i in self._values.len()
+        {
+            self._values[i] *= rhs._values[i];
+        }
+    }
+}
+
+impl DivAssign<&VectorN> for VectorN{
+    fn div_assign(&mut self, rhs: &VectorN) {
+        for i in self._values.len()
+        {
+            self._values[i] /= rhs._values[i];
+        }
+    }
+}
+
+impl AddAssign<f32> for VectorN{
+    fn add_assign(&mut self, sum: f32) {
+        let sum_vec = unsafe { Vector4::new_x(sum) };
+        for i in self._values.len()
+        {
+            self._values[i] += sum_vec;
+        }
+        self.fix_last_vector_element();
+    }
+}
+
+impl SubAssign<f32> for VectorN{
+    fn sub_assign(&mut self, difference: f32) {
+        let diff_vec =  unsafe { Vector4::new_x(difference) };
+        for i in self._values.len()
+        {
+            self._values[i] -= diff_vec;
+        }
+        self.fix_last_vector_element();
+    }
+}
+
+impl MulAssign<f32> for VectorN{
+    fn mul_assign(&mut self, multiplier: f32) {
+        for i in self._values.len()
+        {
+            self._values[i] *= multiplier;
+        }
+    }
+}
+
+impl DivAssign<f32> for VectorN{
+    fn div_assign(&mut self, divisor: f32) {
+        for i in self._values.len()
+        {
+            self._values[i] /= divisor;
+        }
+        self.fix_last_vector_element();
+    }
+}
+
+impl Sub for VectorN {
+    type Output = VectorN;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        let mut return_value = unsafe { VectorN::new_i32(self._size) };
+        for i in self._values.len()
+        {
+            return_value._values[i] = -self._values[i];
+        }
+        return return_value;
+    }
+}
+
+impl Add<&VectorN> for VectorN {
+    type Output = VectorN;
+    fn add(self, rhs: &VectorN) -> Self::Output {
+        let mut return_value = unsafe { VectorN::new_i32(self._size) };
+        for i in self._values.len()
+        {
+            return_value._values[i] = self._values[i] + rhs._values[i];
+        }
+        return_value.fix_last_vector_element();
+        return return_value;
+    }
+}
+
+impl Sub<&VectorN> for VectorN{
+    type Output = VectorN;
+
+    fn sub(self, rhs: &VectorN) -> Self::Output {
+        let mut return_value = unsafe { VectorN::new_i32(self._size) };
+        for i in self._values.len()
+        {
+            return_value._values[i] = self._values[i] - rhs._values[i];
+        }
+        return_value.fix_last_vector_element();
+        return return_value;
+    }
+}
+
+impl Mul<&VectorN> for VectorN{
+    type Output = VectorN;
+
+    fn mul(self, rhs: &VectorN) -> Self::Output {
+        let mut return_value = unsafe { VectorN::new_i32(self._size) };
+        for i in self._values.len()
+        {
+            return_value._values[i] = self._values[i] * rhs._values[i];
+        }
+        return return_value;
+    }
+}
+
+impl Div<&VectorN> for VectorN{
+    type Output = VectorN;
+
+    fn div(self, rhs: &VectorN) -> Self::Output {
+        let mut return_value = unsafe { VectorN::new_i32(self._size) };
+        for i in self._values.len()
+        {
+            return_value._values[i] = self._values[i] / rhs._values[i];
+        }
+        return_value.fix_last_vector_element();
+        return return_value;
+    }
+}
+
+impl Mul<f32> for VectorN{
+    type Output = VectorN;
+
+    fn mul(self, multiplier: f32) -> Self::Output {
+        let mut return_value = unsafe { VectorN::new_i32(self._size) };
+        for i in self._values.len()
+        {
+            return_value._values[i] = self._values[i] * multiplier;
+        }
+        return return_value;
+    }
+}
+
+impl Div<f32> for VectorN{
+    type Output = VectorN;
+
+    fn div(self, divisor: f32) -> Self::Output {
+        let mut return_value = unsafe { VectorN::new_i32(self._size) };
+        for i in self._values.len()
+        {
+            return_value._values[i] = self._values[i] / divisor;
+        }
+        return_value.fix_last_vector_element();
+        return return_value;
+    }
+}
+
+
 impl VectorN {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe  fn new()->VectorN{
+    pub fn new()->VectorN{
         VectorN{
             _size:0,
             _values:Vec::new(),
@@ -25,7 +214,7 @@ impl VectorN {
     }
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn new_i32(num_elements:i32) -> VectorN {
+    pub fn new_i32(num_elements:i32) -> VectorN {
         let mut result = VectorN::new();
         result._size = num_elements;
         for i in 0..num_elements{
@@ -58,7 +247,7 @@ impl VectorN {
     }
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn fix_last_vector_element(mut self){
+    pub  fn fix_last_vector_element(&mut self){
         if self._values.size() == 0{
             return;
         }
@@ -68,8 +257,8 @@ impl VectorN {
             0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00000000];
         let last_element = self._values.size() -1;
         let trailing_zero_elements = 4*(self._size%4);
-        let mask = Vec4::load_aligned(masks[trailing_zero_elements]);
-        self._values[last_element].set_simd_value(Vec4::and(self._values[last_element].get_simd_value(), mask.borrow()));
+        let mask = unsafe { Vec4::load_aligned(masks[trailing_zero_elements]) };
+        unsafe { self._values[last_element].set_simd_value(Vec4::and(self._values[last_element].get_simd_value(), mask.borrow())); }
     }
 
     #[inline]
@@ -110,7 +299,7 @@ impl VectorN {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn get_dimensionality(self)->i32{
+    pub  fn get_dimensionality(self)->i32{
         return self._size
     }
 
@@ -305,340 +494,155 @@ impl VectorN {
         return return_value;
     }
 
-
-AZ_MATH_INLINE float VectorN::L1Norm() const
-{
-AZ::Vector4 partialLengths = AZ::Vector4::CreateZero();
-for (AZStd::size_t i = 0; i < m_values.size(); ++i)
-{
-partialLengths += m_values[i].GetAbs();
-}
-return partialLengths.Dot(AZ::Vector4::CreateOne());
-}
-
-AZ_MATH_INLINE float VectorN::L2Norm() const
-{
-return AZ::Sqrt(Dot(*this));
-}
-
-AZ_MATH_INLINE VectorN VectorN::GetNormalized() const
-{
-VectorN returnValue(*this);
-returnValue.Normalize();
-return returnValue;
-}
-
-AZ_MATH_INLINE void VectorN::Normalize()
-{
-const float length = L2Norm();
-*this /= length;
-}
-
-AZ_MATH_INLINE VectorN VectorN::GetAbs() const
-{
-VectorN returnValue(m_numElements);
-for (AZStd::size_t i = 0; i < m_values.size(); ++i)
-{
-returnValue.m_values[i] = m_values[i].GetAbs();
-}
-return returnValue;
-}
-
-AZ_MATH_INLINE void VectorN::Absolute()
-{
-for (AZStd::size_t i = 0; i < m_values.size(); ++i)
-{
-m_values[i] = m_values[i].GetAbs();
-}
-}
-
-AZ_MATH_INLINE VectorN VectorN::GetSquare() const
-{
-VectorN returnValue(m_numElements);
-for (AZStd::size_t i = 0; i < m_values.size(); ++i)
-{
-returnValue.m_values[i] = m_values[i] * m_values[i];
-}
-return returnValue;
-}
-
-AZ_MATH_INLINE void VectorN::Square()
-{
-for (AZStd::size_t i = 0; i < m_values.size(); ++i)
-{
-m_values[i] *= m_values[i];
-}
-}
-
-AZ_MATH_INLINE float VectorN::Dot(const VectorN& rhs) const
-{
-AZ_Assert(m_numElements == rhs.m_numElements, "Dimensionality must be equal");
-AZ::Vector4 partialSums = AZ::Vector4::CreateZero();
-for (AZStd::size_t i = 0; i < m_values.size(); ++i)
-{
-partialSums.SetSimdValue(Simd::Vec4::Madd(m_values[i].GetSimdValue(), rhs.m_values[i].GetSimdValue(), partialSums.GetSimdValue()));
-}
-return partialSums.Dot(AZ::Vector4::CreateOne());
-}
-
-AZ_MATH_INLINE void VectorN::SetZero()
-{
-AZ::Vector4* data = m_values.data();
-memset(data, 0, sizeof(AZ::Vector4) * m_values.size());
-}
-
-AZ_MATH_INLINE VectorN& VectorN::operator+=(const VectorN& rhs)
-{
-AZ_Assert(m_numElements == rhs.m_numElements, "Dimensionality must be equal");
-for (AZStd::size_t i = 0; i < m_values.size(); ++i)
-{
-m_values[i] += rhs.m_values[i];
-}
-FixLastVectorElement();
-return *this;
-}
-
-AZ_MATH_INLINE VectorN& VectorN::operator-=(const VectorN& rhs)
-{
-AZ_Assert(m_numElements == rhs.m_numElements, "Dimensionality must be equal");
-for (AZStd::size_t i = 0; i < m_values.size(); ++i)
-{
-m_values[i] -= rhs.m_values[i];
-}
-FixLastVectorElement();
-return *this;
-}
-
-AZ_MATH_INLINE VectorN& VectorN::operator*=(const VectorN& rhs)
-{
-AZ_Assert(m_numElements == rhs.m_numElements, "Dimensionality must be equal");
-for (AZStd::size_t i = 0; i < m_values.size(); ++i)
-{
-m_values[i] *= rhs.m_values[i];
-}
-return *this;
-}
-
-AZ_MATH_INLINE VectorN& VectorN::operator/=(const VectorN& rhs)
-{
-AZ_Assert(m_numElements == rhs.m_numElements, "Dimensionality must be equal");
-for (AZStd::size_t i = 0; i < m_values.size(); ++i)
-{
-m_values[i] /= rhs.m_values[i];
-}
-FixLastVectorElement();
-return *this;
-}
-
-AZ_MATH_INLINE VectorN& VectorN::operator+=(float sum)
-{
-Vector4 sumVec = Vector4(sum);
-for (AZStd::size_t i = 0; i < m_values.size(); ++i)
-{
-m_values[i] += sumVec;
-}
-FixLastVectorElement();
-return *this;
-}
-
-AZ_MATH_INLINE VectorN& VectorN::operator-=(float difference)
-{
-Vector4 diffVec = Vector4(difference);
-for (AZStd::size_t i = 0; i < m_values.size(); ++i)
-{
-m_values[i] -= diffVec;
-}
-FixLastVectorElement();
-return *this;
-}
-
-AZ_MATH_INLINE VectorN& VectorN::operator*=(float multiplier)
-{
-for (AZStd::size_t i = 0; i < m_values.size(); ++i)
-{
-m_values[i] *= multiplier;
-}
-return *this;
-}
-
-AZ_MATH_INLINE VectorN& VectorN::operator/=(float divisor)
-{
-for (AZStd::size_t i = 0; i < m_values.size(); ++i)
-{
-m_values[i] /= divisor;
-}
-FixLastVectorElement();
-return *this;
-}
-
-AZ_MATH_INLINE VectorN VectorN::operator-() const
-{
-VectorN returnValue(m_numElements);
-for (AZStd::size_t i = 0; i < m_values.size(); ++i)
-{
-returnValue.m_values[i] = -m_values[i];
-}
-return returnValue;
-}
-
-AZ_MATH_INLINE VectorN VectorN::operator+(const VectorN& rhs) const
-{
-AZ_Assert(m_numElements == rhs.m_numElements, "Dimensionality must be equal");
-VectorN returnValue(m_numElements);
-for (AZStd::size_t i = 0; i < m_values.size(); ++i)
-{
-returnValue.m_values[i] = m_values[i] + rhs.m_values[i];
-}
-returnValue.FixLastVectorElement();
-return returnValue;
-}
-
-AZ_MATH_INLINE VectorN VectorN::operator-(const VectorN& rhs) const
-{
-AZ_Assert(m_numElements == rhs.m_numElements, "Dimensionality must be equal");
-VectorN returnValue(m_numElements);
-for (AZStd::size_t i = 0; i < m_values.size(); ++i)
-{
-returnValue.m_values[i] = m_values[i] - rhs.m_values[i];
-}
-returnValue.FixLastVectorElement();
-return returnValue;
-}
-
-AZ_MATH_INLINE VectorN VectorN::operator*(const VectorN& rhs) const
-{
-AZ_Assert(m_numElements == rhs.m_numElements, "Dimensionality must be equal");
-VectorN returnValue(m_numElements);
-for (AZStd::size_t i = 0; i < m_values.size(); ++i)
-{
-returnValue.m_values[i] = m_values[i] * rhs.m_values[i];
-}
-return returnValue;
-}
-
-AZ_MATH_INLINE VectorN VectorN::operator/(const VectorN& rhs) const
-{
-AZ_Assert(m_numElements == rhs.m_numElements, "Dimensionality must be equal");
-VectorN returnValue(m_numElements);
-for (AZStd::size_t i = 0; i < m_values.size(); ++i)
-{
-returnValue.m_values[i] = m_values[i] / rhs.m_values[i];
-}
-returnValue.FixLastVectorElement();
-return returnValue;
-}
-
-AZ_MATH_INLINE VectorN VectorN::operator*(float multiplier) const
-{
-VectorN returnValue(m_numElements);
-for (AZStd::size_t i = 0; i < m_values.size(); ++i)
-{
-returnValue.m_values[i] = m_values[i] * multiplier;
-}
-return returnValue;
-}
-
-AZ_MATH_INLINE VectorN VectorN::operator/(float divisor) const
-{
-VectorN returnValue(m_numElements);
-for (AZStd::size_t i = 0; i < m_values.size(); ++i)
-{
-returnValue.m_values[i] = m_values[i] / divisor;
-}
-returnValue.FixLastVectorElement();
-return returnValue;
-}
-
-AZ_MATH_INLINE const AZStd::vector<Vector4>& VectorN::GetVectorValues() const
-{
-return m_values;
-}
-
-AZ_MATH_INLINE AZStd::vector<Vector4>& VectorN::GetVectorValues()
-{
-return m_values;
-}
-
-AZ_MATH_INLINE void VectorN::FixLastVectorElement()
-{
-if (m_values.empty())
-{
-return;
-}
-
-const uint32_t masks[] =
-{
-0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-0xFFFFFFFF, 0x00000000, 0x00000000, 0x00000000,
-0xFFFFFFFF, 0xFFFFFFFF, 0x00000000, 0x00000000,
-0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00000000
-};
-
-const AZStd::size_t lastElement = m_values.size() - 1;
-const AZStd::size_t trailingZeroElements = 4 * (m_numElements % 4);
-const Simd::Vec4::FloatType mask = Simd::Vec4::LoadAligned(reinterpret_cast<const float*>(&masks[trailingZeroElements]));
-
-m_values[lastElement].SetSimdValue(Simd::Vec4::And(m_values[lastElement].GetSimdValue(), mask));
-}
-#[inline]
-#[allow(dead_code)]
-pub unsafe fn fix_last_vector_element(mut self){
-    if self._value.size() == 0{
-        return;
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn l1norm(self)->f32{
+        let mut partial_lengths = Vector4::create_zero();
+        for i in 0.. self._values.len()
+        {
+            partial_lengths += self._values.get(i).unwrap().get_abs();
+        }
+        return partial_lengths.dot4(Vector4::create_one().borrow());
     }
-   let masks:[u32] = [0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-       0xFFFFFFFF, 0x00000000, 0x00000000, 0x00000000,
-       0xFFFFFFFF, 0xFFFFFFFF, 0x00000000, 0x00000000,
-       0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00000000];
-    let lastElement = self._value.size() -1;
-    let trailingZeroElements = 4*(self._elements%4);
-    let mask = Vec4::load_aligned(masks[trailingZeroElements]);
 
-}
-AZ_MATH_INLINE void VectorN::OnSizeChanged()
-{
-m_values.resize((m_numElements + 3) / 4);
-FixLastVectorElement();
-}
-#[inline]
-#[allow(dead_code)]
-pub unsafe fn on_size_changed(mut self){
-    self._value.resize();
-    self.fix_last_vector_element();
-}
-AZ_MATH_INLINE VectorN operator+(float lhs, const VectorN& rhs)
-{
-VectorN returnValue(rhs.GetDimensionality());
-const AZ::Vector4 lhsVec = AZ::Vector4(lhs);
-for (AZStd::size_t i = 0; i < rhs.GetVectorValues().size(); ++i)
-{
-returnValue.GetVectorValues()[i] = lhsVec + rhs.GetVectorValues()[i];
-}
-returnValue.FixLastVectorElement();
-return returnValue;
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn l2norm(self)->f32{
+        return simd::sqrt(Self.dotn(*self));
+    }
 
-AZ_MATH_INLINE VectorN operator-(float lhs, const VectorN& rhs)
-{
-VectorN returnValue(rhs.GetDimensionality());
-const AZ::Vector4 lhsVec = AZ::Vector4(lhs);
-for (AZStd::size_t i = 0; i < rhs.GetVectorValues().size(); ++i)
-{
-returnValue.GetVectorValues()[i] = lhsVec - rhs.GetVectorValues()[i];
-}
-returnValue.FixLastVectorElement();
-return returnValue;
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_normalized(self)->VectorN{
+        let mut return_value = VectorN::new_n(*self);
+        return_value.normalize();
+        return return_value;
+    }
 
-AZ_MATH_INLINE VectorN operator*(float lhs, const VectorN& rhs)
-{
-VectorN returnValue(rhs.GetDimensionality());
-const AZ::Vector4 lhsVec = AZ::Vector4(lhs);
-for (AZStd::size_t i = 0; i < rhs.GetVectorValues().size(); ++i)
-{
-returnValue.GetVectorValues()[i] = lhsVec * rhs.GetVectorValues()[i];
-}
-return returnValue;
-}
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn normalize(self){
+        let length = self.l2norm();
+        *self /= length;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_abs(self)->VectorN{
+        let mut return_value = VectorN::new_i32(self._size);
+        for i in 0.. self._values.len()
+        {
+            return_value._values.get_mut(i).unwrap().set_simd_value(self._values.get(i).unwrap().get_abs().get_simd_value());
+        }
+        return return_value;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn absolute(&mut self){
+        for i in 0.. self._values.len()
+        {
+            self._values.get_mut(i).unwrap().set_simd_value(self._values.get(i).unwrap().get_abs().get_simd_value());
+        }
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn get_square(self)->VectorN{
+        let mut return_value = VectorN::new_i32(self._size);
+        for i in 0.. self._values.len()
+        {
+            return_value._values.get_mut(i).unwrap().set_simd_value((self._values[i] * self._values[i]).get_simd_value());
+        }
+        return return_value;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn square(&mut self){
+        for i in 0.. self._values.len()
+        {
+            self._values.get_mut(i).unwrap().mul_assign(self._values.get(i).unwrap());
+        }
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn dotn(self,rhs:&VectorN)->f32{
+        assert_eq!(self._size, rhs._size, "Dimensionality must be equal");
+        let mut partial_sums = Vector4::create_zero();
+        for i in 0.. self._values.len()
+        {
+            partial_sums.set_simd_value(Vec4::madd(self._values.get(i).unwrap().get_simd_value(), rhs._values.get(i).unwrap().get_simd_value(), partial_sums.get_simd_value()));
+        }
+        return partial_sums.dot4(Vector4::create_one().borrow());
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn set_zero(&mut self){
+        for i in self._values.len() {
+            self._values.get_mut(i).unwrap().set_simd_value(Vec4::zero_float())
+        }
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub  fn get_vector_values(self) ->Vec<Vector4>{
+        let mut result:Vec<Vector4> = Vec::new();
+        for i in 0.. self._values.len()
+        {
+            result.push(self._values.get(i).unwrap().to_owned())
+        }
+        result
+    }
+
+
+    #[inline]
+    #[allow(dead_code)]
+    pub unsafe fn on_size_changed(&mut self){
+        self._values.resize(((self._size + 3) / 4) as usize,Vector4::create_zero());
+        self.fix_last_vector_element();
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub  fn add_f32_vecn(self,lhs:f32,rhs:&VectorN)->VectorN{
+        let mut return_value = VectorN::new_i32(rhs.get_dimensionality());
+        let lhs_vec = Vector4::new_x(lhs);
+        for i in 0..rhs.get_vector_values().len()
+        {
+            return_value._values.get_mut(i).unwrap().set_simd_value((rhs._values.get(i).unwrap().to_owned() + lhs_vec).get_simd_value());
+        }
+        return_value.fix_last_vector_element();
+        return return_value;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub  fn sub_f32_vecn(self,lhs:f32,rhs:&VectorN)->VectorN{
+        let mut return_value = VectorN::new_i32(rhs.get_dimensionality());
+        let lhs_vec = Vector4::new_x(lhs);
+        for i in 0..rhs.get_vector_values().len()
+        {
+            return_value._values.get_mut(i).unwrap().set_simd_value((rhs._values.get(i).unwrap().to_owned() - lhs_vec).get_simd_value());
+        }
+        return_value.fix_last_vector_element();
+        return return_value;
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub  fn mul_f32_vecn(self,lhs:f32,rhs:&VectorN)->VectorN{
+        let mut return_value = VectorN::new_i32(rhs.get_dimensionality());
+        let lhs_vec = Vector4::new_x(lhs);
+        for i in 0..rhs.get_vector_values().len()
+        {
+            return_value._values.get_mut(i).unwrap().set_simd_value((rhs._values.get(i).unwrap().to_owned() * lhs_vec).get_simd_value());
+        }
+        return_value.fix_last_vector_element();
+        return return_value;
+    }
+
 }
 

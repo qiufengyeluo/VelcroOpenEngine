@@ -93,8 +93,8 @@ impl VecType for  Vec4 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-     unsafe fn splat(value:f32)->FloatType{
-        return sse::splat(value.to_owned());
+    fn splat(value:f32)->FloatType{
+        unsafe { return sse::splat(value.to_owned()); }
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
@@ -107,8 +107,8 @@ impl VecType for  Vec4 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-     unsafe fn add(arg1:FloatArgType,arg2:FloatArgType)->FloatType{
-        return sse::add(arg1.to_owned(),arg2.to_owned());
+      fn add(arg1:FloatArgType,arg2:FloatArgType)->FloatType{
+        unsafe { return sse::add(arg1.to_owned(), arg2.to_owned()); }
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
@@ -471,8 +471,8 @@ impl VecType for  Vec4 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-     unsafe fn reciprocal_estimate(value:FloatArgType)->FloatType{
-        return sse::reciprocal_estimate(value.to_owned());
+      fn reciprocal_estimate(value:FloatArgType)->FloatType{
+        unsafe { return sse::reciprocal_estimate(value.to_owned()); }
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
@@ -865,8 +865,8 @@ impl Vec4Type for Vec4 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn load_immediate(x:f32,y:f32,z:f32,w:f32)->FloatType{
-        return  sse::load_immediate(x.to_owned(),y.to_owned(),z.to_owned(),w.to_owned());
+     fn load_immediate(x:f32,y:f32,z:f32,w:f32)->FloatType{
+        unsafe { return sse::load_immediate(x.to_owned(), y.to_owned(), z.to_owned(), w.to_owned()); }
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
