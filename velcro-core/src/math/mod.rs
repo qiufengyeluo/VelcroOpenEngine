@@ -35,6 +35,7 @@ mod matrix4x4;
 mod crc;
 mod hemisphere;
 mod spline;
+mod VertexContainer;
 
 #[cfg(test)]
 mod tests {
