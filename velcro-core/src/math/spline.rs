@@ -1,10 +1,13 @@
 #![warn(clip::pedantic)]
 #![allow(clip::many_single_char_names)]
 
+use std::ptr::null;
+
 use crate::math::aabb::Aabb;
 use crate::math::math_utils::constants::is_close_f32;
 use crate::math::transform::Transform;
 use crate::math::vector3::Vector3;
+use crate::math::VertexContainer::VertexContainer;
 
 #[derive(Debug, Copy, Clone)]
 pub struct SplineAddress{
@@ -79,14 +82,12 @@ trait SplineType{
     fn get_aabb(self, aabb:&Aabb, transform:&Transform);
 }
 
-type BoolFunction = fn(bool);
 #[derive(Debug, Copy, Clone)]
 pub struct Spline{
     _closed:bool,
-    _onOpenCloseCallback:BoolFunction,
-    _vertexContainer:VertexContainer<Vector3>,
+    _onOpenCloseCallback:VertexContainer::BoolFunction,
+    _vertex_container:VertexContainer<Vector3>,
 }
-
 
 impl Spline{
     const S_SPLINE_EPSILON:f32 = 0.0;
@@ -94,77 +95,145 @@ impl Spline{
     pub fn new()->Spline{
         Spline{
             _closed:false,
-            _onOpenCloseCallback,
+            _onOpenCloseCallback:null(),
+            _vertex_container:VertexContainer::new(|index:usize|{ Spline::on_vertex_added(index); },
+                                                   |index:usize|{Spline::on_vertex_removed(index);},
+                                                   |index:usize|{Spline::on_spline_changed();},
+                                                   ||{Spline::on_vertices_set()},
+                                                   || { Spline::on_vertices_cleared(); }),
         }
     }
 
-    Spline(const Spline& spline);
-    virtual ~Spline() = default;
+    pub fn set_closed(&mut self,closed:bool){
+        if (closed != self._closed)
+        {
+            self._closed = closed;
 
-    void SetClosed(bool closed);
+            if (self._onOpenCloseCallback)
+            {
+                self._onOpenCloseCallback(closed);
+            }
+        }
+    }
 
-    /**
-     * Return if the spline is closed (looping) or not
-     */
-    bool IsClosed() const { return m_closed; }
+    pub fn is_closed(self)->bool{
+        self._closed
+    }
 
-    /**
-     * Return number of vertices composing the spline.
-     */
-    size_t GetVertexCount() const { return m_vertexContainer.Size(); }
+    pub fn get_vertex_count(self)->usize{
+        self._vertex_container.size()
+    }
 
-    /**
-     * Return immutable stored vertices (local space).
-     */
-    const AZStd::vector<Vector3>& GetVertices() const { return m_vertexContainer.GetVertices(); }
+    pub fn get_vertices(self) ->&'static Vec<Vector3>{
+        self._vertex_container.get_vertices()
+    }
 
-    /**
-     * Return immutable position of vertex at index (local space).
-     */
-    const Vector3& GetVertex(size_t index) const { return m_vertexContainer.GetVertices()[index]; }
+    pub fn get_vertex(self, index:usize) ->&'static Vector3{
+        &self._vertex_container.get_vertices()[index]
+    }
 
-    /**
-     * Override callbacks to be used when spline changes/is modified (general).
-     */
-    void SetCallbacks(
-    const VoidFunction& onChangeElement, const VoidFunction& onChangeContainer,
-    const BoolFunction& onOpenClose);
+    pub fn set_callbacks_change(&mut self, on_change_element:&VertexContainer::VoidFunction, on_change_container:& VertexContainer::VoidFunction,
+                                on_open_close:&VertexContainer::BoolFunction ){
+        self._vertex_container.set_callbacks(|index:usize|{
+                                                Self::on_vertex_added(index);
+                                                if on_change_container {
+                                                    on_change_container();
+                                                }
+                                            },
+                                             |index:usize|{
+                                                 Self::on_vertex_removed(index);
+                                                 if on_change_container {
+                                                     on_change_container();
+                                                 }
+                                             },
+                                             |index:usize|{
+                                                 Self::on_spline_changed();
+                                                 if on_change_element {
+                                                     on_change_element();
+                                                 }
+                                             },
+                                             ||{
+                                                 Self::on_vertices_set();
+                                                 if on_change_container {
+                                                     on_change_container();
+                                                 }
+                                             },
+                                             ||{
+                                                 Self::on_vertices_cleared();
+                                                 if on_change_container {
+                                                     on_change_container();
+                                                 }
+                                             }
+            );
 
-    /**
-     * Override callbacks to be used when spline changes/is modified (specific).
-     * (use if you need more fine grained control over modifications to the container)
-     */
-    void SetCallbacks(
-    const IndexFunction& onAddVertex, const IndexFunction& onRemoveVertex,
-    const IndexFunction& onUpdateVertex, const VoidFunction& onSetVertices,
-    const VoidFunction& onClearVertices, const BoolFunction& onOpenClose);
+        self._onOpenCloseCallback = on_open_close;
+    }
 
-    VertexContainer<Vector3> m_vertexContainer; ///< Vertices representing the spline.
+    pub fn set_callbacks(&mut self, on_add_vertex:&VertexContainer::IndexFunction, on_remove_vertex:&VertexContainer::IndexFunction,
+                         on_update_vertex:&VertexContainer::IndexFunction, on_set_vertices:&VertexContainer::VoidFunction,
+                         on_clear_vertices:&VertexContainer::VoidFunction, on_open_close:&VertexContainer::BoolFunction){
+        self._vertex_container.set_callbacks(
+            |index:usize|{
+                Self::on_vertex_added(index);
+                if on_add_vertex {
+                    on_add_vertex(index);
+                }
+            },
+            |index:usize|{
+                Self::on_vertex_removed(index);
+                if on_remove_vertex {
+                    on_remove_vertex(index);
+                }
+            },
+            |index:usize|{
+                Self::on_spline_changed();
+                if on_update_vertex {
+                    on_update_vertex(index);
+                }
+            },
+            ||{
+                Self::on_vertices_set();
+                if on_set_vertices {
+                    on_set_vertices();
+                }
+            },
+            ||{
+                Self::on_vertices_cleared();
+                if on_clear_vertices {
+                    on_clear_vertices();
+                }
+            }
+            );
 
-    static void Reflect(SerializeContext& context);
+        self._onOpenCloseCallback = on_open_close;
+    }
 
-    /**
-     * Notification that spline has changed
-     */
-    virtual void OnSplineChanged();
+    pub fn on_spline_changed(){
 
-    protected:
-    static const float s_splineEpsilon; ///< Epsilon value for splines to use to check approximate results.
+    }
 
-    virtual void OnVertexAdded(size_t index); ///< Internal function to be overridden by derived spline spline to handle custom logic when a vertex is added.
-    virtual void OnVerticesSet(); ///< Internal function to be overridden by derived spline spline to handle custom logic when all vertices are set.
-    virtual void OnVertexRemoved(size_t index); ///< Internal function to be overridden by derived spline to handle custom logic when a vertex is removed.
-    virtual void OnVerticesCleared(); ///< Internal function to be overridden by derived spline to handle custom logic when spline is reset (vertices are cleared).
+    pub fn on_vertex_added(index: usize){
 
-    bool m_closed = false; ///< Is the spline closed - default is not.
+    }
+    pub fn on_vertices_set(){
 
-    private:
-    /**
-     * Called when the 'Closed' property on the SplineComponent is checked/unchecked.
-     */
-    void OnOpenCloseChanged();
+    }
+    pub fn on_vertex_removed(index: usize){
 
-    BoolFunction m_onOpenCloseCallback = nullptr; ///< Callback for when the open/closed property of the Spline changes.
+    }
+    pub fn on_vertices_cleared(){
+
+    }
+
+    fn on_open_close_changed(self){
+        if (self._onOpenCloseCallback)
+        {
+            self._onOpenCloseCallback(self._closed);
+        }
+
+        Self::OnSplineChanged();
+    }
+
 }
 #[derive(Debug, Copy, Clone)]
 pub struct LinearSpline{

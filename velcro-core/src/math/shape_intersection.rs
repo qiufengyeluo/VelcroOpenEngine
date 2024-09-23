@@ -2,6 +2,7 @@
 #![allow(clippy::many_single_char_names)]
 
 use std::borrow::Borrow;
+use std::cmp::PartialEq;
 
 use crate::math::aabb::Aabb;
 use crate::math::capsule::Capsule;
@@ -22,6 +23,13 @@ pub struct ShapeIntersection {
     _plane: Vector4
 }
 const FLT_MIN_F32: f32 = 1.175494351e-38f32;
+
+impl PartialEq for IntersectResult {
+    fn eq(&self, other: &Self) -> bool {
+        self == other
+    }
+}
+
 impl ShapeIntersection{
 
     #[inline]
@@ -217,7 +225,7 @@ impl ShapeIntersection{
     pub unsafe fn overlaps_frustum_and_obb(self,frustum:&Frustum,obb:&Obb)->bool{
         for  plane_id in Frustum::PlaneId::Near.. Frustum::PlaneId::MAX
         {
-            if (self.classify(frustum.get_plane(plane_id), obb) == IntersectResult::Exterior)
+            if (Self::classify_plane_and_obb(frustum.get_plane(plane_id).borrow(), obb) == IntersectResult::Exterior)
             {
                 return false;
             }

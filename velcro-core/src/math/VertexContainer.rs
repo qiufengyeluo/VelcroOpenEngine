@@ -1,8 +1,10 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
 
-type IndexFunction  = fn(i32);
+type IndexFunction  = fn(usize);
 type VoidFunction = fn();
+type BoolFunction = fn(bool);
+#[derive(Debug, Copy, Clone)]
 pub struct VertexContainer<Vertex>{
      _vertices:Vec<Vertex>,
     _add_callback:IndexFunction,
@@ -14,9 +16,9 @@ pub struct VertexContainer<Vertex>{
 
 impl <Vertex> VertexContainer<Vertex> {
 
-    pub fn new(add_callback:&IndexFunction, remove_callback:&IndexFunction,
-               update_callback:&IndexFunction, set_callback:&VoidFunction,
-               clear_callback:&VoidFunction) ->VertexContainer<Vertex>{
+    pub fn new(add_callback:IndexFunction, remove_callback:IndexFunction,
+               update_callback:IndexFunction, set_callback:VoidFunction,
+               clear_callback:VoidFunction) ->VertexContainer<Vertex>{
         VertexContainer{
             _vertices: vec![],
             _add_callback: add_callback.to_owned(),
@@ -131,9 +133,9 @@ impl <Vertex> VertexContainer<Vertex> {
         &self._vertices
     }
 
-    pub fn set_callbacks(&mut self,add_callback:&IndexFunction, remove_callback:&IndexFunction,
-                         update_callback:&IndexFunction, set_callback:&VoidFunction,
-                         clear_callback:&VoidFunction){
+    pub fn set_callbacks(&mut self,add_callback:IndexFunction, remove_callback:IndexFunction,
+                         update_callback:IndexFunction, set_callback:VoidFunction,
+                         clear_callback:VoidFunction){
         self._add_callback =add_callback.to_owned();
         self._remove_callback = remove_callback.to_owned();
         self._update_callback = update_callback.to_owned();
