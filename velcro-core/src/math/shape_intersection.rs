@@ -1,6 +1,8 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
 
+use std::borrow::Borrow;
+
 use crate::math::aabb::Aabb;
 use crate::math::capsule::Capsule;
 use crate::math::frustum::Frustum;
@@ -182,9 +184,9 @@ impl ShapeIntersection{
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn overlaps_frustum_and_sphere(frustum:&Frustum,sphere:&Sphere)->bool{
-        for  planeId in Frustum::PlaneId::Near.. Frustum::PlaneId::MAX
+        for  plane_id in Frustum::PlaneId::Near.. Frustum::PlaneId::MAX
         {
-            if (frustum.get_plane(planeId).get_point_dist(sphere.get_center().borrow()) + sphere.get_radius() < 0.0)
+            if (frustum.get_plane(plane_id).get_point_dist(sphere.get_center().borrow()) + sphere.get_radius() < 0.0)
             {
                 return false;
             }
@@ -199,10 +201,10 @@ impl ShapeIntersection{
 
         let extents = (0.5 * aabb.GetMax()) - (0.5 * aabb.GetMin());
 
-        for  planeId in Frustum::PlaneId::Near.. Frustum::PlaneId::MAX
+        for  plane_id in Frustum::PlaneId::Near.. Frustum::PlaneId::MAX
         {
-            let plane = frustum.get_plane(planeId);
-            if (plane.get_point_dist(center) + extents.Dot(plane.get_normal().get_abs()) <= 0.0)
+            let plane = frustum.get_plane(plane_id);
+            if (plane.get_point_dist(center.borrow()) + extents.Dot(plane.get_normal().get_abs()) <= 0.0)
             {
                 return false;
             }
@@ -213,9 +215,9 @@ impl ShapeIntersection{
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn overlaps_frustum_and_obb(self,frustum:&Frustum,obb:&Obb)->bool{
-        for  planeId in Frustum::PlaneId::Near.. Frustum::PlaneId::MAX
+        for  plane_id in Frustum::PlaneId::Near.. Frustum::PlaneId::MAX
         {
-            if (self.classify(frustum.get_plane(planeId), obb) == IntersectResult::Exterior)
+            if (self.classify(frustum.get_plane(plane_id), obb) == IntersectResult::Exterior)
             {
                 return false;
             }
@@ -235,7 +237,7 @@ impl ShapeIntersection{
             capsule1.GetFirstHemisphereCenter(), capsule1.GetSecondHemisphereCenter(), capsule2.GetFirstHemisphereCenter(),
             capsule2.GetSecondHemisphereCenter(), segment1proportion, segment2proportion, closest_point_segment1, closest_point_segment2);
         let radius_sum = capsule1.get_radius() + capsule2.get_radius();
-        return closest_point_segment1.get_distance_sq(closest_point_segment2) <= radius_sum * radius_sum;
+        return closest_point_segment1.get_distance_sq(closest_point_segment2.borrow()) <= radius_sum * radius_sum;
     }
 
     #[inline]
@@ -253,10 +255,10 @@ impl ShapeIntersection{
         let radius = capsule.get_radius();
         let half_lengths = obb.get_half_lengths();
 
-        for  capsulePoint in capsule_point1..capsule_point2
+        for  capsule_point in capsule_point1..capsule_point2
         {
-            let closest = capsulePoint.get_clamp(-half_lengths, half_lengths.borrow());
-            if (capsulePoint.get_distance_sq(closest.borrow()) < radius * radius)
+            let closest = capsule_point.get_clamp(-half_lengths, half_lengths.borrow());
+            if (capsule_point.get_distance_sq(closest.borrow()) < radius * radius)
             {
                 return true;
             }
@@ -280,8 +282,8 @@ impl ShapeIntersection{
             let obb_projected_half_extent = half_lengths.dot3(axis.get_abs().borrow());
             return capsule_projected_max > -obb_projected_half_extent && capsule_projected_min < obb_projected_half_extent;
         };
-        for testAxis in   &[capsule_axis.cross_x_axis(), capsule_axis.cross_y_axis(), capsule_axis.cross_z_axis() ]{
-            if (!overlaps_axis(testAxis))
+        for test_axis in   &[capsule_axis.cross_x_axis(), capsule_axis.cross_y_axis(), capsule_axis.cross_z_axis() ]{
+            if (!overlaps_axis(test_axis))
             {
                 return false;
             }
@@ -304,10 +306,10 @@ impl ShapeIntersection{
             }
         };
 
-        for vertexIndex in 0..8 {
-            let vertex = Vector3::new_xyz(get_half_length(vertexIndex & 4,obb.get_half_length_x(),-obb.get_half_length_x()),
-                                          get_half_length(vertexIndex & 2,obb.get_half_length_y(),-obb.get_half_length_y()),
-                                          get_half_length(vertexIndex & 1,obb.get_half_length_z(),-obb.get_half_length_z())
+        for vertex_index in 0..8 {
+            let vertex = Vector3::new_xyz(get_half_length(vertex_index & 4,obb.get_half_length_x(),-obb.get_half_length_x()),
+                                          get_half_length(vertex_index & 2,obb.get_half_length_y(),-obb.get_half_length_y()),
+                                          get_half_length(vertex_index & 1,obb.get_half_length_z(),-obb.get_half_length_z())
             );
 
             let vertex_relative = vertex - capsule_point1;
@@ -423,29 +425,29 @@ impl ShapeIntersection{
             return obb1projected_max >= obb2projected_min && obb1projected_min <= obb2projected_max;
         };
 
-        let x_axis1 = obb1.get_rotation().transform_vector(Vector3::create_axis_x(1.0));
-        let y_axis1 = obb1.get_rotation().transform_vector(Vector3::create_axis_y(1.0));
-        let z_axis1 = obb1.get_rotation().transform_vector(Vector3::create_axis_z(1.0));
-        let x_axis2 = obb2.get_rotation().transform_vector(Vector3::create_axis_x(1.0));
-        let y_axis2 = obb2.get_rotation().transform_vector(Vector3::create_axis_y(1.0));
-        let z_axis2 = obb2.get_rotation().transform_vector(Vector3::create_axis_z(1.0));
+        let x_axis1 = obb1.get_rotation().transform_vector(Vector3::create_axis_x(1.0).borrow());
+        let y_axis1 = obb1.get_rotation().transform_vector(Vector3::create_axis_y(1.0).borrow());
+        let z_axis1 = obb1.get_rotation().transform_vector(Vector3::create_axis_z(1.0).borrow());
+        let x_axis2 = obb2.get_rotation().transform_vector(Vector3::create_axis_x(1.0).borrow());
+        let y_axis2 = obb2.get_rotation().transform_vector(Vector3::create_axis_y(1.0).borrow());
+        let z_axis2 = obb2.get_rotation().transform_vector(Vector3::create_axis_z(1.0).borrow());
 
         return
-        overlaps_axis(x_axis1) &&
-            overlaps_axis(y_axis1) &&
-            overlaps_axis(z_axis1) &&
-            overlaps_axis(x_axis2) &&
-            overlaps_axis(y_axis2) &&
-            overlaps_axis(z_axis2) &&
-            overlaps_axis(x_axis1.cross(x_axis2)) &&
-            overlaps_axis(x_axis1.cross(y_axis2)) &&
-            overlaps_axis(x_axis1.cross(z_axis2)) &&
-            overlaps_axis(y_axis1.cross(x_axis2)) &&
-            overlaps_axis(y_axis1.cross(y_axis2)) &&
-            overlaps_axis(y_axis1.cross(z_axis2)) &&
-            overlaps_axis(z_axis1.cross(x_axis2)) &&
-            overlaps_axis(z_axis1.cross(y_axis2)) &&
-            overlaps_axis(z_axis1.cross(z_axis2));
+        overlaps_axis(x_axis1.borrow()) &&
+            overlaps_axis(y_axis1.borrow()) &&
+            overlaps_axis(z_axis1.borrow()) &&
+            overlaps_axis(x_axis2.borrow()) &&
+            overlaps_axis(y_axis2.borrow()) &&
+            overlaps_axis(z_axis2.borrow()) &&
+            overlaps_axis(x_axis1.cross(x_axis2.borrow()).borrow()) &&
+            overlaps_axis(x_axis1.cross(y_axis2.borrow()).borrow()) &&
+            overlaps_axis(x_axis1.cross(z_axis2.borrow()).borrow()) &&
+            overlaps_axis(y_axis1.cross(x_axis2.borrow()).borrow()) &&
+            overlaps_axis(y_axis1.cross(y_axis2.borrow()).borrow()) &&
+            overlaps_axis(y_axis1.cross(z_axis2.borrow()).borrow()) &&
+            overlaps_axis(z_axis1.cross(x_axis2.borrow()).borrow()) &&
+            overlaps_axis(z_axis1.cross(y_axis2.borrow()).borrow()) &&
+            overlaps_axis(z_axis1.cross(z_axis2.borrow()).borrow());
     }
 
     #[inline]
@@ -506,8 +508,8 @@ impl ShapeIntersection{
         let radius_sq = hemisphere.get_radius() * hemisphere.get_radius();
         if (aabb.GetMaxDistanceSq(hemisphere.get_center()) <= radius_sq)
         {
-            let nearest_point_to_plane = aabb.get_support(hemisphere.get_direction());
-            return hemisphere.get_direction().dot3(nearest_point_to_plane - hemisphere.get_center()) >= 0.0;
+            let nearest_point_to_plane = aabb.get_support(hemisphere.get_direction().borrow());
+            return hemisphere.get_direction().dot3((nearest_point_to_plane - hemisphere.get_center()).borrow()) >= 0.0;
         }
         return false;
     }
@@ -518,10 +520,10 @@ impl ShapeIntersection{
         let center = aabb.get_center();
         let extents = 0.5 * aabb.GetExtents();
 
-        for planeId in Frustum::PlaneId::Near.. Frustum::PlaneId::MAX
+        for plane_id in Frustum::PlaneId::Near.. Frustum::PlaneId::MAX
         {
-            let plane = frustum.get_plane(planeId);
-            if (plane.get_point_dist(center) - extents.Dot(plane.get_normal().get_abs()) < 0.0)
+            let plane = frustum.get_plane(plane_id);
+            if (plane.get_point_dist(center.borrow()) - extents.Dot(plane.get_normal().get_abs()) < 0.0)
             {
                 return false;
             }
@@ -532,9 +534,9 @@ impl ShapeIntersection{
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn contains_frustum_and_sphere(frustum:&Frustum,sphere:&Sphere)->bool{
-        for planeId in Frustum::PlaneId::Near.. Frustum::PlaneId::MAX
+        for plane_id in Frustum::PlaneId::Near.. Frustum::PlaneId::MAX
         {
-            if frustum.get_plane(planeId).get_point_dist(sphere.get_center().borrow()) - sphere.get_radius() < 0.0
+            if frustum.get_plane(plane_id).get_point_dist(sphere.get_center().borrow()) - sphere.get_radius() < 0.0
             {
                 return false;
             }
@@ -545,9 +547,9 @@ impl ShapeIntersection{
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn contains_frustum_and_vec3(frustum:&Frustum,point:&Vector3)->bool{
-        for planeId in Frustum::PlaneId::Near.. Frustum::PlaneId::MAX
+        for plane_id in Frustum::PlaneId::Near.. Frustum::PlaneId::MAX
         {
-            if frustum.get_plane(planeId).get_point_dist(point) < 0.0
+            if frustum.get_plane(plane_id).get_point_dist(point) < 0.0
             {
                 return false;
             }
@@ -567,20 +569,20 @@ impl ShapeIntersection{
     #[inline]
     #[allow(dead_code)]
     pub unsafe fn contains_capsule_and_aabb(capsule:&Capsule,aabb:&Aabb)->bool{
-        let mut aabbSphereCenter =Vector3::new();
-        let mut aabbSphereRadius:f32 = 0.0;
-        aabb.get_as_sphere(aabbSphereCenter.borrow_mut(), aabbSphereRadius.borrow_mut());
-        let aabbSphere = Sphere::new_vec3_f32(aabbSphereCenter.borrow(), aabbSphereRadius);
+        let mut aabb_sphere_center =Vector3::new();
+        let mut aabb_sphere_radius:f32 = 0.0;
+        aabb.get_as_sphere(aabb_sphere_center.borrow_mut(), aabb_sphere_radius.borrow_mut());
+        let aabb_sphere = Sphere::new_vec3_f32(aabb_sphere_center.borrow(), aabb_sphere_radius);
 
-        if (Self::contains_capsule_and_sphere(capsule, aabbSphere.borrow()))
+        if (Self::contains_capsule_and_sphere(capsule, aabb_sphere.borrow()))
         {
             return true;
         }
-        else if (!Self::overlaps_capsule_and_sphere(capsule, aabbSphere.borrow()))
+        else if (!Self::overlaps_capsule_and_sphere(capsule, aabb_sphere.borrow()))
         {
             return false;
         }
-        for  aabbPoint in
+        for  aabb_point in
         &[
             aabb.get_min(),
             aabb.get_max(),
@@ -592,7 +594,7 @@ impl ShapeIntersection{
             Vector3::new_xyz(aabb.get_max().get_x(), aabb.get_max().get_y(), aabb.get_min().get_z()),
         ]
         {
-            if (!capsule.contains(aabbPoint))
+            if (!capsule.contains(aabb_point))
             {
                 return false;
             }

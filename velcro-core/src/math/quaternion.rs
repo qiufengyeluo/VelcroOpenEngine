@@ -722,10 +722,10 @@ impl Quaternion {
             }
             let m12 = 2.0f32 * (self.get_z()*self.get_y()-self.get_w()*self.get_x());
             let m22 = 1.0f32 - 2.0f32 * (self.get_x() * self.get_x() + self.get_y() * self.get_y());
-            let cospSq = m12 * m12 + m22 * m22;
-            let cosp =simd::sqrt(cospSq);
+            let cosp_sq = m12 * m12 + m22 * m22;
+            let cosp =simd::sqrt(cosp_sq);
             let pitch = sign * cosp.acos();
-            if (cospSq > FLOAT_EPSILON)
+            if (cosp_sq > FLOAT_EPSILON)
             {
                 let roll = simd::atan2(-m12, m22);
                 let yaw = simd::atan2((2.0 * (self.get_w() * self.get_z() - self.get_x() * self.get_y())), (1.0 - 2.0 * (self.get_y() * self.get_y() + self.get_z() * self.get_z())));

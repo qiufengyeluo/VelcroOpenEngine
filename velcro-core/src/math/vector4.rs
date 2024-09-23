@@ -1,6 +1,7 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
 
+use std::borrow::BorrowMut;
 use std::ops::*;
 use std::ops::MulAssign;
 
@@ -206,7 +207,7 @@ impl Vector4 {
 
     #[inline]
     #[allow(dead_code)]
-    pub  fn new_xyzw(x:f32,y:f32,z:f32,w:f32)->Vector4{
+    pub  fn new_xyzw(x: f32,y: f32,z: f32,w: f32)->Vector4{
         Vector4{
             _value:Vec4::load_immediate(x,y,z,w),
         }

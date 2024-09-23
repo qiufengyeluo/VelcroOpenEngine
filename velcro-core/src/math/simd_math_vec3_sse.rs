@@ -1,7 +1,7 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::many_single_char_names)]
 
-use std::arch::x86_64::{_mm_movelh_ps, _mm_set_ps1, _mm_shuffle_ps, _mm_unpackhi_ps, _mm_unpacklo_ps};
+use std::arch::x86_64::{_mm_movelh_ps, _mm_set_ps1, _MM_SHUFFLE, _mm_shuffle_ps, _mm_unpackhi_ps, _mm_unpacklo_ps};
 
 use crate::math::common_sse::{Common, Vec2Type, Vec3Type, VecThirdType, VecTwoType, VecType};
 use crate::math::simd_math_vec2_sse::Vec2;
@@ -15,7 +15,7 @@ impl VecType for Vec3 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn load_aligned(addr :*f32)->FloatType{
+    unsafe fn load_aligned(addr :*const f32)->FloatType{
         return  sse::load_aligned(addr);
     }
 
@@ -29,7 +29,7 @@ impl VecType for Vec3 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn load_unaligned(addr:*f32)->FloatType{
+    unsafe fn load_unaligned(addr:*const f32)->FloatType{
         return  sse::load_unaligned(addr);
     }
 
@@ -786,29 +786,29 @@ impl Vec3Type for Vec3 {
     #[inline]
     #[allow(dead_code)]
     unsafe fn cross(arg1:FloatArgType,arg2:FloatArgType)->FloatType{
-        let arg1_yzx = _mm_shuffle_ps(arg1.to_owned(), arg1.to_owned(), _MM_SHUFFLE(3, 0, 2, 1));
-        let arg2_yzx = _mm_shuffle_ps(arg2.to_owned(), arg2.to_owned(), _MM_SHUFFLE(3, 0, 2, 1));
+        let arg1_yzx = _mm_shuffle_ps::<{_MM_SHUFFLE(3, 0, 2, 1)}>(arg1.to_owned(), arg1.to_owned());
+        let arg2_yzx = _mm_shuffle_ps::<{_MM_SHUFFLE(3, 0, 2, 1)}>(arg2.to_owned(), arg2.to_owned());
         let partial= Vec3::sub(Vec3::mul(arg1,arg2_yzx),Vec3::mul(arg1_yzx,arg2));
-        return  _mm_shuffle_ps(partial, partial, _MM_SHUFFLE(3, 0, 2, 1));
+        return  _mm_shuffle_ps::<{_MM_SHUFFLE(3, 0, 2, 1)}>(partial, partial);
     }
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
     unsafe fn mat3x3inverse(rows:*const FloatType,mut out :&*const FloatType){
 
-        let row0yzx =  _mm_shuffle_ps(rows[0], rows[0], _MM_SHUFFLE(0, 0, 2, 1));
-        let row0zxy = _mm_shuffle_ps(rows[0], rows[0], _MM_SHUFFLE(0, 1, 0, 2));
-        let row1yzx = _mm_shuffle_ps(rows[1], rows[1], _MM_SHUFFLE(0, 0, 2, 1));
-        let row1zxy = _mm_shuffle_ps(rows[1], rows[1], _MM_SHUFFLE(0, 1, 0, 2));
-        let row2yzx = _mm_shuffle_ps(rows[2], rows[2], _MM_SHUFFLE(0, 0, 2, 1));
-        let row2zxy = _mm_shuffle_ps(rows[2], rows[2], _MM_SHUFFLE(0, 1, 0, 2));
+        let row0yzx =  _mm_shuffle_ps::<{_MM_SHUFFLE(0, 0, 2, 1)}>(rows[0], rows[0]);
+        let row0zxy = _mm_shuffle_ps::<{_MM_SHUFFLE(0, 1, 0, 2)}>(rows[0], rows[0]);
+        let row1yzx = _mm_shuffle_ps::<{_MM_SHUFFLE(0, 0, 2, 1)}>(rows[1], rows[1]);
+        let row1zxy = _mm_shuffle_ps::<{_MM_SHUFFLE(0, 1, 0, 2)}>(rows[1], rows[1]);
+        let row2yzx = _mm_shuffle_ps::<{_MM_SHUFFLE(0, 0, 2, 1)}>(rows[2], rows[2]);
+        let row2zxy = _mm_shuffle_ps::<{_MM_SHUFFLE(0, 1, 0, 2)}>(rows[2], rows[2]);
         let cols:[FloatType;3] = [Vec3::sub(Vec3::mul(row1yzx, row2zxy), Vec3::mul(row1zxy, row2yzx)),
                                 Vec3::sub(Vec3::mul(row2yzx, row0zxy), Vec3::mul(row2zxy, row0yzx)),
                                 Vec3::sub(Vec3::mul(row0yzx, row1zxy), Vec3::mul(row0zxy, row1yzx))];
 
         let det_xyz =  Vec3::mul(rows[0], cols[0]);
-        let det_tmp = Vec3::add(det_xyz, _mm_shuffle_ps(det_xyz, det_xyz, _MM_SHUFFLE(0, 1, 0, 1)));
-        let mut det    = Vec3::add(det_tmp, _mm_shuffle_ps(det_xyz, det_xyz, _MM_SHUFFLE(0, 0, 2, 2)));
+        let det_tmp = Vec3::add(det_xyz, _mm_shuffle_ps::<{ _MM_SHUFFLE(0, 1, 0, 1)}>(det_xyz, det_xyz));
+        let mut det    = Vec3::add(det_tmp, _mm_shuffle_ps::<{_MM_SHUFFLE(0, 0, 2, 2)}>(det_xyz, det_xyz));
         Vec3::mat3x3transpose(cols.borrow(), cols.borrow());
 
         *out[0] = Vec3::div(cols[0], det.borrow_mut());
@@ -820,12 +820,12 @@ impl Vec3Type for Vec3 {
     #[inline]
     #[allow(dead_code)]
     unsafe fn mat3x3adjugate(rows:*const FloatType,mut out :&*const FloatType){
-        let row0yzx = _mm_shuffle_ps(rows[0], rows[0], _MM_SHUFFLE(0, 0, 2, 1));
-        let row0zxy = _mm_shuffle_ps(rows[0], rows[0], _MM_SHUFFLE(0, 1, 0, 2));
-        let row1yzx = _mm_shuffle_ps(rows[1], rows[1], _MM_SHUFFLE(0, 0, 2, 1));
-        let row1zxy = _mm_shuffle_ps(rows[1], rows[1], _MM_SHUFFLE(0, 1, 0, 2));
-        let row2yzx = _mm_shuffle_ps(rows[2], rows[2], _MM_SHUFFLE(0, 0, 2, 1));
-        let row2zxy = _mm_shuffle_ps(rows[2], rows[2], _MM_SHUFFLE(0, 1, 0, 2));
+        let row0yzx = _mm_shuffle_ps::<{_MM_SHUFFLE(0, 0, 2, 1)}>(rows[0], rows[0]);
+        let row0zxy = _mm_shuffle_ps::<{_MM_SHUFFLE(0, 1, 0, 2)}>(rows[0], rows[0]);
+        let row1yzx = _mm_shuffle_ps::<{_MM_SHUFFLE(0, 0, 2, 1)}>(rows[1], rows[1]);
+        let row1zxy = _mm_shuffle_ps::<{_MM_SHUFFLE(0, 1, 0, 2)}>(rows[1], rows[1]);
+        let row2yzx = _mm_shuffle_ps::<{_MM_SHUFFLE(0, 0, 2, 1)}>(rows[2], rows[2]);
+        let row2zxy = _mm_shuffle_ps::<{_MM_SHUFFLE(0, 1, 0, 2)}>(rows[2], rows[2]);
         let cols:[FloatType;3] = [Vec3::sub(Vec3::mul(row1yzx, row2zxy), Vec3::mul(row1zxy, row2yzx)),
             Vec3::sub(Vec3::mul(row2yzx, row0zxy), Vec3::mul(row2zxy, row0yzx)),
             Vec3::sub(Vec3::mul(row0yzx, row1zxy), Vec3::mul(row0zxy, row1yzx))];
@@ -841,8 +841,8 @@ impl Vec3Type for Vec3 {
         let tmp0 = _mm_unpacklo_ps(rows[0], rows[1]);
         let tmp1 = _mm_unpackhi_ps(rows[0], rows[1]);
         *out[0] = _mm_movelh_ps (tmp0, rows[2]);
-        *out[1] = _mm_shuffle_ps(tmp0, rows[2], _MM_SHUFFLE(3, 1, 3, 2));
-        *out[2] = _mm_shuffle_ps(tmp1, rows[2], _MM_SHUFFLE(3, 2, 1, 0));
+        *out[1] = _mm_shuffle_ps::<{_MM_SHUFFLE(3, 1, 3, 2)}>(tmp0, rows[2], );
+        *out[2] = _mm_shuffle_ps::<{_MM_SHUFFLE(3, 2, 1, 0)}>(tmp1, rows[2], );
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]

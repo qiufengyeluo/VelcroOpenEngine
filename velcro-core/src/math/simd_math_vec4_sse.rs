@@ -16,7 +16,7 @@ impl VecType for  Vec4 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-     unsafe fn load_aligned(addr :*f32)->FloatType{
+     unsafe fn load_aligned(addr :*const f32)->FloatType{
         return  sse::load_aligned(addr);
     }
 
@@ -872,7 +872,7 @@ impl Vec4Type for Vec4 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn load_immediate_i32(x:&i32,y:&i32,z:&i32,w:&i32)->Int32Type{
+    unsafe fn load_immediate_i32(x:i32,y:i32,z:i32,w:i32)->Int32Type{
         return  sse::load_immediate_i32(x.to_owned(),y.to_owned(),z.to_owned(),w.to_owned());
     }
 

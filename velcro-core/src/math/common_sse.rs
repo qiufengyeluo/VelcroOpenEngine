@@ -7,16 +7,16 @@ use crate::math::simd_math_vec1_sse::*;
 use crate::math::vsimd::*;
 
 pub trait VecType{
-    fn load_aligned(addr :*f32)->FloatType;
+    fn load_aligned(addr :*const f32)->FloatType;
     fn load_aligned_i128(addr :*const Int32Type)->Int32Type;
-    fn load_unaligned(addr:&f32)->FloatType;
+    fn load_unaligned(addr:f32)->FloatType;
     fn load_unaligned_i128(addr:*const Int32Type)->Int32Type;
-    fn store_aligned( addr:*mut f32,value:FloatArgType);
-    fn store_aligned_i128(addr :*mut Int32Type,value:Int32ArgType);
-    fn store_unaligned(addr :*mut f32,value:FloatArgType);
-    fn store_unaligned_i128(addr:*mut Int32Type,value:Int32ArgType);
-    fn stream_aligned(addr :*mut f32,value:FloatArgType);
-    fn stream_aligned_i128(addr:*mut Int32Type,value:Int32ArgType);
+    fn store_aligned( addr:*const f32,value:FloatArgType);
+    fn store_aligned_i128(addr :*const Int32Type,value:Int32ArgType);
+    fn store_unaligned(addr :*const f32,value:FloatArgType);
+    fn store_unaligned_i128(addr:*const Int32Type,value:Int32ArgType);
+    fn stream_aligned(addr :*const f32,value:FloatArgType);
+    fn stream_aligned_i128(addr:*const Int32Type,value:Int32ArgType);
     fn select_index0(value:FloatArgType)->f32;
     fn splat(value:f32)->FloatType;
     fn splat_i32(value:i32)->Int32Type;
@@ -25,7 +25,7 @@ pub trait VecType{
     fn sub(arg1:FloatArgType,arg2:FloatArgType)->FloatType;
     fn mul(arg1:FloatArgType,arg2:FloatArgType)->FloatType;
     fn madd(mul1:FloatArgType,mul2:FloatArgType,add:FloatArgType)->FloatType;
-    fn div(arg1:FloatType, arg2: &mut FloatType) ->FloatType;
+    fn div(arg1:FloatType, arg2: FloatType) ->FloatType;
     fn abs(value:FloatArgType)->FloatType;
     fn add_i32(arg1:Int32ArgType,arg2:Int32ArgType)->Int32Type;
     fn sub_i32(arg1:Int32ArgType,arg2:Int32ArgType)->Int32Type;
@@ -104,14 +104,14 @@ pub trait VecTwoType:VecType{
     fn splat_index0(value: FloatArgType)->FloatType;
     fn splat_index1(value: FloatArgType)->FloatType;
     fn replace_index0(a: FloatArgType,b: FloatArgType)->FloatType;
-    fn replace_index0_f32(value: FloatArgType,b:&f32)->FloatType;
-    fn replace_index1_f32(a: FloatArgType,b:&f32)->FloatType;
+    fn replace_index0_f32(value: FloatArgType,b:f32)->FloatType;
+    fn replace_index1_f32(a: FloatArgType,b:f32)->FloatType;
     fn replace_index1(a: FloatArgType,b: FloatArgType)->FloatType;
     fn dot(arg1: FloatArgType,arg2: FloatArgType)->FloatType;
     fn normalize(value: FloatArgType)->FloatType;
     fn normalize_estimate(value: FloatArgType)->FloatType;
-    fn normalize_safe(value: FloatArgType,tolerance:&f32)->FloatType;
-    fn normalize_safe_estimate(value: FloatArgType,tolerance:&f32)->FloatType;
+    fn normalize_safe(value: FloatArgType,tolerance:f32)->FloatType;
+    fn normalize_safe_estimate(value: FloatArgType,tolerance:f32)->FloatType;
 }
 
 pub trait VecThirdType:VecTwoType{
@@ -119,7 +119,7 @@ pub trait VecThirdType:VecTwoType{
     fn from_vec2(value: FloatArgType)->FloatType;
     fn select_index2(value: FloatArgType)->f32;
     fn splat_index2(value: FloatArgType)->FloatType;
-    fn replace_index2_f32(a: FloatArgType,b:&f32)->FloatType;
+    fn replace_index2_f32(a: FloatArgType,b:f32)->FloatType;
     fn replace_index2(a: FloatArgType,b: FloatArgType)->FloatType;
 
 }
@@ -128,7 +128,7 @@ pub trait VecFourthType:VecThirdType{
     fn from_vec3(value: FloatArgType)->FloatType;
     fn select_index3(value: FloatArgType)->f32;
     fn splat_index3(value: FloatArgType)->FloatType;
-    fn replace_index3_f32(a: FloatArgType,b:&f32)->FloatType;
+    fn replace_index3_f32(a: FloatArgType,b:f32)->FloatType;
     fn replace_index3(a: FloatArgType,b: FloatArgType)->FloatType;
     fn quaternion_multiply(arg1: FloatArgType,arg2: FloatArgType)->FloatType;
     fn quaternion_transform(quat: FloatArgType,vec3: FloatArgType)->FloatType;
@@ -137,18 +137,18 @@ pub trait VecFourthType:VecThirdType{
 }
 
 pub trait Vec1Type:VecType{
-    fn load_immediate(x:&f32)->FloatType;
+    fn load_immediate(x:f32)->FloatType;
     fn load_immediate_i32(x:&i32)->Int32Type;
 }
 pub trait Vec2Type :VecTwoType{
-    fn load_immediate(x:&f32,y:&f32)->FloatType;
+    fn load_immediate(x:f32,y:f32)->FloatType;
     fn load_immediate_i32(x:&i32,y:&i32)->Int32Type;
     fn atan2_float_type(value: FloatArgType)->FloatType;
     fn sin_cos_to_float_type(angle: FloatArgType)->FloatType;
 
 }
 pub trait Vec3Type :VecThirdType{
-    fn load_immediate(x:&f32,y:&f32,z:&f32)->FloatType;
+    fn load_immediate(x:f32,y:f32,z:f32)->FloatType;
     fn load_immediate_i32(x:&i32,y:&i32,z:&i32)->Int32Type;
     fn cross(arg1: FloatArgType,arg2: FloatArgType)->FloatType;
     fn mat3x3inverse(rows:*const FloatType, out :*const FloatType);
@@ -160,7 +160,7 @@ pub trait Vec3Type :VecThirdType{
     fn mat3x3transpose_transform_vector(rows:*const FloatType,vector: FloatArgType)->FloatType;
 }
 pub trait Vec4Type :VecFourthType{
-    fn load_immediate(x:&f32,y:&f32,z:&f32,w:&f32)->FloatType;
+    fn load_immediate(x:f32,y:f32,z:f32,w:f32)->FloatType;
     fn load_immediate_i32(x:&i32,y:&i32,z:&i32,w:&i32)->Int32Type;
     fn sin_cos_to_float_type(angles: FloatArgType)->FloatType;
     fn mat3x4inverse_fast(rows:*const FloatType, out:&*const FloatType);
@@ -181,11 +181,11 @@ impl  Common{
 
 
     pub fn fast_load_constant<T:VecType>(values:*const f32)->FloatType{
-        unsafe { return *(values as * FloatType); }
+        unsafe { return *(values as * const FloatType); }
     }
 
     pub fn fast_load_constant_i32<T:VecType>(values:*const i32)->Int32Type{
-        unsafe { return *(values as * Int32Type); }
+        unsafe { return *(values as * const Int32Type); }
     }
     pub fn wrap<T: VecType>(value :FloatArgType, min_value:FloatArgType, max_value:FloatArgType ) ->FloatType
     {
