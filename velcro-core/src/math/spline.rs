@@ -85,7 +85,7 @@ trait SplineType{
 #[derive(Debug, Copy, Clone)]
 pub struct Spline{
     _closed:bool,
-    _onOpenCloseCallback:VertexContainer::BoolFunction,
+    _on_open_close_callback:VertexContainer::BoolFunction,
     _vertex_container:VertexContainer<Vector3>,
 }
 
@@ -95,7 +95,7 @@ impl Spline{
     pub fn new()->Spline{
         Spline{
             _closed:false,
-            _onOpenCloseCallback:null(),
+            _on_open_close_callback:null(),
             _vertex_container:VertexContainer::new(|index:usize|{ Spline::on_vertex_added(index); },
                                                    |index:usize|{Spline::on_vertex_removed(index);},
                                                    |index:usize|{Spline::on_spline_changed();},
@@ -109,7 +109,7 @@ impl Spline{
         {
             self._closed = closed;
 
-            if (self._onOpenCloseCallback)
+            if (self._on_open_close_callback)
             {
                 self._onOpenCloseCallback(closed);
             }
@@ -166,7 +166,7 @@ impl Spline{
                                              }
             );
 
-        self._onOpenCloseCallback = on_open_close;
+        self._on_open_close_callback = on_open_close;
     }
 
     pub fn set_callbacks(&mut self, on_add_vertex:&VertexContainer::IndexFunction, on_remove_vertex:&VertexContainer::IndexFunction,
@@ -205,7 +205,7 @@ impl Spline{
             }
             );
 
-        self._onOpenCloseCallback = on_open_close;
+        self._on_open_close_callback = on_open_close;
     }
 
     pub fn on_spline_changed(){
@@ -226,40 +226,133 @@ impl Spline{
     }
 
     fn on_open_close_changed(self){
-        if (self._onOpenCloseCallback)
+        if self._on_open_close_callback
         {
-            self._onOpenCloseCallback(self._closed);
+            self._on_open_close_callback(self._closed);
         }
 
         Self::OnSplineChanged();
     }
-
 }
+
 #[derive(Debug, Copy, Clone)]
 pub struct LinearSpline{
-
+    _v :Spline,
 }
 
-impl LinearSpline:Spline{
-LinearSpline()
-: Spline() {}
-explicit LinearSpline(const LinearSpline& spline)
-: Spline(spline) {}
-explicit LinearSpline(const Spline& spline)
-: Spline(spline) {}
-~LinearSpline() override {}
+impl LinearSpline{
 
-RaySplineQueryResult GetNearestAddressRay(const Vector3& localRaySrc, const Vector3& localRayDir) const override;
-PositionSplineQueryResult GetNearestAddressPosition(const Vector3& localPos) const override;
-SplineAddress GetAddressByDistance(float distance) const override;
-SplineAddress GetAddressByFraction(float fraction) const override;
+    pub fn new()->LinearSpline{
+        LinearSpline{
+            _v:Spline::new(),
+        }
+    }
 
-Vector3 GetPosition(const SplineAddress& splineAddress) const override;
-Vector3 GetNormal(const SplineAddress& splineAddress) const override;
-Vector3 GetTangent(const SplineAddress& splineAddress) const override;
-float GetLength(const SplineAddress& splineAddress) const override;
+    pub fn spline(self)->&'static Spline{
+        &self._v
+    }
 
-float GetSplineLength() const override;
+    pub fn get_nearest_address_ray(self, localRaySrc:&Vector3,localRayDir:&Vector3)->RaySplineQueryResult{
+        let vertexCount =self.spline().get_vertex_count();
+        if vertexCount > 1{
+            self.getNearestAddressInternal
+            GetNearestAddressInternal<RayQuery, RayIntermediateQueryResult, RaySplineQueryResult, RayMinResult>(
+                *this, 0, GetLastVertexDefault(m_closed, vertexCount), GetSegmentGranularity(), RayQuery(localRaySrc, localRayDir))
+        }else {
+            RaySplineQueryResult(SplineAddress(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
+        }
+
+    }
+
+    pub fn get_nearest_address_position(self,localPos:&Vector3)->PositionSplineQueryResult{
+        let vertexCount =self.spline().get_vertex_count();
+        if vertexCount > 1{
+            GetNearestAddressInternal<PosQuery, PosIntermediateQueryResult, PositionSplineQueryResult, PosMinResult>(
+                *this, 0, GetLastVertexDefault(m_closed, vertexCount), GetSegmentGranularity(), PosQuery(localPos))
+        }else {
+            PositionSplineQueryResult(SplineAddress(), std::numeric_limits<float>::max())
+        }
+    }
+
+    pub fn get_address_by_distance(self, distance:&f32) ->SplineAddress{
+        let vertexCount =self.spline().get_vertex_count();
+        return vertexCount > 1
+            ? GetAddressByDistanceInternal(*this, 0, GetLastVertexDefault(m_closed, vertexCount), distance)
+            : SplineAddress();
+    }
+
+    pub fn get_address_by_fraction(self,fraction:f32)->SplineAddress{
+        let vertexCount =self.spline().get_vertex_count();
+        return vertexCount > 1
+            ? GetAddressByFractionInternal(*this, 0, GetLastVertexDefault(m_closed, vertexCount), fraction)
+            : SplineAddress();
+    }
+
+    pub fn get_position(self,splineAddress:&SplineAddress)->Vector3{
+        const size_t segmentCount = GetSegmentCount();
+        if (segmentCount == 0)
+        {
+            return Vector3::CreateZero();
+        }
+
+        const size_t index = splineAddress.m_segmentIndex;
+        const bool outOfBoundsIndex = index >= segmentCount;
+        if (!m_closed && outOfBoundsIndex)
+        {
+            Vector3 lastVertex;
+            if (m_vertexContainer.GetLastVertex(lastVertex))
+            {
+                return lastVertex;
+            }
+
+            return Vector3::CreateZero();
+        }
+
+        // ensure the index is clamped within a safe range (cannot go past the last vertex)
+        const size_t safeIndex = GetMin(index, segmentCount - 1);
+        const size_t nextIndex = (safeIndex + 1) % GetVertexCount();
+        // if the index was out of bounds, ensure the segment fraction
+        // is 1 to return the very end of the spline loop
+        const float segmentFraction = outOfBoundsIndex ? 1.0f : splineAddress.m_segmentFraction;
+        return GetVertex(safeIndex).Lerp(GetVertex(nextIndex), segmentFraction);
+    }
+
+    pub fn GetNormal(self,splineAddress:&SplineAddress)->Vector3{
+        const size_t segmentCount = GetSegmentCount();
+        if (segmentCount == 0)
+        {
+            return Vector3::CreateAxisX();
+        }
+
+        const size_t index = GetMin(static_cast<size_t>(splineAddress.m_segmentIndex), segmentCount - 1);
+        return GetTangent(SplineAddress(index)).ZAxisCross().GetNormalizedSafe(s_splineEpsilon);
+    }
+
+    pub fn GetTangent(self,splineAddress:&SplineAddress)->Vector3{
+        const size_t segmentCount = GetSegmentCount();
+        if (segmentCount == 0)
+        {
+            return Vector3::CreateAxisX();
+        }
+
+        const size_t index = GetMin(static_cast<size_t>(splineAddress.m_segmentIndex), segmentCount - 1);
+        const size_t nextIndex = (index + 1) % GetVertexCount();
+        return (GetVertex(nextIndex) - GetVertex(index)).GetNormalizedSafe(s_splineEpsilon);
+    }
+
+    pub fn GetLength(self,splineAddress:&SplineAddress)->f32{
+        return GetVertexCount() > 1
+            ? GetSplineLengthAtAddressInternal(*this, 0, splineAddress)
+        : 0.0f;
+    }
+
+    pub fn GetSplineLength(self)->f32{
+        const size_t vertexCount = GetVertexCount();
+        return vertexCount > 1
+            ? GetSplineLengthInternal(*this, 0, GetLastVertexDefault(m_closed, vertexCount))
+        : 0.0f;
+    }
+
 float GetSegmentLength(size_t index) const override;
 size_t GetSegmentCount() const override;
 void GetAabb(Aabb& aabb, const Transform& transform = Transform::CreateIdentity()) const override;
@@ -270,6 +363,7 @@ LinearSpline& operator=(const Spline& spline);
 static void Reflect(SerializeContext& context);
 
 protected:
+
 u16 GetSegmentGranularity() const override { return 1; }
 }
 
@@ -416,4 +510,28 @@ pub unsafe  fn intersect_spline(world_from_local:&Transform, src:&Vector3, dir:&
     let local_ray_origin = local_from_world_normalized.transform_point_vec3(src) / scale;
     let local_ray_direction = local_from_world_normalized.transform_point_vec3(dir);
     return spline.GetNearestAddressRay(local_ray_origin, local_ray_direction);
+}
+
+pub  fn GetNearestAddressInternal<CalculateDistanceFunc,  IntermediateResult,  QueryResult,  MinResult>(spline:impl SplineType, begin:usize, end:usize, granularity:usize, calcDistfunc:CalculateDistanceFunc ){
+    let mut minResult = MinResult::new();
+    let mut queryResult = QueryResult::new();
+    for currentVertex in begin .. end
+    {
+        let segmentStepBegin = spline.get_position(SplineAddress::new(currentVertex as u64, 0.0).borrow());
+        for granularStep in 1.. granularity
+        {
+            let segmentStepEnd = spline.get_position(SplineAddress::new(currentVertex as u64, (granularStep / granularity) as f32).borrow());
+
+            let intermediateResult = calcDistfunc(segmentStepBegin, segmentStepEnd);
+
+            if (intermediateResult.CompareLess(minResult))
+            {
+                queryResult = intermediateResult.Build(currentVertex, granularStep, static_cast<float>(granularity));
+            }
+
+            segmentStepBegin = segmentStepEnd;
+        }
+    }
+
+    return queryResult;
 }
