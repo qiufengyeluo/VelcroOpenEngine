@@ -147,7 +147,7 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn create_zero() ->Vector3{
+    pub  fn create_zero() ->Vector3{
         let result:Vector3 =Vector3::new_float_type(Vec3::zero_float());
         result
     }

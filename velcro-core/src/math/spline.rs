@@ -255,11 +255,10 @@ impl LinearSpline{
     pub fn get_nearest_address_ray(self, localRaySrc:&Vector3,localRayDir:&Vector3)->RaySplineQueryResult{
         let vertexCount =self.spline().get_vertex_count();
         if vertexCount > 1{
-            self.getNearestAddressInternal
             GetNearestAddressInternal<RayQuery, RayIntermediateQueryResult, RaySplineQueryResult, RayMinResult>(
                 *this, 0, GetLastVertexDefault(m_closed, vertexCount), GetSegmentGranularity(), RayQuery(localRaySrc, localRayDir))
         }else {
-            RaySplineQueryResult(SplineAddress(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
+            RaySplineQueryResult::new(SplineAddress(), f32::MAX , f32::MAX)
         }
 
     }
@@ -270,50 +269,53 @@ impl LinearSpline{
             GetNearestAddressInternal<PosQuery, PosIntermediateQueryResult, PositionSplineQueryResult, PosMinResult>(
                 *this, 0, GetLastVertexDefault(m_closed, vertexCount), GetSegmentGranularity(), PosQuery(localPos))
         }else {
-            PositionSplineQueryResult(SplineAddress(), std::numeric_limits<float>::max())
+            PositionSplineQueryResult::new(SplineAddress(), f32::MAX)
         }
     }
 
     pub fn get_address_by_distance(self, distance:&f32) ->SplineAddress{
         let vertexCount =self.spline().get_vertex_count();
-        return vertexCount > 1
-            ? GetAddressByDistanceInternal(*this, 0, GetLastVertexDefault(m_closed, vertexCount), distance)
-            : SplineAddress();
+        if vertexCount > 1{
+            GetAddressByDistanceInternal(*this, 0, GetLastVertexDefault(m_closed, vertexCount), distance)
+        }else {
+            SplineAddress()
+        }
     }
 
     pub fn get_address_by_fraction(self,fraction:f32)->SplineAddress{
         let vertexCount =self.spline().get_vertex_count();
-        return vertexCount > 1
-            ? GetAddressByFractionInternal(*this, 0, GetLastVertexDefault(m_closed, vertexCount), fraction)
-            : SplineAddress();
+        if vertexCount > 1{
+            GetAddressByFractionInternal(*this, 0, GetLastVertexDefault(m_closed, vertexCount), fraction)
+        }else {
+            SplineAddress()
+        }
     }
 
     pub fn get_position(self,splineAddress:&SplineAddress)->Vector3{
-        const size_t segmentCount = GetSegmentCount();
+        let segmentCount =self._v.get_segment_count();
         if (segmentCount == 0)
         {
             return Vector3::CreateZero();
         }
 
-        const size_t index = splineAddress.m_segmentIndex;
-        const bool outOfBoundsIndex = index >= segmentCount;
-        if (!m_closed && outOfBoundsIndex)
+        let index = splineAddress._segment_index;
+        let outOfBoundsIndex = index >= segmentCount;
+        if (!self._v._closed && outOfBoundsIndex)
         {
-            Vector3 lastVertex;
-            if (m_vertexContainer.GetLastVertex(lastVertex))
+            let mut lastVertex = Vector3::new();
+            if (self._v._vertex_container.get_last_vertex(lastVertex.borrow_mut()))
             {
                 return lastVertex;
             }
 
-            return Vector3::CreateZero();
+            return Vector3::create_zero();
         }
 
-        // ensure the index is clamped within a safe range (cannot go past the last vertex)
-        const size_t safeIndex = GetMin(index, segmentCount - 1);
-        const size_t nextIndex = (safeIndex + 1) % GetVertexCount();
+        let safeIndex = GetMin(index, segmentCount - 1);
+        let nextIndex = (safeIndex + 1) % GetVertexCount();
         // if the index was out of bounds, ensure the segment fraction
         // is 1 to return the very end of the spline loop
-        const float segmentFraction = outOfBoundsIndex ? 1.0f : splineAddress.m_segmentFraction;
+        let segmentFraction = outOfBoundsIndex ? 1.0f : splineAddress.m_segmentFraction;
         return GetVertex(safeIndex).Lerp(GetVertex(nextIndex), segmentFraction);
     }
 
@@ -517,18 +519,17 @@ pub  fn GetNearestAddressInternal<CalculateDistanceFunc,  IntermediateResult,  Q
     let mut queryResult = QueryResult::new();
     for currentVertex in begin .. end
     {
-        let segmentStepBegin = spline.get_position(SplineAddress::new(currentVertex as u64, 0.0).borrow());
+        let mut segmentStepBegin = spline.get_position(SplineAddress::new(currentVertex as u64, 0.0).borrow());
         for granularStep in 1.. granularity
         {
             let segmentStepEnd = spline.get_position(SplineAddress::new(currentVertex as u64, (granularStep / granularity) as f32).borrow());
 
-            let intermediateResult = calcDistfunc(segmentStepBegin, segmentStepEnd);
+            let intermediateResult:IntermediateResult = calcDistfunc(segmentStepBegin, segmentStepEnd);
 
-            if (intermediateResult.CompareLess(minResult))
+            if (intermediateResult.compare_less(minResult))
             {
-                queryResult = intermediateResult.Build(currentVertex, granularStep, static_cast<float>(granularity));
+                queryResult = intermediateResult.Build(currentVertex, granularStep, granularity);
             }
-
             segmentStepBegin = segmentStepEnd;
         }
     }

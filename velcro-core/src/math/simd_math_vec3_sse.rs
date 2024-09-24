@@ -612,8 +612,8 @@ impl VecType for Vec3 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn zero_float() ->FloatType{
-        return sse::zero_float();
+     fn zero_float() ->FloatType{
+        unsafe { return sse::zero_float(); }
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
