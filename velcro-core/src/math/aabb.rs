@@ -224,7 +224,7 @@ impl Aabb {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn add_point(mut self, p: &Vector3) {
+    pub fn add_point(mut self, p: &Vector3) {
         self._min = self._min.get_min(p);
         self._max = self._max.get_max(p);
     }

@@ -2,6 +2,7 @@
 #![allow(clip::many_single_char_names)]
 
 use std::ops::{Mul, MulAssign};
+
 use crate::math::math_utils::constants;
 use crate::math::math_utils::constants::Axis;
 use crate::math::matrix3x3::Matrix3x3;
@@ -70,7 +71,7 @@ impl Transform {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn create_identity() ->Transform{
+    pub fn create_identity() ->Transform{
         Transform{
             _rotation:Quaternion::create_identity(),
             _scale:1.0f32,
@@ -242,7 +243,7 @@ impl Transform {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn transform_point_vec3(self,rhs:&Vector3)->Vector3{
+    pub  fn transform_point_vec3(self,rhs:&Vector3)->Vector3{
         return self._rotation.transform_vector((self._scale * rhs).borrow()) + self._translation
     }
 

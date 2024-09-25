@@ -187,7 +187,7 @@ impl Quaternion {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe  fn new_float_type(value:FloatArgType)->Quaternion{
+    pub  fn new_float_type(value:FloatArgType)->Quaternion{
         Quaternion{
             _value:value.to_owned(),
         }
@@ -690,7 +690,7 @@ impl Quaternion {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn transform_vector(self,v:&Vector3)->Vector3{
+    pub  fn transform_vector(self,v:&Vector3)->Vector3{
         return  Vector3::new_float_type(Vec4::quaternion_transform(self._value,v.get_simd_value()));
     }
 
@@ -886,7 +886,7 @@ impl Quaternion {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe  fn create_identity() -> Quaternion {
+    pub  fn create_identity() -> Quaternion {
         return Quaternion::new_float_type(Vec4::load_immediate(0.0,0.0,0.0,1.0));
     }
 

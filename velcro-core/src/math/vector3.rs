@@ -257,7 +257,7 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  get_simd_value(&self)->FloatType{
+    pub  fn  get_simd_value(&self)->FloatType{
         self._value
     }
 
@@ -627,7 +627,7 @@ impl Vector3 {
 
     #[inline]
     #[allow(dead_code)]
-    pub unsafe fn  get_min(self,v :&Vector3)->Vector3{
+    pub  fn  get_min(self,v :&Vector3)->Vector3{
         return  Vector3::new_float_type(Vec3::min(self.get_simd_value(),v.get_simd_value())) ;
     }
 

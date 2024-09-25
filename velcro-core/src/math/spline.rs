@@ -319,7 +319,7 @@ impl LinearSpline{
         return GetVertex(safeIndex).Lerp(GetVertex(nextIndex), segmentFraction);
     }
 
-    pub fn GetNormal(self,splineAddress:&SplineAddress)->Vector3{
+    pub fn get_normal(self, splineAddress:&SplineAddress) ->Vector3{
         const size_t segmentCount = GetSegmentCount();
         if (segmentCount == 0)
         {
@@ -330,7 +330,7 @@ impl LinearSpline{
         return GetTangent(SplineAddress(index)).ZAxisCross().GetNormalizedSafe(s_splineEpsilon);
     }
 
-    pub fn GetTangent(self,splineAddress:&SplineAddress)->Vector3{
+    pub fn get_tangent(self, splineAddress:&SplineAddress) ->Vector3{
         const size_t segmentCount = GetSegmentCount();
         if (segmentCount == 0)
         {
@@ -342,31 +342,49 @@ impl LinearSpline{
         return (GetVertex(nextIndex) - GetVertex(index)).GetNormalizedSafe(s_splineEpsilon);
     }
 
-    pub fn GetLength(self,splineAddress:&SplineAddress)->f32{
+    pub fn get_length(self, splineAddress:&SplineAddress) ->f32{
         return GetVertexCount() > 1
             ? GetSplineLengthAtAddressInternal(*this, 0, splineAddress)
         : 0.0f;
     }
 
-    pub fn GetSplineLength(self)->f32{
+    pub fn get_spline_length(self) ->f32{
         const size_t vertexCount = GetVertexCount();
         return vertexCount > 1
             ? GetSplineLengthInternal(*this, 0, GetLastVertexDefault(m_closed, vertexCount))
         : 0.0f;
     }
 
-float GetSegmentLength(size_t index) const override;
-size_t GetSegmentCount() const override;
-void GetAabb(Aabb& aabb, const Transform& transform = Transform::CreateIdentity()) const override;
+    pub fn get_segment_length(self, index:usize) ->f32{
+        if (index >= GetSegmentCount())
+        {
+            return 0.0;
+        }
 
-LinearSpline& operator=(const LinearSpline& spline) = default;
-LinearSpline& operator=(const Spline& spline);
+        const size_t nextIndex = (index + 1) % GetVertexCount();
+        return (GetVertex(nextIndex) - GetVertex(index)).GetLength();
+    }
 
-static void Reflect(SerializeContext& context);
+    pub fn get_segment_count(self) ->usize{
+        return GetSegmentCountInternal(*this);
+    }
 
-protected:
+    pub fn get_aabb_default(self,mut aabb:&Aabb){
+        self.get_aabb(aabb,Transform::create_identity().borrow())
+    }
 
-u16 GetSegmentGranularity() const override { return 1; }
+    pub fn get_aabb(self,mut aabb:&Aabb,transform:&Transform){
+        aabb.SetNull();
+        for vertex in self._v._vertex_container.get_vertices()
+        {
+            aabb.add_point(transform.transform_point_vec3(vertex).borrow());
+        }
+    }
+
+    pub fn get_segment_granularity() ->u16{
+        1
+    }
+
 }
 
 pub struct BezierSpline{

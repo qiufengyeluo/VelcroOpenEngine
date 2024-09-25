@@ -281,8 +281,8 @@ impl VecType for Vec3 {
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
     #[inline]
     #[allow(dead_code)]
-    unsafe fn min(arg1:FloatArgType,arg2:FloatArgType) ->FloatType{
-        return sse::min(arg1.to_owned(),arg2.to_owned());
+     fn min(arg1:FloatArgType,arg2:FloatArgType) ->FloatType{
+        unsafe { return sse::min(arg1.to_owned(), arg2.to_owned()); }
     }
 
     #[cfg(any(target_arch = "x86_64", target_arch="x86"))]
