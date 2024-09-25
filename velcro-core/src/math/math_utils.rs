@@ -150,6 +150,23 @@ pub mod constants {
         fi.u |= 0x3f800000; // 1
         return fi.f;
     }
+
+
+    pub fn IsCloseMag<T>(x:T,y:T,epsilonValue:T)->bool{
+        return (x - y) (AZStd::abs(x - y) <= epsilonValue * GetMax<T>(GetMax<T>(T(1.0), AZStd::abs(x)), AZStd::abs(y)));
+    }
+    template<typename T>
+    AZ_MATH_INLINE bool IsCloseMag(T x, T y, T epsilonValue = AZStd::numeric_limits<T>::epsilon())
+    {
+    return (AZStd::abs(x - y) <= epsilonValue * GetMax<T>(GetMax<T>(T(1.0), AZStd::abs(x)), AZStd::abs(y)));
+    }
+
+    //! ClampIfCloseMag(x, y, epsilon) returns y when x and y are within epsilon of each other (taking magnitude into account).  Otherwise returns x.
+    template<typename T>
+    AZ_MATH_INLINE T ClampIfCloseMag(T x, T y, T epsilonValue = AZStd::numeric_limits<T>::epsilon())
+    {
+    return IsCloseMag<T>(x, y, epsilonValue) ? y : x;
+    }
 }
 
 

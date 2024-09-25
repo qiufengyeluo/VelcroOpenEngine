@@ -1,6 +1,7 @@
 #![warn(clip::pedantic)]
 #![allow(clip::many_single_char_names)]
 
+use std::f32;
 use std::ptr::null;
 
 use crate::math::aabb::Aabb;
@@ -11,12 +12,12 @@ use crate::math::VertexContainer::VertexContainer;
 
 #[derive(Debug, Copy, Clone)]
 pub struct SplineAddress{
-    _segment_index:u64,
-    _segment_fraction:f32,
+    _segmentIndex:u64,
+    _segmentFraction:f32,
 }
 impl PartialEq<Self> for SplineAddress {
     fn eq(&self, other: &Self) -> bool {
-        unsafe {  return (self._segment_index == other._segment_index) && is_close_f32(self._segment_fraction, other._segment_fraction, SplineAddress::S_SEGMENT_FRACTION_EPSILON); }
+        unsafe {  return (self._segmentIndex == other._segmentIndex) && is_close_f32(self._segmentFraction, other._segmentFraction, SplineAddress::S_SEGMENT_FRACTION_EPSILON); }
     }
     fn ne(&self, other: &Self) -> bool {
         unsafe { return !(self == other); }
@@ -26,14 +27,14 @@ impl SplineAddress{
     const S_SEGMENT_FRACTION_EPSILON: f32 = 0.0;
     pub fn new_index(segment_index:u64) ->SplineAddress{
         SplineAddress{
-            _segment_index: segment_index,
-            _segment_fraction:0.0,
+            _segmentIndex: segment_index,
+            _segmentFraction:0.0,
         }
     }
     pub fn new(segment_index:u64, segment_fraction:f32) ->SplineAddress{
         SplineAddress{
-            _segment_index: segment_index,
-            _segment_fraction: segment_fraction,
+            _segmentIndex: segment_index,
+            _segmentFraction: segment_fraction,
         }
     }
 }
@@ -255,7 +256,7 @@ impl LinearSpline{
     pub fn get_nearest_address_ray(self, localRaySrc:&Vector3,localRayDir:&Vector3)->RaySplineQueryResult{
         let vertexCount =self.spline().get_vertex_count();
         if vertexCount > 1{
-            GetNearestAddressInternal<RayQuery, RayIntermediateQueryResult, RaySplineQueryResult, RayMinResult>(
+            GetNearestAddressInternal::<{RayQuery, RayIntermediateQueryResult, RaySplineQueryResult, RayMinResult}>(
                 *this, 0, GetLastVertexDefault(m_closed, vertexCount), GetSegmentGranularity(), RayQuery(localRaySrc, localRayDir))
         }else {
             RaySplineQueryResult::new(SplineAddress(), f32::MAX , f32::MAX)
@@ -386,27 +387,118 @@ impl LinearSpline{
     }
 
 }
-
-pub struct BezierSpline{
-
+pub struct BezierData
+{
+    _back:Vector3,
+    _forward:Vector3,
+    _angle:f32,
 }
-impl BezierSpline:Spline{
+impl BezierData{
 
-BezierSpline()
-: Spline() {}
-explicit BezierSpline(const BezierSpline& spline)
-: Spline(spline)
-, m_bezierData(spline.m_bezierData.begin(), spline.m_bezierData.end())
-, m_granularity(spline.m_granularity) {}
-explicit BezierSpline(const Spline& spline);
-~BezierSpline() override {}
+    pub fn new()->BezierData{
+        BezierData{
+            _back:Vector3::new(),
+            _forward:Vector3::new(),
+            _angle:0.0
+        }
+    }
+}
+pub struct BezierSpline{
+    _v:Spline,
+    _bezierData:Vec<BezierData>,
+    _granularity:u16,
+}
+impl BezierSpline{
 
-RaySplineQueryResult GetNearestAddressRay(const Vector3& localRaySrc, const Vector3& localRayDir) const override;
-PositionSplineQueryResult GetNearestAddressPosition(const Vector3& localPos) const override;
-SplineAddress GetAddressByDistance(float distance) const override;
-SplineAddress GetAddressByFraction(float fraction) const override;
+    pub fn new()->BezierSpline{
+        BezierSpline{
+            _v:Spline::new(),
+            _bezierData:Vec::new(),
+            _granularity:8,
+        }
+    }
 
-Vector3 GetPosition(const SplineAddress& splineAddress) const override;
+    pub fn GetNearestAddressRay(self, localRaySrc:&Vector3,localRayDir:&Vector3)->RaySplineQueryResult{
+        let vertexCount =self._v.get_vertex_count();
+        if vertexCount > 1{
+            GetNearestAddressInternal<RayQuery, RayIntermediateQueryResult, RaySplineQueryResult, RayMinResult>(
+                *this, 0, GetLastVertexDefault(m_closed, vertexCount), GetSegmentGranularity(), RayQuery(localRaySrc, localRayDir))
+        }else {
+            RaySplineQueryResult::new(SplineAddress(), f32::MAX , f32::MAX)
+        }
+    }
+
+    pub fn GetNearestAddressPosition(self,localPos:&Vector3)->PositionSplineQueryResult{
+        let vertexCount =self._v.get_vertex_count();
+        if vertexCount > 1{
+            GetNearestAddressInternal<PosQuery, PosIntermediateQueryResult, PositionSplineQueryResult, PosMinResult>(
+                *this, 0, GetLastVertexDefault(m_closed, vertexCount), GetSegmentGranularity(), PosQuery(localPos))
+        }else {
+            PositionSplineQueryResult::new(SplineAddress(),  f32::MAX)
+        }
+    }
+
+    pub fn GetAddressByDistance(self,distance:f32)->SplineAddress{
+        let vertexCount =self._v.get_vertex_count();
+        if vertexCount > 1{
+            GetAddressByDistanceInternal(*this, 0, GetLastVertexDefault(m_closed, vertexCount), distance)
+        }else {
+            SplineAddress()
+        }
+    }
+
+    pub fn GetAddressByFraction(self,fraction:f32)->SplineAddress{
+        let vertexCount =self._v.get_vertex_count();
+        if vertexCount > 1{
+            GetAddressByFractionInternal(*this, 0, GetLastVertexDefault(m_closed, vertexCount), fraction)
+        }else {
+            SplineAddress()
+        }
+    }
+
+    pub fn GetPosition(self,splineAddress:&SplineAddress)->Vector3{
+    let segmentCount = self.GetSegmentCount();
+    if (segmentCount == 0)
+    {
+        return Vector3::create_zero();
+    }
+
+        let index = splineAddress._segmentIndex;
+    const bool outOfBoundsIndex = index >= segmentCount;
+    if (!m_closed && outOfBoundsIndex)
+    {
+    Vector3 lastVertex;
+    if (m_vertexContainer.GetLastVertex(lastVertex))
+    {
+    return lastVertex;
+    }
+
+    return Vector3::CreateZero();
+    }
+
+    // ensure the index is clamped within a safe range (cannot go past the last vertex)
+    const size_t safeIndex = GetMin(index, segmentCount - 1);
+    const size_t nextIndex = (safeIndex + 1) % GetVertexCount();
+
+    // if the index was out of bounds, ensure the segment fraction
+    // is 1 to return the very end of the spline loop
+    const float t = outOfBoundsIndex ? 1.0f : splineAddress.m_segmentFraction;
+    const float invt = 1.0f - t;
+    const float invtSq = invt * invt;
+    const float tSq = t * t;
+
+    const Vector3& p0 = GetVertex(safeIndex);
+    const Vector3& p1 = m_bezierData[safeIndex].m_forward;
+    const Vector3& p2 = m_bezierData[nextIndex].m_back;
+    const Vector3& p3 = GetVertex(nextIndex);
+
+    // B(t) from https://en.wikipedia.org/wiki/B%C3%A9zier_curve#Cubic_B.C3.A9zier_curves
+    return (p0 * invtSq * invt) +
+    (p1 * 3.0f * t * invtSq) +
+    (p2 * 3.0f * tSq * invt) +
+    (p3 * tSq * t);
+}
+
 Vector3 GetNormal(const SplineAddress& splineAddress) const override;
 Vector3 GetTangent(const SplineAddress& splineAddress) const override;
 float GetLength(const SplineAddress& splineAddress) const override;
@@ -424,17 +516,7 @@ static void Reflect(SerializeContext& context);
 /**
  * Internal Bezier spline data
  */
-struct BezierData
-{
-    AZ_TYPE_INFO(BezierData, "{6C34069E-AEA2-44A2-877F-BED9CE07DA6B}")
-    AZ_CLASS_ALLOCATOR_DECL
 
-    static void Reflect(SerializeContext& context);
-
-    Vector3 m_back; ///< Control point before Vertex.
-Vector3 m_forward; ///< Control point after Vertex.
-float m_angle = 0.0f;
-};
 
 /**
  * Return immutable bezier data for each vertex
@@ -462,8 +544,7 @@ void CalculateBezierAngles(size_t startIndex, size_t range, size_t iterations);
  * Create bezier data for a given index
  */
 void AddBezierDataForIndex(size_t index);
-AZStd::vector<BezierData> m_bezierData; ///< Bezier data to control spline interpolation.
-u16 m_granularity = 8; ///< The granularity (tessellation) of each segment in the spline.
+
 }
 
 pub struct CatmullRomSpline{
@@ -532,7 +613,199 @@ pub unsafe  fn intersect_spline(world_from_local:&Transform, src:&Vector3, dir:&
     return spline.GetNearestAddressRay(local_ray_origin, local_ray_direction);
 }
 
-pub  fn GetNearestAddressInternal<CalculateDistanceFunc,  IntermediateResult,  QueryResult,  MinResult>(spline:impl SplineType, begin:usize, end:usize, granularity:usize, calcDistfunc:CalculateDistanceFunc ){
+pub struct IntermediateQueryResult{
+    _distanceSq:f32,
+    _stepProportion:f32
+}
+impl IntermediateQueryResult{
+
+    pub fn new(distance_sq:f32, step_proportion:f32) ->IntermediateQueryResult{
+        IntermediateQueryResult{
+            _distanceSq: distance_sq,
+            _stepProportion: step_proportion
+        }
+    }
+}
+
+
+pub struct PosMinResult
+{
+    _minDistanceSq:f32
+}
+
+impl PosMinResult{
+    pub fn new()->PosMinResult{
+        PosMinResult{
+            _minDistanceSq:f32::MAX
+        }
+    }
+}
+
+
+pub struct RayMinResult
+{
+    _minDistanceSq:f32,
+    _rayDistance:f32,
+}
+impl RayMinResult{
+    pub fn new()->RayMinResult{
+        RayMinResult{
+            _minDistanceSq:f32::MAX,
+            _rayDistance:f32::MAX
+        }
+    }
+}
+
+pub struct RayIntermediateQueryResult
+{
+    _distanceSq:f32,
+    _stepProportion:f32,
+    _rayDistance:f32
+
+}
+
+impl RayIntermediateQueryResult{
+
+    pub fn new(distanceSq:f32,stepProportion:f32,rayClosestDistance:f32)->RayIntermediateQueryResult{
+        RayIntermediateQueryResult{
+            _rayDistance:rayClosestDistance,
+            _stepProportion:stepProportion,
+            _distanceSq:distanceSq
+        }
+    }
+
+    pub fn Build(self,currentVertex:usize,step:usize,granularity:f32)->RaySplineQueryResult{
+        return RaySplineQueryResult::new(
+            CalculateSplineAdddress::new(currentVertex, step, granularity, self._stepProportion),
+            self._distanceSq,
+            self._rayDistance);
+    }
+
+    pub fn CompareLess(self,mut rayMinResult:&RayMinResult)->bool{
+        let delta = self._distanceSq - rayMinResult._minDistanceSq;
+        let zero =  AZ::IsCloseMag(delta, 0.0, 0.0001);
+        let lessThan = self._distanceSq < rayMinResult._minDistanceSq;
+
+        if (lessThan || ((zero || lessThan) && self._rayDistance < rayMinResult._rayDistance))
+        {
+            rayMinResult._rayDistance = self._rayDistance;
+            rayMinResult._minDistanceSq = self._distanceSq;
+            return true;
+        }
+
+        return false;
+    }
+    bool CompareLess(RayMinResult& rayMinResult) const
+    {
+    const float delta = m_distanceSq - rayMinResult.m_minDistanceSq;
+    const bool zero = AZ::IsCloseMag(delta, 0.0f, 0.0001f);
+    const bool lessThan = m_distanceSq < rayMinResult.m_minDistanceSq;
+
+    if (lessThan || ((zero || lessThan) && m_rayDistance < rayMinResult.m_rayDistance))
+    {
+    rayMinResult.m_rayDistance = m_rayDistance;
+    rayMinResult.m_minDistanceSq = m_distanceSq;
+    return true;
+    }
+
+    return false;
+}
+}
+/**
+ * Functor to wrap ray query against a line segment - used in conjunction with GetNearestAddressInternal.
+ */
+struct RayQuery
+{
+    explicit RayQuery(const Vector3& localRaySrc, const Vector3& localRayDir)
+    : m_localRaySrc(localRaySrc)
+    , m_localRayDir(localRayDir) {}
+
+    /**
+     * Using the ray src/origin and direction, calculate the closest point on a step (line segment)
+     * between stepBegin and stepEnd. Return an intermediate result object with the shortest distance
+     * between the ray and the step, the proportion along the step and the distance along the
+     * ray the closest point to the spline is.
+     */
+    RayIntermediateQueryResult operator()(const Vector3& stepBegin, const Vector3& stepEnd) const
+    {
+    const Vector3 localRayEnd = m_localRaySrc + m_localRayDir * s_projectRayLength;
+    Vector3 closestPosRay, closestPosSegmentStep;
+    float rayProportion, segmentStepProportion;
+    Intersect::ClosestSegmentSegment(
+    m_localRaySrc, localRayEnd, stepBegin, stepEnd,
+    rayProportion, segmentStepProportion, closestPosRay, closestPosSegmentStep);
+    return RayIntermediateQueryResult(
+    (closestPosRay - closestPosSegmentStep).GetLengthSq(),
+    segmentStepProportion,
+    rayProportion * s_projectRayLength);
+    }
+
+    Vector3 m_localRaySrc;
+    Vector3 m_localRayDir;
+};
+
+/**
+ * Intermediate result of position spline query - used to store initial result of query
+ * before being combined with current state of spline query to build a spline address.
+ * (use if we know distanceSq is less than current best known minDistanceSq)
+ */
+struct PosIntermediateQueryResult : IntermediateQueryResult
+{
+    PosIntermediateQueryResult(float distanceSq, float stepProportion)
+    : IntermediateQueryResult(distanceSq, stepProportion) {}
+
+    /**
+     * Create final spline query result by combining intermediate query results with additional information
+     * about the state of spline to create a spline address.
+     */
+    PositionSplineQueryResult Build(size_t currentVertex, size_t step, float granularity) const
+    {
+    return PositionSplineQueryResult(
+    CalculateSplineAdddress(currentVertex, step, granularity, m_stepProportion),
+    m_distanceSq);
+    }
+
+    /**
+     * Update minimum distance struct bases on current distance from spline.
+     */
+    bool CompareLess(PosMinResult& posMinResult) const
+    {
+    if (m_distanceSq < posMinResult.m_minDistanceSq)
+    {
+    posMinResult.m_minDistanceSq = m_distanceSq;
+    return true;
+    }
+
+    return false;
+    }
+};
+
+/**
+ * Functor to wrap position query against a line segment - used in conjunction with GetNearestAddressInternal.
+ */
+struct PosQuery
+{
+    explicit PosQuery(const Vector3& localPos)
+    : m_localPos(localPos) {}
+
+    /**
+     * Using the position, calculate the closest point on a step (line segment)
+     * between stepBegin and stepEnd. Return an intermediate result object with the shortest distance
+     * between the point and the step and the proportion along the step.
+     */
+    PosIntermediateQueryResult operator()(const Vector3& stepBegin, const Vector3& stepEnd) const
+    {
+    Vector3 closestPosSegmentStep;
+    float segmentStepProportion;
+    Intersect::ClosestPointSegment(m_localPos, stepBegin, stepEnd, segmentStepProportion, closestPosSegmentStep);
+    return PosIntermediateQueryResult((m_localPos - closestPosSegmentStep).GetLengthSq(), segmentStepProportion);
+    }
+
+    Vector3 m_localPos;
+};
+
+type CalculateDistanceFunc = fn(&Vector3,&Vector3)-> RayIntermediateQueryResult;
+pub  fn GetNearestAddressInternal(spline:&(impl SplineType), begin:usize, end:usize, granularity:usize, calcDistfunc:CalculateDistanceFunc ){
     let mut minResult = MinResult::new();
     let mut queryResult = QueryResult::new();
     for currentVertex in begin .. end
