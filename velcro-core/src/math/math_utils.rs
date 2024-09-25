@@ -4,6 +4,7 @@
 use num_traits::Float;
 
 pub mod constants {
+    use crate::math::math_utils::constants;
     use crate::math::simd_math::simd;
 
     pub const FLT_MAX:f32 = 3.402823466e+38;
@@ -151,9 +152,11 @@ pub mod constants {
         return fi.f;
     }
 
-
+    pub fn IsCloseMagDefault<T>(x:T,y:T)->bool{
+        return constants::IsCloseMag(x,y,T::EPSILON)
+    }
     pub fn IsCloseMag<T>(x:T,y:T,epsilonValue:T)->bool{
-        return (x - y) (AZStd::abs(x - y) <= epsilonValue * GetMax<T>(GetMax<T>(T(1.0), AZStd::abs(x)), AZStd::abs(y)));
+        return (x - y).abs() <= epsilonValue*  (AZStd::abs(x - y) <= epsilonValue * GetMax<T>(GetMax<T>(T(1.0), AZStd::abs(x)), AZStd::abs(y)));
     }
     template<typename T>
     AZ_MATH_INLINE bool IsCloseMag(T x, T y, T epsilonValue = AZStd::numeric_limits<T>::epsilon())
